@@ -3,6 +3,7 @@ import type { Context, ErrorHandler, NotFoundHandler } from "hono"
 import { HTTPException } from "hono/http-exception"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import type { z } from "zod"
+import { logMiss } from "./misses/log"
 
 // How every route fails, in the one shape the site, scripts and agents all
 // read (utilities/schemas/failures.ts): `{ error: { reason, message } }`,
@@ -65,9 +66,15 @@ export function validated<
     })
 }
 
-/** A path under /api that no route answers. */
-export const answerNotFound: NotFoundHandler = (context) =>
-    failure(context, 404, "not-found", "No route answers this path")
+/**
+ * A path under /api that no route answers, logged (misses/log.ts): the API
+ * says so itself, since its routes answer 404 too, for what isn't there,
+ * which isn't a miss.
+ */
+export const answerNotFound: NotFoundHandler = (context) => {
+    logMiss(context.req.raw, 404)
+    return failure(context, 404, "not-found", "No route answers this path")
+}
 
 /**
  * A route that threw: a bug, or something it was never meant to handle,

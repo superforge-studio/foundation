@@ -17,6 +17,12 @@ Everything runs in one Node server on Railway (`source/node.ts`).
 | Every page | TanStack Start                   | Prerendered at build, served as static files |
 | Not a page | TanStack Start                   | On request: the not-found page               |
 
+A page is only ever fetched: anything but a `GET` or a `HEAD` sent where a
+page would be, like a webhook given the site's address, is refused with a
+405 before it reaches Start, which would draw the page and answer 200.
+Every request nothing answers, and every one that fails, is logged
+(`source/backend/misses/`; "Logging", below).
+
 Static files, the prerendered pages among them, are served **before**
 `source/server.ts` runs. A page never reaches it, so don't put
 request-time logic (auth, redirects, headers) in front of one and expect it
@@ -813,6 +819,29 @@ or the Railway MCP server). Two rules regardless of where logs go:
   beside it: `console.error("Feed fetch failed", { url, error })`. An
   interpolated message can't be grepped back to its call site and splits one
   failure into many signatures.
+
+**What's trying to reach the app and can't is in the logs**, so look there
+first when a webhook "never arrives", a link is said to be broken, or a
+page fails for someone (`source/backend/misses/`). Each is one line, its
+facts as JSON beside the message: method, host, path, user agent,
+referrer, body type and size, and the names of any signature headers,
+never a query string or a header's value.
+
+- **`A request missed that looks meant for the app`**, a warning: nothing
+  answers it, and it carries a webhook's signature header, sends JSON, is
+  under `/api`, or came from one of the site's own pages (its `because`).
+  The fix is the address the sender has, or the route.
+- **`A request missed`**, information: nothing answers it, and nothing
+  says it's meant for the app, like an old link from another site.
+- **`A request failed`**, an error: answered 500 or more. What went wrong
+  is logged just before it, where it happened.
+
+What scanners try on every site (`.php`, `/wp-*`, `/.env`, `/.git`) is
+never logged, unless it's signed like a webhook (`misses/sort.ts`).
+`railway logs --lines 1000 --filter "A request missed"` lists the latest
+misses, and `--filter "looks meant for the app"` the ones that matter.
+Railway's own record of every request, with its status but none of what
+says who sent it, is `railway logs --http --filter "@httpStatus:404"`.
 
 ### File naming and structure
 

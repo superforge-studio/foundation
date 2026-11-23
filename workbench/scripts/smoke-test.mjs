@@ -10,7 +10,8 @@
 //   3. /api/health, which Railway's healthcheck waits on, answers 200
 //   4. every prerendered page answers 200, the build's hashed files, /api
 //      and the dashboard, drawn on request, answer with the cache headers
-//      source/node.ts promises, and a path that isn't a page answers 404
+//      source/node.ts promises, a path that isn't a page answers 404, and
+//      a POST to a page 405
 //   5. its workflows launched: DBOS registers the app's queues in its own
 //      tables once it has (source/backend/workflows/engine.ts)
 //   6. with no INFRA_SECRET_KEY, sign-in answers 503, never the stand-in a
@@ -91,6 +92,9 @@ try {
     // browser to fill in, and never kept by the CDN
     await expectAnswer(base, "/dashboard/workflows", 200, "no-store")
     await expectAnswer(base, "/no-page-here", 404, "no-store")
+    // A page sent a POST, like a webhook given the site's address, is
+    // refused, not drawn and answered 200 (source/server.ts)
+    await expectPostRefused(base, "/")
 
     // 5. The workflows, which launch once the server is listening
     await waitForWorkflows()
@@ -213,6 +217,19 @@ async function expectSignInDown(base) {
         )
     } else {
         console.info("  ✓ POST /api/auth/start 503, with no secret key")
+    }
+}
+
+async function expectPostRefused(base, path) {
+    const response = await fetch(`${base}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+    })
+    if (response.status !== 405) {
+        problems.push(`POST ${path} answered ${response.status}, not 405`)
+    } else {
+        console.info(`  ✓ POST ${path} 405`)
     }
 }
 
