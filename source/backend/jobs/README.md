@@ -29,8 +29,9 @@ shows on the admin's Workflows screen, and at
 ## Writing one
 
 A feature defines its jobs in its own `jobs.ts` with `defineJob`
-(`define.ts`), and lists them in `index.ts`'s `JOBS`, which also registers
-each one's workflow (`backend/workflows/index.ts`):
+(`define.ts`), and lists them in `app.ts`'s `APP_JOBS`, this app's own,
+which `index.ts`'s `JOBS` takes after the template's, and which also
+registers each one's workflow (`backend/workflows/index.ts`):
 
 - **`name`**, in the route: never rename one that has shipped, since its
   runs are recorded under it (its workflow is `job-<name>`).

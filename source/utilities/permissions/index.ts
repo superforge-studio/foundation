@@ -7,21 +7,31 @@
 //
 // An area is what a person would grant, roughly a screen of the dashboard,
 // never a table: one action writes many tables, and a table renamed mustn't
-// change who may do what. A business adds its own areas as its app grows,
-// like `orders`, to AREA_NAMES and AREAS, and gives each route its area.
+// change who may do what. The template's areas are below; a business adds
+// its own as its app grows, like `orders`, in ./app.ts, beside this file,
+// and gives each route its area.
+import { APP_AREAS } from "./app"
 
-/** Every area of the app. A route names one: `permitted("workflows")`. */
-export const AREA_NAMES = ["team", "workflows", "jobs", "files"] as const
-
-export type Area = (typeof AREA_NAMES)[number]
-
-/** What each area covers, as the dashboard says it */
-export const AREAS: Readonly<Record<Area, string>> = {
+// The template's own areas, each with what it covers
+const FOUNDATION_AREAS = {
     team: "The team, as access.ts lists them",
     workflows: "Workflows and their runs",
     jobs: "Jobs, which change many rows at once",
     files: "Your files, and the folders the app keeps in the bucket"
-}
+} as const
+
+/**
+ * What each area covers, as the dashboard says it: the template's, then
+ * this app's own (./app.ts).
+ */
+export const AREAS = { ...FOUNDATION_AREAS, ...APP_AREAS }
+
+/** An area of the app. A route names one: `permitted("workflows")`. */
+export type Area = keyof typeof AREAS
+
+/** Every area of the app, the template's first. */
+// Object.keys can only say its keys are strings, but they're AREAS's own
+export const AREA_NAMES = Object.keys(AREAS) as Area[]
 
 /**
  * How much someone may do in an area: `none`, nothing of it; `read`, see

@@ -9,24 +9,31 @@ import { FailedRequest, readFailure } from "./failures"
 // (backend/auth/routes.ts): Infra emails a six-digit code and a link, and
 // the API keeps the session in a cookie the page never sees.
 
-/** Who's logged in, as the API answers them: one of the team. */
-export type SessionUser = NonNullable<
-    InferResponseType<typeof client.api.auth.session.$get, 200>["user"]
+/**
+ * What the API answers when asked who's logged in: one of the team, with
+ * what they may do in each area of the app, or null for each, and
+ * whatever else the app says of whoever else logs in
+ * (backend/auth/others.ts).
+ */
+export type SessionAnswer = InferResponseType<
+    typeof client.api.auth.session.$get,
+    200
 >
 
-/** Who's logged in, and what they may do in each area of the app. */
-type LoggedIn = { user: SessionUser; permissions: Permissions }
+/** Who's logged in, as the API answers them: one of the team. */
+export type SessionUser = NonNullable<SessionAnswer["user"]>
 
-/** Who's logged in, or null for a visitor: GET /api/auth/session. */
+/**
+ * Who's logged in: GET /api/auth/session, as it answered, or null once
+ * this browser has logged out. `useSession()` reads the team member from
+ * it, and whatever else the app answers there is read from it too.
+ */
 export const sessionQuery = queryOptions({
     queryKey: ["session"],
-    queryFn: async (): Promise<LoggedIn | null> => {
+    queryFn: async (): Promise<SessionAnswer | null> => {
         const response = await client.api.auth.session.$get()
         if (response.ok) {
-            const { user, permissions } = await response.json()
-            return user === null || permissions === null
-                ? null
-                : { user, permissions }
+            return await response.json()
         } else {
             throw new FailedRequest(await readFailure(response))
         }
@@ -39,15 +46,21 @@ export type Session =
     | { status: "logged-in"; user: SessionUser; permissions: Permissions }
 
 /**
- * Who's logged in, for any component. A prerendered page is drawn for a
- * visitor, so it's "loading" until the browser asks: treat that like a
- * visitor, and hide only what would jump.
+ * Which of the team is logged in, for any component. A prerendered page is
+ * drawn for a visitor, so it's "loading" until the browser asks: treat
+ * that like a visitor, and hide only what would jump. Anyone who isn't one
+ * of the team is "logged-out" here.
  */
 export function useSession(): Session {
     const session = useQuery(sessionQuery)
     if (session.isPending) {
         return { status: "loading" }
-    } else if (session.isError || session.data === null) {
+    } else if (
+        session.isError ||
+        session.data === null ||
+        session.data.user === null ||
+        session.data.permissions === null
+    ) {
         return { status: "logged-out" }
     } else {
         return {
@@ -81,10 +94,19 @@ export const startLogin = mutationOptions({
     }
 })
 
+/**
+ * Whoever a login logged in, as the API answers them: one of the team, or
+ * whoever else the app lets in (backend/auth/others.ts).
+ */
+export type Verified = InferResponseType<
+    typeof client.api.auth.verify.$post,
+    200
+>
+
 /** Logging in with the code from the email, or its link's token. */
 export const verifyLogin = mutationOptions({
     mutationKey: ["auth", "verify"],
-    mutationFn: async (input: LoginProof): Promise<LoggedIn> => {
+    mutationFn: async (input: LoginProof): Promise<Verified> => {
         const response = await client.api.auth.verify.$post({ json: input })
         if (response.status === 200) {
             return await response.json()
@@ -92,11 +114,13 @@ export const verifyLogin = mutationOptions({
             throw new FailedRequest(await readFailure(response))
         }
     },
-    onSuccess: async (logged_in, _input, _result, context) => {
+    onSuccess: async (_verified, _input, _result, context) => {
         // A session fetched before this login, and answered after it,
-        // would put the visitor back
+        // would put the visitor back; and who's logged in is asked again,
+        // rather than worked out here, since the app may say more of them
+        // than this answer does
         await context.client.cancelQueries({ queryKey: sessionQuery.queryKey })
-        context.client.setQueryData(sessionQuery.queryKey, logged_in)
+        await context.client.refetchQueries({ queryKey: sessionQuery.queryKey })
     }
 })
 

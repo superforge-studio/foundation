@@ -18,10 +18,12 @@ export type VisitorSalt = z.infer<typeof visitor_salt>
  * file is filed under a key its kind checks, at the path its kind makes,
  * holding what its kind says (./kind.ts).
  *
- * A kind is a getter here, named for its folder, and listed in `kinds`.
- * The template's are `files`, Your files, the team's own, and
- * `visitor_salt`, a single file of the server's own; a kind of the
- * business's, with a file for each of something, starts like this:
+ * A kind is a getter, named for its folder, and listed in `kinds`. The
+ * template's are here: `files`, Your files, the team's own, and
+ * `visitor_salt`, a single file of the server's own. A kind of the
+ * business's goes in ./app.ts, beside this file, on the `Storage` class
+ * every route gets, which adds to these; with a file for each of
+ * something, it starts like this:
  *
  *   get invoices() {
  *       return new Files(this.store, {
@@ -48,16 +50,17 @@ export type VisitorSalt = z.infer<typeof visitor_salt>
  * one customer's is one prefix, and a row in Postgres keeps the key's
  * parts, not the path.
  */
-export class Storage {
-    // Protected, so a test can add kinds of its own in a subclass
+export class FoundationStorage {
+    // Protected, so the app's `Storage` (./app.ts), and a test, can add
+    // kinds of their own in a subclass
     constructor(protected readonly store: ObjectStore) {}
 
     /**
-     * Every kind, each getter here once, in the order a screen of the
-     * bucket's folders lists them, like `[this.files, this.invoices]`. A
-     * getter left out fails its test (./tests/kinds.test.ts), and a folder
-     * in the bucket that no kind here claims is one nothing in the code
-     * writes.
+     * Every kind, each getter once, in the order a screen of the bucket's
+     * folders lists them. A class that adds kinds lists its own after
+     * these, like `[...super.kinds, this.invoices]`. A getter left out
+     * fails its test (./tests/kinds.test.ts), and a folder in the bucket
+     * that no kind claims is one nothing in the code writes.
      */
     get kinds(): Files<unknown, unknown>[] {
         return [this.files, this.visitor_salt]

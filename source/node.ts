@@ -8,7 +8,8 @@ import { stopTracing } from "./tracing.ts"
 /**
  * The Node server Railway runs, `pnpm start` after `pnpm build`. The client
  * build's files come first, every prerendered page among them. Every other
- * request goes to source/server.ts, as Start built it.
+ * request goes to source/server.ts, as Start built it, and so does every
+ * request to a host the app says has no files (source/app.ts).
  *
  * Node runs this file from source, stripping its types, so it imports only
  * packages, the build, and source/tracing.ts, which `pnpm start` has
@@ -19,14 +20,21 @@ import { stopTracing } from "./tracing.ts"
 type ServerEntry = { fetch(request: Request): Promise<Response> }
 
 // A path, not a specifier, so tsc doesn't look for a build that typecheck
-// runs before. Beside Start's entry, the internal users' sync, and the
-// workflows' start and stop (source/server.ts).
+// runs before. Beside Start's entry, the internal users' sync, the
+// workflows' start and stop, and the hosts with no files of their own
+// (source/server.ts).
 const built: {
     default: ServerEntry
     syncAppInternalUsers(): Promise<void>
     startWorkflows(): Promise<void>
     stopWorkflows(): Promise<void>
+    HOSTS_WITHOUT_FILES: readonly string[]
 } = await import(new URL("../output/server/server.js", import.meta.url).href)
+
+// The hosts whose every path the server answers, like a domain kept for
+// short links: never one of the build's files, whatever the path's name
+// (source/app.ts)
+const hosts_without_files = new Set(built.HOSTS_WITHOUT_FILES)
 
 /**
  * The route a request for one of the build's files is traced as
@@ -67,7 +75,34 @@ function cacheControl(request_path: string, file: string) {
     }
 }
 
+/**
+ * Something rendered on request (the API, a 404), kept out of the edge's
+ * cache unless it says otherwise.
+ */
+async function rendered(request: Request) {
+    const response = await built.default.fetch(request)
+    if (!response.headers.has("Cache-Control")) {
+        const headers = new Headers(response.headers)
+        headers.set("Cache-Control", "no-store")
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers
+        })
+    } else {
+        return response
+    }
+}
+
 const app = new Hono()
+    // A host with no files of its own skips them
+    .use(async (context, next) => {
+        if (hosts_without_files.has(new URL(context.req.url).host)) {
+            return await rendered(context.req.raw)
+        } else {
+            await next()
+        }
+    })
     // Relative to where `pnpm start` runs: the repository's root
     .use(
         serveStatic({
@@ -81,22 +116,8 @@ const app = new Hono()
             }
         })
     )
-    // Anything rendered on request (the API, a 404) stays out of the edge's
-    // cache unless it says otherwise
-    .all("*", async (context) => {
-        const response = await built.default.fetch(context.req.raw)
-        if (!response.headers.has("Cache-Control")) {
-            const headers = new Headers(response.headers)
-            headers.set("Cache-Control", "no-store")
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers
-            })
-        } else {
-            return response
-        }
-    })
+    // Anything else is rendered on request
+    .all("*", (context) => rendered(context.req.raw))
 
 const server = serve(
     { fetch: app.fetch, port: Number(process.env.PORT ?? 3000) },

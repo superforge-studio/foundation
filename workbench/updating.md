@@ -72,7 +72,7 @@ the latest before it applies any of them. Each release says:
   (the home page, the theme, an example feature), so an update offers the
   change and keeps the owner's version where they've changed it.
 - **Flags**, when they apply:
-  - **Schema**: `schema.ts` changed. The update applies the change and
+  - **Schema**: the template's tables changed (`schema/foundation.ts`). The update applies the change and
     generates the copy's own migration (`pnpm database:generate`), since
     the template's migration files can't be copied (the update skips
     them). Any SQL written by hand is given here, to go in that migration.
@@ -102,8 +102,8 @@ is one PR's change.
 - **`source/database/migrations/`**: Drizzle runs only the migrations
   timed after a database's newest, and `pnpm database:check` fails one
   that's out of order, so the template's would land among this codebase's
-  own and never run. The release's change comes across in `schema.ts`
-  instead, and this codebase generates its own migration from it (step 4).
+  own and never run. The release's change comes across in the schema's
+  files instead, and this codebase generates its own migration from it (step 4).
 - **`source/frontend/routeTree.gen.ts`**: TanStack Router writes it from
   the routes, so a copy that has pages of its own would only conflict on
   it. `pnpm build` writes it again, with the release's routes and the

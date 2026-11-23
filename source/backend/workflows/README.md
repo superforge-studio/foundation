@@ -27,8 +27,9 @@ export const notifyOwner = defineWorkflow({
 
 Then:
 
-1. **List it in `index.ts`'s `WORKFLOWS`.** DBOS has to know every
-   workflow before it launches, and a workflow left out never runs:
+1. **List it in `app.ts`'s `APP_WORKFLOWS`**, this app's own, which
+   `index.ts`'s `WORKFLOWS` takes after the template's. DBOS has to know
+   every workflow before it launches, and a workflow left out never runs:
    queueing or starting one throws.
 2. **Queue it with the write it's for**, in the write's own transaction:
    `await queueWorkflow(transaction, notifyOwner, input, { id })`
@@ -341,7 +342,8 @@ leaves no run behind for each turn.
 
 **A runner** (`runners.ts`) is what checks: a name, how often, and a
 function its turn runs, handed the process's database, bucket and
-workflows. Listed in `index.ts`'s `RUNNERS`, each runs on its timer while
+workflows. Listed in `index.ts`'s `RUNNERS`, the app's own in `app.ts`'s
+`APP_RUNNERS`, each runs on its timer while
 this process runs the workflows, behind the gate, so one process at a time
 does, and stops before DBOS shuts down. A turn never overlaps the one
 before it, and one that throws is logged and the runner goes on. Its turn

@@ -43,8 +43,11 @@ export async function logInAs(
     if (verified.status !== 200) {
         throw new Error("The test's login didn't verify")
     }
-    const { user } = await verified.json()
-    return { id: user.id, cookie: sessionCookie(verified) }
+    const logged_in = await verified.json()
+    if (!("user" in logged_in)) {
+        throw new Error("The test's login wasn't one of the team's")
+    }
+    return { id: logged_in.user.id, cookie: sessionCookie(verified) }
 }
 
 // A word with its first letter capitalized

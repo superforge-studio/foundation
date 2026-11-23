@@ -10,6 +10,7 @@ import { Storage } from "@/database/storage"
 import { testDatabase } from "@/database/tests/support/database"
 import { memoryStore } from "@/database/tests/support/storage"
 import type { VisitorMode } from "@/utilities/visitors"
+import { appTestVariables } from "./app"
 
 // Who can log in, in a test unless it says otherwise: no one, whatever this
 // app's ACCESS lists, until the test logs someone in (login.ts), each role
@@ -31,7 +32,7 @@ const NOWHERE: Locate = () => null
  * queues, which `queued()` reads), Infra's stand-in, so no test reaches Infra (its logins
  * answer their code, as a test key's do), no one on the team until the
  * test logs someone in, visitors remembered as the template ships (`remember`), none of them
- * placed, and no webhook sources: what a route's test calls, through the typed client
+ * placed, no webhook sources, and this app's own stand-ins (./app.ts): what a route's test calls, through the typed client
  * (`client.api.health.$get()`), or `api.request(path)` for a path no route
  * declares. Anything in `replacing` goes on `context` in place of the
  * test's own. Call it inside a test.
@@ -45,6 +46,7 @@ export async function testApi(
     // lists them, as the code would
     const given = replacing.access ?? NOBODY
     const internal_users: InternalUser[] = [...given.internal_users]
+    const own = appTestVariables(replacing)
     const variables: ApiEnvironment["Variables"] = {
         database: replacing.database ?? (await testDatabase()),
         storage: replacing.storage ?? new Storage(store.store),
@@ -53,7 +55,8 @@ export async function testApi(
         access: { internal_users, roles: given.roles },
         visitor_mode: replacing.visitor_mode ?? REMEMBER,
         locate: replacing.locate ?? NOWHERE,
-        webhook_sources: replacing.webhook_sources ?? []
+        webhook_sources: replacing.webhook_sources ?? [],
+        ...own.variables
     }
     const api = apiWith(() => variables)
     return {
@@ -68,6 +71,8 @@ export async function testApi(
         started: recorded.started,
         retried: recorded.retried,
         runs: recorded.runs,
-        queued: () => queuedRuns(variables.database)
+        queued: () => queuedRuns(variables.database),
+        // What this app's own stand-ins kept, for a test to read
+        ...own.looks
     }
 }

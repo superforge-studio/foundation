@@ -9,6 +9,7 @@ import {
 } from "@/backend/auth/logged-in"
 import type { ApiEnvironment } from "@/backend/context"
 import { testApi } from "@/backend/tests/support/api"
+import { APP_ANYONE, appSaysWhoMayCall } from "@/backend/tests/support/app"
 import { logInAs } from "@/backend/tests/support/login"
 import { api_failure } from "@/utilities/schemas/failures"
 
@@ -16,10 +17,11 @@ import { api_failure } from "@/utilities/schemas/failures"
 // its area of the app (`permitted`, auth/logged-in.ts), is someone's own
 // (`loggedIn`), asks who's logged in without needing anyone
 // (`maybeLoggedIn`), or is one of the few anyone may call, listed here with
-// why. So a route can't be added without saying who may call it. And what
-// a role and a token may do, through routes that name their area.
+// why, the app's own in ./support/app.ts. So a route can't be added without
+// saying who may call it. And what a role and a token may do, through
+// routes that name their area.
 
-/** The routes anyone may call, and why each may. */
+/** The routes anyone may call, and why each may: the template's, then the app's. */
 const ANYONE: Record<string, string> = {
     "GET /api/health": "Railway's healthcheck, which needs no one",
     "POST /api/auth/start": "Logging in, before anyone is",
@@ -28,7 +30,8 @@ const ANYONE: Record<string, string> = {
     "POST /api/visits/consent":
         "A visitor's answer to the banner, about their own browser",
     "POST /api/webhooks/:source":
-        "Other services, each delivery checked by its signature (webhooks/)"
+        "Other services, each delivery checked by its signature (webhooks/)",
+    ...APP_ANYONE
 }
 
 // The methods a route answers, as the routes list them
@@ -50,7 +53,8 @@ test("every route says who may call it", async () => {
     const says = (each: unknown) =>
         each === loggedIn ||
         each === maybeLoggedIn ||
-        requirementOf(each) !== undefined
+        requirementOf(each) !== undefined ||
+        appSaysWhoMayCall(each)
     const unsaid = [...handlers]
         .filter(([key, list]) => !(key in ANYONE) && !list.some(says))
         .map(([key]) => key)

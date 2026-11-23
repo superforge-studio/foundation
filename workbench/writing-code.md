@@ -110,6 +110,8 @@ matters:
   backend/
     index.ts        apiWith(): mounts each feature's routes, and puts the
                     database, the bucket and the workflows on context.var
+    app.ts          this app's own: its features' routes, and what they
+                    see on context.var ("Yours and the template's")
     client.ts       the typed client the website calls the API with
     context.ts      what every route sees on its context
     failures.ts     the one failure shape: failure(), validated()
@@ -142,13 +144,47 @@ matters:
 `router.tsx` and generated `routeTree.gen.ts` live in `frontend/`
 (configured in `vite.config.ts`).
 
+### Yours and the template's
+
+**A file has one owner: the template, or this app.** An update from the
+template (`workbench/updating.md`) changes the template's files, so
+anything of the business's written into one meets the next update as a
+conflict. Most of what an app adds is a file of its own already: a
+feature's folder in `backend/`, a page's route, a component, a query. The
+exception is a list the template keeps that an app adds to, like the
+tables or the routes. Each of those has a file of the app's beside it,
+named `app.ts`, which the template's reads. The template made each once,
+empty, and no update changes it:
+
+| The app's own                               | go in                                 | beside the template's    |
+| ------------------------------------------- | ------------------------------------- | ------------------------ |
+| Tables                                      | `source/database/schema/app.ts`       | `schema/foundation.ts`   |
+| Seeders, and tables that get none           | `source/database/seed/app.ts`         | `seed/seed.ts`           |
+| Kinds of file in the bucket                 | `source/database/storage/app.ts`      | `storage/files.ts`       |
+| Routes, and what they see on `context`      | `source/backend/app.ts`               | `index.ts`, `context.ts` |
+| Workflows and runners                       | `source/backend/workflows/app.ts`     | `workflows/index.ts`     |
+| Jobs                                        | `source/backend/jobs/app.ts`          | `jobs/index.ts`          |
+| Whoever logs in besides the team            | `source/backend/auth/app.ts`          | `auth/others.ts`         |
+| Checks before the app says it's healthy     | `source/backend/health/app.ts`        | `health/routes.ts`       |
+| Areas of the app                            | `source/utilities/permissions/app.ts` | `permissions/index.ts`   |
+| Answers that are neither a page nor the API | `source/app.ts`                       | `source/server.ts`       |
+| Stand-ins a test gets for the app's own     | `source/backend/tests/support/app.ts` | `tests/support/api.ts`   |
+
+**Never add the app's own to a file the template owns.** When the
+template has no place for what the app needs, change the template's file
+and say so in the PR, so the conflict the next update brings there is
+expected. What the business is meant to make its own stays its own through
+an update: the pages and their look, the team and its roles (`ACCESS`),
+`.railway/railway.ts`, `PRODUCT.md` and `DESIGN.md`.
+
 - **A new page** → a route file under `source/frontend/routes/`. Link to
   it from somewhere reachable from `/`: the prerenderer crawls links, and an
   unlinked page is not prerendered. A page that throws during the crawl
   fails `pnpm build`.
 - **A new feature** → a folder in `source/backend/` named for it
   (`contacts/`), with its routes in `routes.ts`, a Hono app of its own
-  mounted in `index.ts`, and its operations beside them, a file per verb
+  mounted in `app.ts` (`appRoutes`), and its operations beside them, a
+  file per verb
   (`create.ts`, `find.ts`). `health/` is the smallest example. Never a
   TanStack server function ([Headless](#headless)): Hono routes are plain
   HTTP, so a webhook, a script or an agent can reach them too.
@@ -173,11 +209,16 @@ matters:
   a route. The wrapper owns its credential, its timeouts, its retries and
   its pacing, parses what the service sends with zod, logs each call's
   outcome, and answers an `OperationResult` for the failures its callers
-  handle. A test hands its callers a fake of it. Superforge Infra's is
+  handle. It goes on `context` for every route (`AppVariables` and
+  `appVariables`, `backend/app.ts`), and a test hands its callers a fake of
+  it (`backend/tests/support/app.ts`). Superforge Infra's is
   `backend/infra/`, on `context.var.infra`, with a stand-in the tests and
   a dev server without a key use.
-- **A table or a column** → `source/database/schema.ts`, with a migration
-  from `pnpm database:generate` ([Migrations](#migrations)).
+- **A table or a column** → the app's own tables are in
+  `source/database/schema/app.ts`, and the template's in
+  `schema/foundation.ts`, both exported from `source/database/schema.ts`,
+  which the code imports them from; with a migration from
+  `pnpm database:generate` ([Migrations](#migrations)).
 - **A new React component** → a folder of `source/frontend/components/`
   by what it's for: `primitives/` for shadcn's (`pnpm dlx shadcn@4 add
   <name>`, which `components.json` sends there), `states/` for what a
@@ -209,7 +250,15 @@ matters:
   session's cookie or `auth.sessions`, so who's logged in, and who may do
   what, is decided in one place, whatever a page shows. A test fails any
   route under `/api` that says none of these and isn't one of the few
-  anyone may call (`backend/tests/routes.test.ts`, `ANYONE`).
+  anyone may call (`backend/tests/routes.test.ts`, `ANYONE`, and the
+  app's own in `tests/support/app.ts`, `APP_ANYONE`).
+- **Someone besides the team who logs in**, like a customer with a page
+  of their own → a second kind of person, given a way in through
+  `OTHERS` (`backend/auth/app.ts`, on `auth/others.ts`, which says what
+  it's asked), from a feature of its own that keeps them, with a table of
+  its own for their sessions and a check of its own for their routes.
+  The team's login, `auth.sessions`, `loggedIn` and `permitted` stay the
+  team's alone.
 - **A route anyone may call that writes**, like a form's or a booking's
   → `countAttempt` before anything else (`backend/rate-limits/count.ts`),
   by what it limits and `networkKey(ip)`, a hash of the caller's network,
@@ -222,7 +271,7 @@ matters:
   and reads, like an invoice it makes, is a kind of its own instead (the
   bucket, under [Data](#data)).
 - **Something that runs in the background** → a workflow, in its
-  feature's `workflows.ts`, listed in `backend/workflows/index.ts`, and
+  feature's `workflows.ts`, listed in `backend/workflows/app.ts`, and
   queued in the transaction of the write it's for, by name with
   `queueWorkflow` or on an event with `queueEvent`
   (`backend/workflows/queue.ts`), or started from a route through
@@ -267,8 +316,8 @@ the way production does, and the team only changes with a commit.
   them off logs them out at their next request.
 - **What each role may do is a level in each area of the app**:
   `roles` in the same `ACCESS`, and the areas in
-  `source/utilities/permissions.ts` (`AREA_NAMES` and `AREAS`), which
-  both sides read. A level is `none`, `read` or `write`, each including
+  `source/utilities/permissions/` (`AREAS`: the template's in `index.ts`,
+  the app's own in `app.ts`), which both sides read. A level is `none`, `read` or `write`, each including
   the one before. A role is given `"everything"`, every area there is and
   every one added later, as the `owner` is, or a level for each area it
   may use, the rest being `none`, as the `member` is. An area is what a
@@ -293,14 +342,15 @@ the way production does, and the team only changes with a commit.
   (`inBrowser`) no token does.
 - **The admin follows the same levels.** `/api/auth/session` answers the
   person and their `permissions`, which `useSession()` hands every screen,
-  and `allows(permissions, area, level)` (`utilities/permissions.ts`) is
+  and `allows(permissions, area, level)` (`utilities/permissions/`) is
   the check on both sides: the bar leaves out a section someone can't
   read, and a button that writes, like a run's Try again, shows only to
   a role that may write. Hiding it is a courtesy; the route is the guard.
-- **A new area**, like `orders`, goes in `AREA_NAMES` and `AREAS`, its
-  routes name it, and each role in `roles` is given it: the `owner` has it
-  already, and a `member` doesn't until it's given a level there. Its
-  screen's section names it in `SECTIONS`.
+- **A new area**, like `orders`, goes in `APP_AREAS`
+  (`utilities/permissions/app.ts`), with what it covers, its routes name
+  it, and each role in `roles` is given it: the `owner` has it already,
+  and a `member` doesn't until it's given a level there. Its screen's
+  section names it in `SECTIONS`.
 - **A new role**, like `technician`, goes in `TEAM_ROLES`, with its
   areas in `roles` and its name on screen in `ROLE_NAMES`
   (`components/dashboard/permissions.tsx`); then someone is listed with it
@@ -357,7 +407,7 @@ There's **one database, Postgres**, on Railway, queried with Drizzle
 | And                   | Your files, `files` and `file_folders`, and the site's analytics, in `public`  |
 | And                   | the webhooks' deliveries and the rate limits, in `internal`                    |
 | And                   | DBOS's, the workflows' runs and steps, in `dbos` (`backend/workflows/`)        |
-| Schema                | `source/database/schema.ts`                                                    |
+| Schema                | `source/database/schema.ts`, from `schema/foundation.ts` and `schema/app.ts`   |
 | New migration         | `pnpm database:generate`, into `source/database/migrations/`                   |
 | Applied in production | `pnpm database:migrate`, Railway's pre-deploy command, before each deploy      |
 | `pnpm dev` uses       | the checkout's own (`source/database/local/`), with the branch's migrations    |
@@ -372,6 +422,32 @@ are (`file_folders`), never repeating its Postgres schema (`auth.sessions`),
 snake_case columns, uuids for our own rows, every timestamp a
 `timestamptz` to the millisecond (`columns.ts`), compared against `now` and
 `fromNow` from `time.ts`.
+
+**A table's name starts with what it's about.** One that is the thing
+itself is its plural (`users`, `files`); every other table is that thing's
+name, then what its rows are, so a feature's tables sort together:
+`file_folders`, and a business's own `vehicle_jobs` beside its `vehicles`.
+The Postgres schema already says who sees it, so the name never repeats it
+(`auth.sessions`).
+
+**Every row of ours is keyed by a uuid that Postgres makes** (`id()` in
+`columns.ts`, `gen_random_uuid()`), and a column that points at one is a
+`uuid()`. An ID that comes in is checked with `z.uuid()`. A row people
+need to read, say aloud or put on paper gets a field of its own for it,
+like an invoice's number, rather than a shorter key.
+
+**A column whose values are a fixed list is `text({ enum: LIST })` with a
+check made from the same list, never a Postgres enum (`pgEnum`).** Drizzle
+types the two the same in TypeScript, so a Postgres enum buys no type
+safety, and the check is what Postgres enforces. A value added to a
+Postgres enum can't be used in the transaction that adds it, and a deploy
+applies every pending migration in one, so a migration that adds a value
+and uses it fails the deploy; a value can't be taken out of one without
+rebuilding the type and every column on it; and the upgrade test's sample
+rows know a `text({ enum })`'s list, not a Postgres enum's.
+`files.state` is the pattern: the list is a constant both sides import
+(`FILE_STATES`, `utilities/schemas/files.ts`), and `pnpm database:generate`
+writes the migration that changes the check when it changes.
 
 - **A route hands its operations `context.var.database`**, and a
   workflow's step its `context.database`. `source/backend/index.ts` puts it
@@ -395,8 +471,9 @@ snake_case columns, uuids for our own rows, every timestamp a
   loop that opens many, starves every request behind it.
 - **Files go in the Storage bucket, not the database**, one kind of file
   to a folder, and only through that kind. Each kind is a getter on the
-  `Storage` class (`source/database/storage/files.ts`, whose header has the
-  first one's shape), named for its folder, which says what a file is
+  `Storage` class, the template's in `source/database/storage/files.ts`,
+  whose header has the first one's shape, and the app's own in
+  `storage/app.ts`, named for its folder, which says what a file is
   filed under (a zod schema of its key, like `{ customer_id, invoice_id
   }`), where a key's file goes (`<customer id>/<invoice id>.pdf`), and
   what's in it: `json(schema)`, checked with zod as it's kept and as it's
@@ -441,7 +518,7 @@ snake_case columns, uuids for our own rows, every timestamp a
     makes and migrates it, nothing of ours writes to it, and Drizzle Kit
     leaves it alone (`schemaFilter` in `drizzle.config.ts`).
 
-  `auth` and `internal` are declared in `schema.ts` and made by the first
+  `auth` and `internal` are declared in `schema/foundation.ts` and made by the first
   migration. The upgrade test's sample rows fill all three of ours
   (`SCHEMAS` in `tests/support/fill.ts`).
 
@@ -450,7 +527,7 @@ snake_case columns, uuids for our own rows, every timestamp a
 **The schema is code.** `schema.ts` is the source of truth, and every
 change ships as a migration:
 
-1. Edit the schema.
+1. Edit the schema: the app's own tables are in `schema/app.ts`.
 2. Run `pnpm database:generate --name=<what-it-does>` (with `--custom` for
    an empty one to write by hand). drizzle-kit diffs the schema into a new
    SQL file under `source/database/migrations/`, and its snapshot under
@@ -495,8 +572,12 @@ runs before the new one starts. So:
   from its migration, leaving the column where it is: the version still
   serving names it, until the new one starts. A column that's `NOT NULL`
   without a default gets `DROP NOT NULL` in its place, since the new code's
-  inserts leave it out. The next deploy drops it, in a migration of its own
-  (`pnpm database:generate --custom`). A table renamed is the same: its old
+  inserts leave it out. The next deploy drops it by hand, since the schema
+  no longer has it for drizzle-kit to see go: in a migration of its own
+  (`pnpm database:generate --custom`), or, when that deploy changes the
+  schema too, in the one it generates, since `--custom` copies the
+  snapshot before rather than writing the schema's. A table renamed is the
+  same: its old
   name has to answer the old version, as a view under it
   (`CREATE VIEW "old" AS SELECT * FROM "new"`, which Postgres lets the old
   version write through), until the next deploy drops the view.
@@ -557,11 +638,12 @@ statement.
 - **`pnpm database:seed`** puts sample rows in it, to try things out on
   (`source/database/seed/seed.ts`, run by `workbench/scripts/seed.mjs`
   through Vite's module runner, so it can use the `@/` paths). **Every
-  table gets a seeder there, in the same change that adds the table**,
-  written out by hand, which replaces its rows, so seeding again is safe,
-  and covers every state a screen shows, as `seed/users.ts` does for the
-  users and their sessions. A table whose rows nothing should make up,
-  like a log a job writes, goes in `UNSEEDED` instead, with why. The
+  table gets a seeder, in the same change that adds the table**, the app's
+  own in `seed/app.ts` (`APP_SEEDERS`), written out by hand, which
+  replaces its rows, so seeding again is safe, and covers every state a
+  screen shows, as `seed/users.ts` does for the users and their sessions.
+  A table whose rows nothing should make up, like a log a job writes, goes
+  in `APP_UNSEEDED` instead, with why. The
   seeded rows are what each branch's migrations first run over, in every
   checkout's database as `pnpm dev` starts, so an unseeded table is one a
   migration is never tried on before CI. Its test seeds an empty database,
@@ -996,6 +1078,26 @@ says who sent it, is `railway logs --http --filter "@httpStatus:404"`.
 
 American English throughout — identifiers, comments, strings. `CLAUDE.md`
 owns the rule.
+
+## Each part's own guide
+
+A directory's `README.md` owns its deep context. Read it before changing
+anything there, and keep it current in the same change:
+
+| Working on                                     | Read                                           |
+| ---------------------------------------------- | ---------------------------------------------- |
+| Background work, schedules, events, runners    | `source/backend/workflows/README.md`           |
+| A change to many rows, started on purpose      | `source/backend/jobs/README.md`                |
+| Another service posting to the app             | `source/backend/webhooks/README.md`            |
+| The site's analytics                           | `source/backend/visits/README.md`              |
+| What the pages' script records                 | `source/frontend/visitors/README.md`           |
+| Claude connecting to the app                   | `source/backend/mcp/README.md`                 |
+| Calling Superforge Infra, and login through it | `source/backend/infra/README.md`               |
+| The toolbar and its comments                   | `source/frontend/components/toolbar/README.md` |
+| The Railway project                            | `.railway/README.md`                           |
+
+A feature the app adds gets a README of its own when its context can't be
+read from its code, and a line here.
 
 ## Before you call it done
 

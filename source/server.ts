@@ -1,4 +1,5 @@
 import start, { createServerEntry } from "@tanstack/react-start/server-entry"
+import { appAnswer, appPageRoute } from "./app"
 import { api } from "./backend"
 import { oauth } from "./backend/agents/oauth"
 import { mcp } from "./backend/mcp"
@@ -12,6 +13,9 @@ import { nameRequest } from "./utilities/tracing"
 // internal users made to follow the list in backend/auth/access.ts
 // (backend/users/sync.ts), and the workflows' start, with their stop as
 // Railway stops the deployment (backend/workflows/engine.ts)
+// And the hosts whose every path comes here, past the build's files, which
+// the app lists (./app.ts)
+export { HOSTS_WITHOUT_FILES } from "./app"
 export { syncAppInternalUsers } from "./backend/users/sync"
 export { startWorkflows, stopWorkflows } from "./backend/workflows/engine"
 
@@ -25,15 +29,20 @@ if (import.meta.env.DEV) {
 
 // The client build's files, every prerendered page among them, never reach
 // this: the Node server answers them first (source/node.ts), and so does
-// Vite's dev server. So this sees /api, the app's own MCP (/admin/mcp,
-// backend/mcp/) and where Claude logs in to it (/.well-known/oauth-* and
-// /oauth/*, backend/agents/oauth.ts), and anything that isn't a page (a
-// 404).
+// Vite's dev server. So this sees /api, whatever the app answers itself
+// (./app.ts), the app's own MCP (/admin/mcp, backend/mcp/) and where Claude
+// logs in to it (/.well-known/oauth-* and /oauth/*,
+// backend/agents/oauth.ts), and anything that isn't a page (a 404).
 const answer = createServerEntry({
-    fetch(request) {
-        const { pathname } = new URL(request.url)
+    async fetch(request) {
+        const url = new URL(request.url)
+        const { pathname } = url
         if (pathname.startsWith("/api/")) {
             return api.fetch(request)
+        }
+        const own = await appAnswer(request, url)
+        if (own !== null) {
+            return own
         } else if (pathname === MCP_PATH) {
             return mcp.fetch(request)
         } else if (
@@ -55,15 +64,16 @@ const answer = createServerEntry({
 
 // The route a page drawn on request is traced as (utilities/tracing.ts):
 // the admin's, whichever of its screens, since each is drawn in the
-// browser, and Claude's Allow page. Anything else is the not-found page,
-// whose span keeps its path alone.
+// browser, Claude's Allow page, and whatever the app names of its own
+// (./app.ts). Anything else is the not-found page, whose span keeps its
+// path alone.
 function pageRoute(pathname: string) {
     if (pathname === "/admin" || pathname.startsWith("/admin/")) {
         return "/admin/*"
     } else if (pathname.startsWith("/connect/")) {
         return "/connect/:request_id"
     } else {
-        return null
+        return appPageRoute(pathname)
     }
 }
 

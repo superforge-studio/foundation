@@ -7,11 +7,11 @@ import { visitorIp, visitorUserAgent } from "../auth/visitor"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import {
+    followAnswer,
     forgetVisitor,
     keepConsent,
     keptConsent,
-    keptVisitorId,
-    rememberVisitor
+    keptVisitorId
 } from "./cookies"
 import { recordVisit } from "./record"
 
@@ -66,12 +66,7 @@ export const visitRoutes = new Hono<ApiEnvironment>()
                 events
             })
 
-            if (remembered && id !== null) {
-                // Set, or renewed for another 400 days
-                rememberVisitor(context, id)
-            } else if (!remembered && kept_id !== undefined) {
-                forgetVisitor(context)
-            }
+            followAnswer(context, { id, kept_id, remembered })
             return context.json({ ask }, 200)
         }
     )

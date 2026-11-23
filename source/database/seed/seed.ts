@@ -5,6 +5,7 @@ import { localDatabaseUrl } from "@/database/local"
 import { LOCAL_STORAGE_DIRECTORY, Storage } from "@/database/storage"
 import { folderStore } from "@/database/storage/folder"
 import { seedAnalyticsEvents, seedAnalyticsVisits } from "./analytics"
+import { APP_SEEDERS, APP_UNSEEDED, appSampleRuns } from "./app"
 import { keepSampleFiles, seedFiles, seedFolders } from "./files"
 import { seedApiTokens, seedSessions, seedUsers, teamAdded } from "./users"
 
@@ -12,8 +13,9 @@ import { seedApiTokens, seedSessions, seedUsers, teamAdded } from "./users"
  * Sample rows for this checkout's database, so a dev server has something
  * to show and a change can be tried on real-looking data:
  * `pnpm database:seed` (workbench/scripts/seed.mjs). **Every table gets a
- * seeder here**, in the same change that adds the table, which replaces its
- * sample rows, like:
+ * seeder**, in the same change that adds the table: the template's tables
+ * here, and this app's own in ./app.ts (`APP_SEEDERS`), which run after
+ * these. A seeder replaces its table's sample rows, like:
  *
  *   async function seedCustomers(transaction: Database) {
  *       await transaction.delete(customers)
@@ -27,7 +29,7 @@ import { seedApiTokens, seedSessions, seedUsers, teamAdded } from "./users"
  * Keep it small and written out by hand, so it works with no credential,
  * offline and in CI, and covers every state a screen shows at least once.
  * A table whose rows nothing should make up, like a log a job writes, is in
- * UNSEEDED instead, with why. The rows are what each
+ * UNSEEDED instead, with why (`APP_UNSEEDED` for one of the app's own). The rows are what each
  * branch's migrations first run over, in every checkout's database as
  * `pnpm dev` starts, so a table left empty is one a migration is never
  * tried on before it ships. Its test seeds an empty database, and fails a
@@ -40,7 +42,8 @@ export type Seeder = (
     transaction: Database
 ) => Promise<{ table: string; rows: number }>
 
-// In the order they run: a table after the ones its rows point at
+// In the order they run: a table after the ones its rows point at, and
+// this app's own after the template's
 const SEEDERS: Seeder[] = [
     seedUsers,
     seedSessions,
@@ -48,19 +51,22 @@ const SEEDERS: Seeder[] = [
     seedFolders,
     seedFiles,
     seedAnalyticsVisits,
-    seedAnalyticsEvents
+    seedAnalyticsEvents,
+    ...APP_SEEDERS
 ]
 
 /**
  * The tables that get no sample rows, each with why, by its name as a
  * seeder names it: bare in `public`, after its schema in another, like
- * `internal.error_log`.
+ * `internal.error_log`. The template's are here, and this app's own in
+ * ./app.ts (`APP_UNSEEDED`).
  */
 export const UNSEEDED: Record<string, string> = {
     "internal.webhook_deliveries":
         "What other services posted, kept as it came: a log nothing should make up, and the template lists no source to have sent any",
     "internal.rate_limits":
-        "Counts what's limited as networks do it (backend/rate-limits/), deleted a day after each window; made-up rows would only limit a dev server"
+        "Counts what's limited as networks do it (backend/rate-limits/), deleted a day after each window; made-up rows would only limit a dev server",
+    ...APP_UNSEEDED
 }
 
 /**
@@ -97,18 +103,20 @@ export async function seedLocalDatabase() {
             new Storage(folderStore(LOCAL_STORAGE_DIRECTORY))
         )
         const added = await teamAdded(database)
-        await enqueueFromScript(
-            url,
-            added.map((user) => ({
+        // And whatever this app's own sample rows would have started
+        const own = await appSampleRuns(database)
+        await enqueueFromScript(url, [
+            ...added.map((user) => ({
                 workflow: tellTeamOfNewMember,
                 input: { user_id: user.id, email: user.email },
                 id: `tell-team-of-new-member-${user.id}`
-            }))
-        )
+            })),
+            ...own
+        ])
         console.info("Seeded this checkout's database", {
             written,
             files_kept,
-            runs_queued: added.length
+            runs_queued: added.length + own.length
         })
     } finally {
         await database.$client.end()

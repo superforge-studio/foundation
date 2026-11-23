@@ -1,17 +1,18 @@
 import { join } from "node:path"
 import { z } from "zod"
+import { Storage } from "./app"
 import { type BucketConfiguration, bucketStore } from "./bucket"
-import { Storage } from "./files"
 import { folderStore } from "./folder"
 
-// The `Storage` bucket (.railway/railway.ts), through `Storage` (./files.ts):
+// The `Storage` bucket (.railway/railway.ts), through `Storage` (./app.ts,
+// on the template's kinds in ./files.ts):
 // every kind of file the app keeps, each in a folder of its own, filed under
 // a key its kind checks. Underneath it is an `ObjectStore`, bytes under
 // keys: Railway's bucket through its S3 API in a build. A dev server has no
 // credentials for it, so it keeps files in a folder on this machine instead,
 // and the tests keep them in memory (../tests/support/storage.ts).
 
-export { Storage } from "./files"
+export { Storage } from "./app"
 
 /** Bytes kept under keys, which only `Files` (./kind.ts) uses. */
 export type ObjectStore = {
