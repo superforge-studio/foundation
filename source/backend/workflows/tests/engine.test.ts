@@ -18,15 +18,17 @@ import { Storage } from "@/database/storage"
 import { databaseUrl, onServer, quoted } from "@/database/tests/support/server"
 import { memoryStore } from "@/database/tests/support/storage"
 import { HOUR } from "@/utilities/primitives/durations"
-import { defineWorkflow } from "../define"
+import { defineWorkflow, scheduled_input } from "../define"
 import {
     dbosWorkflows,
     pruneFinishedRuns,
+    scheduledFunction,
     startWorkflows,
     stopWorkflows,
     takeGate
 } from "../engine"
 import { type WorkflowDependencies, workflowsProcess } from "../process"
+import { queueWorkflow } from "../queue"
 
 // The workflows on DBOS itself, in real time, on a database of their own:
 // the gate, a run started before DBOS has launched, a run that carries on
@@ -90,11 +92,36 @@ const breaksOnce = defineWorkflow({
     }
 })
 
+// Plumbing, whose runs stay off the list unless one fails: one fails at
+// once when it's told to
+const quietly = defineWorkflow({
+    name: "quietly",
+    input: z.object({ run: z.string(), fail: z.boolean() }),
+    quiet: true,
+    run: async ({ run, fail }, context) => {
+        if (fail) {
+            throw new Error(`${run} broke`)
+        }
+        return await context.step("only", async () => run)
+    }
+})
+
+// On a schedule that won't come round while the tests run, so a test fires
+// it itself: answers the moment it fired
+const yearly = defineWorkflow({
+    name: "yearly",
+    input: scheduled_input,
+    schedule: "0 0 1 1 *",
+    title: ({ scheduled_at }) => `New year, ${scheduled_at}`,
+    run: async ({ scheduled_at }, context) =>
+        await context.step("only", async () => scheduled_at)
+})
+
 const dependencies: WorkflowDependencies = {
     database,
     storage: new Storage(memoryStore().store),
     database_url: url,
-    workflows: [twoSteps, breaksOnce],
+    workflows: [twoSteps, breaksOnce, quietly, yearly],
     // This machine's Postgres is every checkout's
     dbos_pool_size: 4
 }
@@ -229,6 +256,64 @@ describe("the workflows on DBOS", { timeout: 60_000 }, () => {
             ok: false,
             error: "not-found"
         })
+    })
+
+    test("run what a write queued once it commits, and list a quiet run only once it fails", async () => {
+        const queued = await database.transaction(async (transaction) => ({
+            fine: await queueWorkflow(transaction, quietly, {
+                run: "fine",
+                fail: false
+            }),
+            broken: await queueWorkflow(transaction, quietly, {
+                run: "broken",
+                fail: true
+            })
+        }))
+        expect(await DBOS.retrieveWorkflow(queued.fine).getResult()).toBe(
+            "fine"
+        )
+        await expect(
+            DBOS.retrieveWorkflow(queued.broken).getResult()
+        ).rejects.toThrow("broken broke")
+
+        // The failed one is listed with the others; the fine one isn't, but
+        // still opens by its id
+        const listed = (await dbosWorkflows.runs()).map((run) => run.id)
+        expect(listed).toContain(queued.broken)
+        expect(listed).not.toContain(queued.fine)
+        expect(listed.length).toBeGreaterThan(1)
+        expect((await dbosWorkflows.run(queued.fine))?.status).toBe("succeeded")
+    })
+
+    test("apply each workflow's schedule as DBOS launches, fire it, and delete a schedule no workflow has", async () => {
+        const named = async () =>
+            (await DBOS.listSchedules()).map(
+                (schedule) => schedule.scheduleName
+            )
+        expect(await named()).toEqual(["yearly"])
+
+        // Fired, its run takes the moment as its input, and is named from it
+        const handle = await DBOS.triggerSchedule("yearly")
+        const fired = await handle.getResult()
+        expect(z.string().datetime().safeParse(fired).success).toBe(true)
+        const listed = (await dbosWorkflows.runs()).find(
+            (run) => run.id === handle.workflowID
+        )
+        expect(listed?.title).toBe(`New year, ${fired}`)
+
+        // A schedule left from a workflow that's gone, which the next
+        // launch deletes
+        await DBOS.applySchedules([
+            {
+                scheduleName: "gone",
+                workflowFn: scheduledFunction(yearly),
+                schedule: "0 0 1 1 *"
+            }
+        ])
+        expect((await named()).sort()).toEqual(["gone", "yearly"])
+        await stopWorkflows()
+        await startWorkflows(dependencies)
+        expect(await named()).toEqual(["yearly"])
     })
 
     test("prune finished runs, steps and all", async () => {

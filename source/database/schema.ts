@@ -52,6 +52,7 @@ import {
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
 import { ROLES } from "../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../utilities/visitors"
+import { WEBHOOK_OUTCOMES } from "../utilities/webhooks"
 import { id, timestamp } from "./columns"
 
 export const auth = pgSchema("auth")
@@ -229,5 +230,50 @@ export const analytics_events = pgTable(
         index("analytics_events_user_id_index")
             .on(table.user_id)
             .where(sql`${table.user_id} is not null`)
+    ]
+)
+
+// Each webhook another service posted the app, at /api/webhooks/<source>
+// (backend/webhooks/), kept as it came before anything else happens to it,
+// so a delivery that was refused or failed can be read, and checked again,
+// with SQL. Kept `KEEP_DELIVERIES_FOR` (backend/webhooks/prune.ts).
+export const webhook_deliveries = internal.table(
+    "webhook_deliveries",
+    {
+        id: id(),
+        // Its source's name, the path's last part (`stripe`)
+        source: text().notNull(),
+        received_at: timestamp().notNull().defaultNow(),
+        // The sender's own ID for it, which it sends again with a retry
+        // (Standard Webhooks' `webhook-id`), when it has one
+        delivery_id: text(),
+        // Its headers, by their lowercase names, but for any that would let
+        // someone in (`authorization`, `cookie`)
+        headers: jsonb().notNull(),
+        // Its body, exactly as it came, which its signature is over
+        body: text().notNull(),
+        // What came of it (utilities/webhooks.ts)
+        outcome: text({ enum: WEBHOOK_OUTCOMES }).notNull().default("received"),
+        // Why it was refused or failed, for whoever reads it
+        problem: text(),
+        // The events it queued, each with the runs it queued (`[{ name,
+        // runs }]`), read back through `queued_events` in
+        // backend/webhooks/deliveries.ts
+        events: jsonb().notNull().default([])
+    },
+    (table) => [
+        check(
+            "webhook_deliveries_outcome_check",
+            sql.raw(
+                `"${table.outcome.name}" in (${WEBHOOK_OUTCOMES.map((outcome) => `'${outcome}'`).join(", ")})`
+            )
+        ),
+        // The deliveries old enough to delete
+        index("webhook_deliveries_received_at_index").on(table.received_at),
+        // A source's deliveries, and a delivery's retries, by the sender's ID
+        index("webhook_deliveries_source_delivery_id_index").on(
+            table.source,
+            table.delivery_id
+        )
     ]
 )

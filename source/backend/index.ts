@@ -17,6 +17,8 @@ import { jobRoutes } from "./jobs/routes"
 import { userRoutes } from "./users/routes"
 import { appLocate } from "./visits/location"
 import { visitRoutes } from "./visits/routes"
+import { webhookRoutes } from "./webhooks/routes"
+import { SOURCES } from "./webhooks/sources"
 import { dbosWorkflows } from "./workflows/engine"
 import { workflowRoutes } from "./workflows/routes"
 
@@ -40,10 +42,11 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // Storage bucket on `context.var.storage`, the workflows on
             // `context.var.workflows`, Infra on `context.var.infra`, who
             // can sign in on `context.var.access`, whom the site remembers
-            // on `context.var.visitor_mode`, and what places a visitor on
-            // `context.var.locate`. Nothing under /api is kept in
-            // Railway's cache (source/node.ts), so each request reaches
-            // the server.
+            // on `context.var.visitor_mode`, what places a visitor on
+            // `context.var.locate`, and the services that post the app
+            // webhooks on `context.var.webhook_sources`. Nothing under /api
+            // is kept in Railway's cache (source/node.ts), so each request
+            // reaches the server.
             .use(async (context, next) => {
                 const {
                     database,
@@ -52,7 +55,8 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
                     infra,
                     access,
                     visitor_mode,
-                    locate
+                    locate,
+                    webhook_sources
                 } = variables()
                 context.set("database", database)
                 context.set("storage", storage)
@@ -61,9 +65,15 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
                 context.set("access", access)
                 context.set("visitor_mode", visitor_mode)
                 context.set("locate", locate)
+                context.set("webhook_sources", webhook_sources)
                 await next()
                 context.header("Cache-Control", "no-store")
             })
+
+            // Webhooks other services post, under /webhooks, ahead of the
+            // check below: their signature says who sent them, and some
+            // senders post forms with no Origin (webhooks/)
+            .route("/", webhookRoutes)
 
             // A form on another site can post to any address, with the
             // visitor's cookies when it's a top-level navigation: refuse
@@ -132,8 +142,9 @@ function fromThisHost(origin: string, context: Context) {
 /**
  * The server's API, on its database, bucket, workflows and Infra, with who
  * can sign in as auth/access.ts says, whom the site remembers as
- * utilities/visitors.ts says, and visitors placed by the database Railway
- * names (visits/location.ts).
+ * utilities/visitors.ts says, visitors placed by the database Railway
+ * names (visits/location.ts), and the webhook sources webhooks/sources.ts
+ * lists.
  */
 export const api = apiWith(() => ({
     database: appDatabase(),
@@ -142,7 +153,8 @@ export const api = apiWith(() => ({
     infra: appInfra(),
     access: ACCESS,
     visitor_mode: VISITOR_MODE,
-    locate: appLocate()
+    locate: appLocate(),
+    webhook_sources: SOURCES
 }))
 
 export type AppType = typeof api

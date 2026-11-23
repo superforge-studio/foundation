@@ -68,6 +68,20 @@ export function runStatus(status: string): RunStatus {
     }
 }
 
+/**
+ * Whether a run belongs on the list of runs: every one but a quiet
+ * workflow's (`quiet` in `defineWorkflow`), which shows only once it has
+ * failed. A quiet run still opens by its id.
+ */
+export function worthListing(
+    status: Pick<WorkflowStatus, "workflowName" | "status">,
+    quiet: Set<string>
+) {
+    return (
+        !quiet.has(status.workflowName) || runStatus(status.status) === "failed"
+    )
+}
+
 /** A run from what DBOS says of it, named by its workflow when it has one. */
 export function runOf(status: WorkflowStatus, workflows: Workflow[]): Run {
     // DBOS keeps a run's arguments as a list; a workflow here takes one

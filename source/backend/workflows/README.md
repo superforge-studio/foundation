@@ -29,15 +29,146 @@ Then:
 
 1. **List it in `index.ts`'s `WORKFLOWS`.** DBOS has to know every
    workflow before it launches, and a workflow left out never runs:
-   starting one throws.
-2. **Start it from a route** with
+   queueing or starting one throws.
+2. **Queue it with the write it's for**, in the write's own transaction:
+   `await queueWorkflow(transaction, notifyOwner, input, { id })`
+   (`queue.ts`), or give it `on: ["submission-made"]` and have the write
+   queue that event (below). A route can also start one with
    `await context.var.workflows.start(notifyOwner, input, { id })`, which
-   puts a run on its queue and answers its id. A route test's
-   `testApi()` records the starts instead of running them, in `started`.
+   puts a run on its queue outside any transaction, as a job's route does.
+   Either answers the run's id.
 3. **Name the run after what it's for** when it should happen once
-   (`notify-${submission_id}`): starting a run under an id that's taken
-   finds the one there, finished or not, so a route that's called twice
-   starts it once.
+   (`notify-${submission_id}`): queueing or starting a run under an id
+   that's taken finds the one there, finished or not, so a write that's
+   made twice queues it once.
+
+## Queueing a run with a write
+
+**A write and the work it means land together, or neither does.** DBOS
+keeps its queue in the app's own database, in `dbos`, so a run queued on
+a write's transaction is queued if and only if that transaction commits
+(`queue.ts`, through DBOS's `enqueueInTransaction`): a contact can't be
+changed without its run queued, and nothing runs for a change that
+rolled back. Whichever process runs the workflows takes it from the queue
+within a second or so of the commit.
+
+```typescript
+await database.transaction(async (transaction) => {
+    // The write
+    await transaction.update(contacts).set(change).where(eq(contacts.id, id))
+    // What must agree with it, in the same transaction
+    await transaction.insert(contact_names).values(...)
+    // A run of every workflow on the event, queued with it
+    await queueEvent(transaction, "contact-changed", { contact_id: id })
+    // One workflow by name, queued with it
+    await queueWorkflow(transaction, sendWelcome, { contact_id: id }, {
+        id: `welcome-${id}`
+    })
+})
+```
+
+**What goes where:**
+
+- **In the transaction**, as statements of the write's own: whatever
+  only touches the app's database and must never disagree with the
+  write, like a copy of it, a count, or another table kept in step.
+- **A workflow**, queued in the transaction: whatever reaches outside
+  the database, or can wait a few seconds and try again, like sending an
+  email, calling another service, keeping a search index current, or
+  sending a webhook on. It never fails the write, and its retries are
+  DBOS's.
+- **A call to another service the write depends on**, like charging a
+  card before an order is paid, is the operation's own, outside the
+  transaction, with an idempotency key, in an order that a failure
+  between the two can recover from. A transaction can't take back what
+  another service did.
+
+A workflow's step calls the operation it needs directly, never one of
+the app's own routes over HTTP: it runs in this process, so a route would
+only add a token for the server to sign in as itself and a hop through a
+server that may be deploying, and lose the types. The routes' checks are
+for people and agents coming in from outside.
+
+### Events
+
+**`queueWorkflow` names the workflow; `queueEvent` names what
+happened**, and queues a run of every workflow that's `on` it. A write
+that says what happened doesn't need to know who cares, so a contact
+changed from a screen, a form, an import and a webhook queues the same
+one event, and a workflow added later, or a copy's own, is on it without
+any of them changing:
+
+```typescript
+export const reindexContact = defineWorkflow({
+    name: "reindex-contact",
+    on: ["contact-created", "contact-changed"],
+    quiet: true,
+    input: z.object({ contact_id: z.uuid() }),
+    run: async ({ contact_id }, context) => { ... }
+})
+```
+
+- **Each event is declared once** in `events.ts`'s `EVENTS`, by its
+  name, `<record>-<verb>`, with a zod schema of what it carries, when the
+  first workflow needs it. `on` takes only the events whose data fits the
+  workflow's input, and each run gets the event's data as its input,
+  checked as it's queued.
+- **An event carries IDs**, and little else. A run may start seconds
+  later, try again, or finish after a later one, so it reads the record as
+  it is then. When a workflow needs to know what changed, the event says
+  which fields, or the one old value that matters, never a copy of the
+  row.
+- **Each run is named `<workflow>-<event id>`.** The event's id is new
+  each time, unless the write gives it one that names what happened (the
+  user who signed up, a webhook sender's id for its delivery), so the same
+  event queued again queues each workflow once.
+- **An event no workflow is on writes nothing**, so declaring one is
+  free until something listens.
+
+### Quiet workflows
+
+**`quiet: true` keeps a workflow's runs off the Workflows screen unless
+one fails**: for plumbing, like sending a webhook on or keeping an index
+current, a step or two that only needs its retries, which would bury the
+runs worth reading. A quiet run still opens by its id, and is pruned like
+any other. Workflows that do something a person follows, like the
+sign-up notice, aren't quiet.
+
+### On a schedule
+
+**`schedule` runs a workflow by itself, on a cron schedule**, in UTC:
+five fields, or six with seconds first (`0 * * * *` each hour on the
+hour, `30 13 * * 1-5` weekdays at 13:30 UTC). Its input is
+`scheduled_input` (`define.ts`), `{ scheduled_at }`, the moment that
+fired it, which TypeScript holds it to:
+
+```typescript
+export const sendDigest = defineWorkflow({
+    name: "send-digest",
+    input: scheduled_input,
+    schedule: "0 14 * * *",
+    run: async ({ scheduled_at }, context) => { ... }
+})
+```
+
+- **DBOS fires it**, from its schedules in its own tables, which
+  `engine.ts`'s `applySchedules` makes follow `WORKFLOWS` as DBOS
+  launches: a schedule for each workflow that has one, named for it, onto
+  its queue, and any other deleted, so taking a workflow's `schedule` away
+  stops it at the next deploy. Only the process holding the gate runs
+  DBOS, so only it fires.
+- **Each moment runs once**: its run is `sched-<workflow>-<moment>`, so
+  a moment fired twice finds the run already there, and a moment missed
+  while no process ran, as a deploy goes out, runs once the next one
+  launches. So a scheduled workflow is safe to run late, and never counts
+  on running at the very second.
+- **`pnpm check` checks every schedule** (`tests/schedules.test.ts`),
+  since one DBOS refuses as the workflows launch is only logged and left
+  out.
+- **Quiet or not**, as any workflow: a prune that's worth reading only
+  when it fails is quiet (`prune-webhook-deliveries`, the template's
+  example, in `backend/webhooks/workflows.ts`); a digest the owner wants to
+  see went out isn't.
 
 ### Steps
 
@@ -134,19 +265,23 @@ Never delete DBOS's rows by hand, nor write to its tables.
 - **Connections**, of the 500 Railway's Postgres allows: the app's pool
   keeps 10, DBOS's 10, its client 2 (only until DBOS has launched there),
   and the gate 1. So a process holds at most 23, and the two running while
-  a deploy goes out 46.
+  a deploy goes out 46. A run queued with a write goes through that
+  write's transaction's connection, and opens none.
 
 ## Reading runs
 
-The dashboard's Workflows screen shows every run as it runs, with its
-steps, what went wrong where one failed, and a way to run it again
+The dashboard's Workflows screen shows every run but the quiet ones that
+haven't failed, as it runs, with its steps, what went wrong where one failed, and a way to run it again
 (`routes.ts`, under `/api/workflows`, for internal people only). It reads
 them through `context.var.workflows`, which asks DBOS's own functions,
 never its tables, which are DBOS's to change (`engine.ts`):
 
-- **`runs()`**, the latest hundred, newest first, through
+- **`runs()`**, the latest hundred worth listing, newest first, through
   `listWorkflows`, with each one's input and, for a failed one, its error.
-  An older run isn't listed, but still opens by its id.
+  A quiet workflow's run is listed only once it has failed: the runs are
+  found a page of 200 at a time without their inputs, five pages at most,
+  then the ones worth listing loaded with them. An older run isn't listed,
+  but still opens by its id.
 - **`run(id)`**, one with what it returned and each step it has
   finished, through `listWorkflowSteps`. DBOS records a step once it has
   returned, so a run that's working shows the steps before the one it's
@@ -178,20 +313,25 @@ tracing").
 ## The sample
 
 **`tell-team-of-sign-up`** (`backend/users/workflows.ts`) is the
-template's example: a sign-in that makes someone new starts it, named for
-them so it runs once (`backend/auth/routes.ts`), and its three steps read
-them, find the business's own people, and send the notice, which goes to
-the logs until Superforge Infra can send email. `pnpm database:seed` puts
+template's example: it's `on: ["user-signed-up"]`, which the sign-in that
+makes someone new queues in its own transaction, named for them so it
+runs once (`backend/auth/sign-in.ts`), and its three steps read them,
+find the business's own people, and send the notice, which goes to the
+logs until Superforge Infra can send email. `pnpm database:seed` puts
 real runs of it on the queue, for a dev server to run, rather than writing
 DBOS's rows. A copy keeps it, or deletes it with its line in `index.ts`
-and the start in `backend/auth/routes.ts`.
+(the sign-in's event then queues nothing).
 
 ## When not to use one
 
 **Something short that's just due at a time** (a reminder, a poll) is a
 timestamp in Postgres that a runner checks, not a workflow: a workflow
 would only add rows to DBOS's tables for each one, and one a deploy cuts
-off is still due, so the next process runs it.
+off is still due, so the next process runs it. **A schedule or a
+runner:** work at set times, an hour or more apart, that's worth a run on
+record with its steps and retries, is a workflow on a `schedule`; a check
+every few seconds or minutes for rows that are due is a runner, which
+leaves no run behind for each turn.
 
 ### Runners
 
@@ -209,6 +349,11 @@ it starts is traced as its run.
 
 ## Testing
 
+- **A write that queues one** is tested on its database: `testApi()`'s
+  `queued()`, or `queuedRuns(database)` (`tests/support/queued.ts`),
+  reads back the runs on its queues through DBOS's client, each with its
+  workflow, id and input, as `tests/queue.test.ts` and the sign-in's tests
+  do. Nothing runs them.
 - **A route that starts one** is tested with `testApi()`
   (`backend/tests/support/api.ts`), whose `started` lists each run the
   route started, with its input and id. A route that reads runs reads

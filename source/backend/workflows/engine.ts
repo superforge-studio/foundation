@@ -1,4 +1,9 @@
-import { DBOS, DBOSClient } from "@dbos-inc/dbos-sdk"
+import {
+    DBOS,
+    DBOSClient,
+    type GetWorkflowsInput,
+    type ScheduledWorkflowFn
+} from "@dbos-inc/dbos-sdk"
 import pg from "pg"
 import { z } from "zod"
 import { appDatabase, appDatabaseUrl } from "@/database"
@@ -10,14 +15,14 @@ import { RUNNERS, WORKFLOWS } from "./index"
 import { type WorkflowDependencies, workflowsProcess } from "./process"
 import { QUEUES } from "./queues"
 import { startRunners } from "./runners"
-import { retryFrom, runOf, runWithStepsOf } from "./runs"
+import { retryFrom, runOf, runWithStepsOf, worthListing } from "./runs"
 
 // DBOS in the server: a library that runs workflows in this process and
 // keeps their checkpoints in the app's own database, in the `dbos` schema,
 // which it makes and migrates itself. README.md has the design.
 
 // What DBOS calls the app in its tables, which a client names too
-const APPLICATION = "app"
+export const APPLICATION = "app"
 
 // Connections, of the 500 Railway's Postgres allows (`max_connections`):
 // the app's pool keeps 10 (database/index.ts), DBOS's 10 (its LISTEN among
@@ -151,6 +156,7 @@ async function launch(dependencies: WorkflowDependencies, session: number) {
     for (const [name, options] of Object.entries(QUEUES)) {
         await DBOS.registerQueue(name, options)
     }
+    await applySchedules(dependencies.workflows)
     going()
 
     held.pruning = pruneOnSchedule(KEEP_FINISHED_FOR)
@@ -162,6 +168,72 @@ async function launch(dependencies: WorkflowDependencies, session: number) {
     console.info("The workflows are running", {
         application_version: DBOS.applicationVersion
     })
+}
+
+/**
+ * Makes DBOS's schedules follow the workflows that have one, as DBOS
+ * launches here: each fires on its cron schedule, in UTC, onto its
+ * workflow's queue, under a schedule named for it. Each moment's run is
+ * named `sched-<workflow>-<moment>`, so it runs once whichever process
+ * fires it, and a moment missed while no process ran, as a deploy goes
+ * out, is run once the next launches (`automaticBackfill`). A schedule no
+ * workflow has any more is deleted, since DBOS keeps the ones it's given
+ * until they are. One DBOS refuses is logged and left out, and never stops
+ * the rest: `tests/schedules.test.ts` checks each first.
+ */
+async function applySchedules(workflows: Workflow[]) {
+    const scheduled = workflows.flatMap((workflow) =>
+        workflow.schedule === null
+            ? []
+            : [{ workflow, schedule: workflow.schedule }]
+    )
+    for (const { workflow, schedule } of scheduled) {
+        try {
+            await DBOS.applySchedules([
+                {
+                    scheduleName: workflow.name,
+                    workflowFn: scheduledFunction(workflow),
+                    schedule,
+                    queueName: workflow.queue,
+                    automaticBackfill: true
+                }
+            ])
+        } catch (error) {
+            console.error("A workflow's schedule wasn't applied", {
+                workflow: workflow.name,
+                schedule,
+                error
+            })
+        }
+    }
+    for (const schedule of await DBOS.listSchedules()) {
+        const kept = scheduled.some(
+            ({ workflow }) => workflow.name === schedule.scheduleName
+        )
+        if (!kept) {
+            await DBOS.deleteSchedule(schedule.scheduleName)
+            console.info("A schedule no workflow has was deleted", {
+                schedule: schedule.scheduleName
+            })
+        }
+    }
+}
+
+/**
+ * `workflow`'s function as DBOS registered it, for a schedule to fire. It
+ * must be registered first (`register`, as DBOS launches).
+ */
+export function scheduledFunction(workflow: Workflow): ScheduledWorkflowFn {
+    const registered = workflowsProcess().registered.get(workflow.name)
+    if (registered === undefined) {
+        throw new Error(`The ${workflow.name} workflow isn't registered`)
+    } else {
+        // DBOS's type has a scheduled function answer nothing, but DBOS
+        // keeps what it answers, as it does every workflow's, and hands it
+        // the moment it fired first, which `defineWorkflow` makes the run's
+        // input (`scheduled_input`): so the function it registered is one
+        return registered as ScheduledWorkflowFn
+    }
 }
 
 /**
@@ -240,18 +312,31 @@ export const dbosWorkflows: Workflows = {
     },
 
     async runs({ limit = 100 } = {}) {
+        const quiet = new Set(
+            knownWorkflows()
+                .filter((workflow) => workflow.quiet)
+                .map((workflow) => workflow.name)
+        )
         // DBOS loads a failed run's error with its output, and the list
         // says why each failed
-        const listing = {
-            sortDesc: true,
-            limit,
-            loadInput: true,
-            loadOutput: true
+        const loading = { sortDesc: true, loadInput: true, loadOutput: true }
+        if (quiet.size === 0) {
+            const statuses = await listWorkflows({ ...loading, limit })
+            return statuses.map((status) => runOf(status, knownWorkflows()))
+        } else {
+            // The latest runs worth listing, found without their inputs and
+            // outputs, then those loaded with them
+            const shown = await shownRunIds(quiet, limit)
+            if (shown.length === 0) {
+                return []
+            } else {
+                const statuses = await listWorkflows({
+                    ...loading,
+                    workflowIDs: shown
+                })
+                return statuses.map((status) => runOf(status, knownWorkflows()))
+            }
         }
-        const statuses = DBOS.isInitialized()
-            ? await DBOS.listWorkflows(listing)
-            : await (await dbosClient()).listWorkflows(listing)
-        return statuses.map((status) => runOf(status, knownWorkflows()))
     },
 
     async run(id) {
@@ -299,10 +384,51 @@ export const dbosWorkflows: Workflows = {
     }
 }
 
-// The workflows this process knows, which name their runs: the ones it
-// started with, or every one there is before it has
-function knownWorkflows(): Workflow[] {
+/**
+ * The workflows this process knows, which name their runs and are what an
+ * event queues: the ones it started with, or every one there is before it
+ * has.
+ */
+export function knownWorkflows(): Workflow[] {
     return workflowsProcess().dependencies?.workflows ?? WORKFLOWS
+}
+
+// Lists runs through DBOS itself once it has launched here, and through
+// the client before then
+async function listWorkflows(listing: GetWorkflowsInput) {
+    return DBOS.isInitialized()
+        ? await DBOS.listWorkflows(listing)
+        : await (await dbosClient()).listWorkflows(listing)
+}
+
+// How many runs a page of the search for the ones worth listing reads, and
+// how many pages it reads at most, so a flood of quiet runs costs a few
+// small queries rather than hiding everything else
+const SHOWN_PAGE = 200
+const SHOWN_PAGES = 5
+
+// The ids of the latest `limit` runs worth listing, newest first: every
+// run but a quiet workflow's that hasn't failed (runs.ts's `worthListing`)
+async function shownRunIds(quiet: Set<string>, limit: number) {
+    const shown: string[] = []
+    for (let page = 0; page < SHOWN_PAGES; page++) {
+        const statuses = await listWorkflows({
+            sortDesc: true,
+            limit: SHOWN_PAGE,
+            offset: page * SHOWN_PAGE,
+            loadInput: false,
+            loadOutput: false
+        })
+        for (const status of statuses) {
+            if (shown.length < limit && worthListing(status, quiet)) {
+                shown.push(status.workflowID)
+            }
+        }
+        if (shown.length >= limit || statuses.length < SHOWN_PAGE) {
+            break
+        }
+    }
+    return shown
 }
 
 /**

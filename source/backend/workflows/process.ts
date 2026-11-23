@@ -50,6 +50,9 @@ export type WorkflowsProcess = {
     stop_runners: (() => void) | null
     // For starting a workflow before DBOS has launched here
     client: Promise<DBOSClient> | null
+    // For queueing a run inside a write's own transaction (queue.ts), on
+    // that transaction's connection, so it holds none of its own
+    queueing: Promise<DBOSClient> | null
     // Each workflow's body as evaluated last, by its name, which is what the
     // function DBOS registered runs, so a dev server picks up a change to it
     bodies: Map<string, WorkflowBody>
@@ -72,6 +75,7 @@ export function workflowsProcess(): WorkflowsProcess {
         pruning: null,
         stop_runners: null,
         client: null,
+        queueing: null,
         bodies: new Map(),
         registered: new Map()
     }
