@@ -3,8 +3,15 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { Hono } from "hono"
 import { z } from "zod"
+import {
+    AREA_NAMES,
+    allows,
+    LEVELS,
+    type Permissions
+} from "@/utilities/permissions"
 import { MCP_PATH } from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
+import { levelFor, requirementOf } from "../auth/logged-in"
 import { api, type apiWith } from "../index"
 import { requestOrigin } from "../infra"
 
@@ -18,9 +25,9 @@ import { requestOrigin } from "../infra"
 // README.md here has how Claude connects, and the tools.
 
 /** What Claude reads before it uses the tools, at the start of each session */
-const INSTRUCTIONS = `This is the business's own app. You're logged in to it as the person on its team who allowed you in, and you can do through its API what they can, with what they allowed: "read" makes GET requests only, and "act" everything else, except changing who can log in, which only a person on the dashboard can.
+const INSTRUCTIONS = `This is the business's own app. You're logged in to it as the person on its team who allowed you in, and you can do through its API what their role lets them, with what they allowed: "read" makes GET requests only, and "act" everything else, except changing who can log in, which only a person on the dashboard can.
 
-- Start with list_routes, which lists every route of the app's API, then call one with call_api.
+- Start with list_routes, which lists the routes of the app's API you may call, each with the area and level it needs, then call one with call_api.
 - Every route answers JSON. A failure is { error: { reason, message } }: read the reason, and tell the person what it says.
 - Ask the person before anything that changes their data or reaches their customers, like adding, removing or sending something.
 - To change many rows at once, use a job, never a route called in a loop: GET /api/jobs lists them, POST /api/jobs/:name with { input } is a dry run that says what it would change, and { input, dry_run: false } starts it. Show the person the dry run, and start it only once they say so. /api/workflows/runs/:id shows how a run went. A change no job makes is code to write in the codebase, not something to do here.`
@@ -50,12 +57,11 @@ export function mcpWith(api: Api) {
                 : await api.request(`${base}/api/auth/session`, {
                       headers: { Authorization: authorization }
                   })
-        const logged_in =
-            session?.status === 200 &&
-            z
-                .object({ user: z.object({ id: z.string() }).nullable() })
-                .parse(await session.json()).user !== null
-        if (!logged_in) {
+        const answered =
+            session?.status === 200
+                ? logged_in_session.parse(await session.json())
+                : null
+        if (answered === null || answered.permissions === null) {
             const challenge = [
                 `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
                 authorization === undefined ? null : 'error="invalid_token"'
@@ -80,7 +86,13 @@ export function mcpWith(api: Api) {
             { name: "app", title: "This app", version: "1.0.0" },
             { instructions: INSTRUCTIONS }
         )
-        registerTools(server, api, base, authorization ?? "")
+        registerTools(
+            server,
+            api,
+            base,
+            authorization ?? "",
+            answered.permissions
+        )
         const transport = new WebStandardStreamableHTTPServerTransport({
             sessionIdGenerator: undefined,
             enableJsonResponse: true
@@ -96,29 +108,53 @@ export function mcpWith(api: Api) {
     })
 }
 
+// What /api/auth/session answers, of what the MCP needs: who's logged in,
+// and what they may do in each area
+const logged_in_session = z.object({
+    user: z.object({ id: z.string() }).nullable(),
+    permissions: z.record(z.enum(AREA_NAMES), z.enum(LEVELS)).nullable()
+})
+
 // The tools: the API's routes, and calling one as the person
 function registerTools(
     server: McpServer,
     api: Api,
     base: string,
-    authorization: string
+    authorization: string,
+    permissions: Permissions
 ) {
     server.registerTool(
         "list_routes",
         {
             title: "List the app's routes",
             description:
-                "Every route of the app's API under /api: its method and path, with :name for a part of the path to fill in. call_api calls one.",
+                "The routes of the app's API under /api that you may call: each one's method and path, with :name for a part of the path to fill in, and the area and level it needs, when it's the business's rather than the person's own. call_api calls one.",
             annotations: { readOnlyHint: true, openWorldHint: false }
         },
         async () => {
-            const seen = new Set<string>()
-            for (const { method, path } of api.routes) {
-                if (METHODS.some((known) => known === method)) {
-                    seen.add(`${method} ${path}`)
+            const listed = new Map<string, string>()
+            for (const { method, path, handler } of api.routes) {
+                const known = METHODS.some((each) => each === method)
+                const key = `${method} ${path}`
+                const requirement = requirementOf(handler)
+                if (!known) {
+                    // Middleware for every method, never a route of its own
+                } else if (requirement === undefined) {
+                    if (!listed.has(key)) {
+                        listed.set(key, key)
+                    }
+                } else {
+                    const level = requirement.level ?? levelFor(method)
+                    listed.set(
+                        key,
+                        allows(permissions, requirement.area, level)
+                            ? `${key} (${requirement.area}: ${level})`
+                            : ""
+                    )
                 }
             }
-            return text([...seen].sort().join("\n"))
+            const routes = [...listed.values()].filter((line) => line !== "")
+            return text(routes.sort().join("\n"))
         }
     )
 

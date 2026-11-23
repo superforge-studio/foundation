@@ -22,7 +22,6 @@ import {
 } from "@/frontend/components/primitives/popover"
 import { useSession } from "@/frontend/queries/auth"
 import type { CommentedElement } from "@/utilities/schemas/comments"
-import { isInternal } from "@/utilities/schemas/users"
 import { Composer } from "./composer"
 import { describeElement } from "./describe"
 import { elementFacts } from "./element"
@@ -54,20 +53,15 @@ type Mode =
 const SAVED_FOR = 2500
 
 /**
- * The toolbar, for the business's own people, drawn by the root route on
- * every page, on a computer with a mouse: picking an element by touch is
- * fiddly, and on a phone the toolbar covers too much. Nothing for a
- * visitor or a customer who logs in, nor in the prerender, which draws
- * every page for a visitor.
+ * The toolbar, for the team, drawn by the root route on every page, on a
+ * computer with a mouse: picking an element by touch is fiddly, and on a
+ * phone the toolbar covers too much. Nothing for a visitor, nor in the
+ * prerender, which draws every page for a visitor.
  */
 export function Toolbar() {
     const session = useSession()
     const mouse = useMouse()
-    if (
-        session.status === "logged-in" &&
-        isInternal(session.user.role) &&
-        mouse
-    ) {
+    if (session.status === "logged-in" && mouse) {
         return <LoggedInToolbar />
     } else {
         return null

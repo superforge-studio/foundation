@@ -4,21 +4,26 @@ import { logInAs } from "@/backend/tests/support/login"
 import { api_failure } from "@/utilities/schemas/failures"
 
 // The workflows' runs, through the whole API, on workflows recorded rather
-// than run (tests/support/recorded.ts): only the business's own people see
-// them, and only a stopped run runs again. Reading them from DBOS itself is
+// than run (tests/support/recorded.ts): only a role that may read the
+// workflows sees them, and only a stopped run runs again. Reading them from DBOS itself is
 // engine.test.ts's.
 
 beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
 })
 
-test("the runs are listed to internal people only", async () => {
-    const api = await testApi()
-    const customer = await logInAs(api, "maria@example.com")
-    const owner = await logInAs(api, "ada@example.com", "internal")
+test("the runs are listed only to a role that may read the workflows", async () => {
+    const api = await testApi({
+        access: {
+            internal_users: [],
+            roles: { owner: "everything", member: { team: "read" } }
+        }
+    })
+    const member = await logInAs(api, "maria@example.com", "member")
+    const owner = await logInAs(api, "ada@example.com")
     api.runs.set("queued-run", {
         id: "queued-run",
-        workflow: "tell-team-of-sign-up",
+        workflow: "tell-team-of-new-member",
         title: "Tell the team about maria@example.com",
         status: "queued",
         input: "{}",
@@ -31,7 +36,7 @@ test("the runs are listed to internal people only", async () => {
 
     const refused = await api.client.api.workflows.runs.$get(
         {},
-        { headers: { cookie: customer.cookie } }
+        { headers: { cookie: member.cookie } }
     )
     expect(refused.status).toBe(403)
 
@@ -50,11 +55,11 @@ test("the runs are listed to internal people only", async () => {
 
 test("a failed run runs again; one that didn't fail, or isn't there, doesn't", async () => {
     const api = await testApi()
-    const owner = await logInAs(api, "ada@example.com", "internal")
+    const owner = await logInAs(api, "ada@example.com")
     const headers = { headers: { cookie: owner.cookie } }
     api.runs.set("failed-run", {
         id: "failed-run",
-        workflow: "tell-team-of-sign-up",
+        workflow: "tell-team-of-new-member",
         title: "Tell the team about olu@example.com",
         status: "failed",
         input: "{}",

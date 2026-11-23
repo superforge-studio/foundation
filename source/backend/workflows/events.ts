@@ -11,9 +11,13 @@ import { z } from "zod"
 // here when the first workflow needs it, in the same change.
 
 export const EVENTS = {
-    // Someone new logged in for the first time, which made their user
-    // (backend/auth/login.ts). Not one of the business's own, who are
-    // never a sign-up. With their address, for the run's title.
+    // Someone new is on the team: the server's start, or their first
+    // login, made their user, as access.ts lists them
+    // (backend/users/sync.ts). With their address, for the run's title.
+    "user-added": z.object({ user_id: z.uuid(), email: z.string() }),
+    // Someone new logged in for the first time, from before only the team
+    // could. Nothing queues it now: it's here while tell-team-of-sign-up is
+    // listed for its runs, and goes with it in the next release.
     "user-signed-up": z.object({ user_id: z.uuid(), email: z.string() })
 } satisfies Record<string, z.ZodType>
 

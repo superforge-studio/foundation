@@ -13,8 +13,8 @@ import { SECRET, signedHeaders } from "./support/sign"
 
 // Webhooks through the whole API, from sources of the test's own: each
 // delivery kept as it came, its signature checked, and its events queued
-// for the workflows on them (the template's sign-up notice is on
-// `user-signed-up`), once however often it's sent.
+// for the workflows on them (the template's notice to the team is on
+// `user-added`), once however often it's sent.
 
 beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
@@ -44,7 +44,7 @@ const sample = standardWebhooksSource({
             const { user_id, email } = read.data
             return {
                 ok: true,
-                data: [{ name: "user-signed-up", data: { user_id, email } }]
+                data: [{ name: "user-added", data: { user_id, email } }]
             }
         } else {
             return { ok: true, data: [] }
@@ -119,8 +119,8 @@ test("a delivery that checks out is kept as it came, and queues its events once,
             problem: null,
             events: [
                 {
-                    name: "user-signed-up",
-                    runs: [`tell-team-of-sign-up-sample-msg_1-0`]
+                    name: "user-added",
+                    runs: [`tell-team-of-new-member-sample-msg_1-0`]
                 }
             ]
         })
@@ -129,8 +129,8 @@ test("a delivery that checks out is kept as it came, and queues its events once,
     }
     expect(await api.queued()).toEqual([
         {
-            workflow: "tell-team-of-sign-up",
-            id: "tell-team-of-sign-up-sample-msg_1-0",
+            workflow: "tell-team-of-new-member",
+            id: "tell-team-of-new-member-sample-msg_1-0",
             input: { user_id, email: "ada@example.com" },
             queue: "background"
         }

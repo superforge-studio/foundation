@@ -7,6 +7,7 @@ import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
 import { sessions } from "@/database/schema"
 import type { AgentScope } from "@/utilities/schemas/agents"
+import { api_failure } from "@/utilities/schemas/failures"
 
 // The jobs (backend/jobs/): listing them, a dry run that changes nothing,
 // starting one, and who may, with the template's example job,
@@ -63,7 +64,7 @@ async function asClaude(
 describe("the jobs", () => {
     test("lists every job with what it takes", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const response = await setup.client.api.jobs.$get(
             {},
             { headers: { Cookie: cookie } }
@@ -78,7 +79,7 @@ describe("the jobs", () => {
 
     test("a dry run says what it would change, and changes nothing", async () => {
         const setup = await testApi()
-        const { id, cookie } = await logInAs(setup, ADA, "internal")
+        const { id, cookie } = await logInAs(setup, ADA)
         await expiredSessions(setup, id, 3)
         const before = await sessionCount(setup)
         const response = await setup.client.api.jobs[":name"].$post(
@@ -96,7 +97,7 @@ describe("the jobs", () => {
 
     test("starts the change as a workflow only when asked to", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const response = await setup.client.api.jobs[":name"].$post(
             {
                 param: { name: "prune-sessions" },
@@ -112,7 +113,7 @@ describe("the jobs", () => {
 
     test("refuses a job that isn't one, or input it doesn't take", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const unknown = await setup.client.api.jobs[":name"].$post(
             { param: { name: "drop-everything" }, json: {} },
             { headers: { Cookie: cookie } }
@@ -125,16 +126,31 @@ describe("the jobs", () => {
         expect(wrong.status).toBe(400)
     })
 
-    test("only the team, and Claude allowed to act, may start one", async () => {
-        const setup = await testApi()
-        const outsider = await logInAs(setup, "bob@example.com")
+    test("only a role that may write jobs, and Claude allowed to act, may start one", async () => {
+        const setup = await testApi({
+            access: {
+                internal_users: [],
+                roles: { owner: "everything", member: { jobs: "read" } }
+            }
+        })
+        const member = await logInAs(setup, "bob@example.com", "member")
+        const listed = await setup.client.api.jobs.$get(
+            {},
+            { headers: { Cookie: member.cookie } }
+        )
+        expect(listed.status).toBe(200)
         const refused = await setup.client.api.jobs[":name"].$post(
             { param: { name: "prune-sessions" }, json: {} },
-            { headers: { Cookie: outsider.cookie } }
+            { headers: { Cookie: member.cookie } }
         )
         expect(refused.status).toBe(403)
+        expect(api_failure.parse(await refused.json()).error).toMatchObject({
+            reason: "not-permitted",
+            area: "jobs",
+            level: "write"
+        })
 
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const reading = await asClaude(
             setup,
             "/api/jobs/prune-sessions",
@@ -155,7 +171,7 @@ describe("the jobs", () => {
 describe("prune-sessions", () => {
     test("deletes only sessions that have run out, a batch at a time", async () => {
         const setup = await testApi()
-        const { id } = await logInAs(setup, ADA, "internal")
+        const { id } = await logInAs(setup, ADA)
         await expiredSessions(setup, id, 3)
         const live = (await sessionCount(setup)) - 3
         expect(await deleteExpiredSessions(setup.database, 2)).toBe(2)

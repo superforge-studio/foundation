@@ -18,11 +18,13 @@ Claude to send.
 | `POST /api/jobs/:name` | `{ input }`: the dry run, which answers `{ dry_run: true, plan: { summary, changes } }` and changes nothing |
 | `POST /api/jobs/:name` | `{ input, dry_run: false }`: starts it, 202 with `{ run_id }`                                               |
 
-A request is a dry run unless it says `dry_run: false`. Only the
-business's own people may call these (`internalOnly`). Claude calls them
-through the MCP's `call_api` as the person who let it in, and since both
-are `POST`s, it needs to have been allowed to act. A run shows on the
-dashboard's workflows, and at `GET /api/workflows/runs/:run_id`.
+A request is a dry run unless it says `dry_run: false`. Only a role that
+may read the `jobs` area lists them, and only one that may write it plans
+or starts one (`permitted("jobs")`). Claude calls them through the MCP's
+`call_api` as the person who let it in, and since both are `POST`s, it
+needs to have been allowed to act, and their role to write jobs. A run
+shows on the admin's Workflows screen, and at
+`GET /api/workflows/runs/:run_id`.
 
 ## Writing one
 

@@ -12,7 +12,6 @@ import {
 import { useSession } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
 import type { AgentScope } from "@/utilities/schemas/agents"
-import { isInternal } from "@/utilities/schemas/users"
 
 /**
  * The Allow page: where Claude, connecting to the app's MCP, sends someone
@@ -47,15 +46,6 @@ function Connect() {
                     lead="Enter your email, then type the code we send you here. Stay on this page: Claude is waiting on it."
                 />
                 <LoginForm />
-            </Frame>
-        )
-    } else if (!isInternal(session.user.role)) {
-        return (
-            <Frame>
-                <Heading
-                    title="Only the team can connect Claude"
-                    lead={`You're logged in as ${session.user.email}, who isn't on the business's team. Log in as someone who is.`}
-                />
             </Frame>
         )
     } else {

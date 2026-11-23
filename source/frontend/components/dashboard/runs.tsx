@@ -2,12 +2,14 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { RotateCcw } from "lucide-react"
 import { Button } from "@/frontend/components/primitives/button"
+import { useSession } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
 import {
     type RunSummary,
     retryRun,
     runQuery
 } from "@/frontend/queries/workflows"
+import { allows } from "@/utilities/permissions"
 import {
     RunLine,
     RunStatusMark,
@@ -97,7 +99,7 @@ function RunGroup({
                     {runs.map((run) => (
                         <li key={run.id}>
                             <Link
-                                to="/dashboard/workflows"
+                                to="/admin/workflows"
                                 search={{ run: run.id }}
                                 aria-current={
                                     chosen === run.id ? "true" : undefined
@@ -133,6 +135,10 @@ export function RunDetailPane({ id }: { id: string }) {
     const now = useNow(1000)
     const found = useQuery(runQuery(id))
     const retry = useMutation(retryRun)
+    const session = useSession()
+    const may_retry =
+        session.status === "logged-in" &&
+        allows(session.permissions, "workflows", "write")
 
     if (found.isPending) {
         return (
@@ -148,7 +154,7 @@ export function RunDetailPane({ id }: { id: string }) {
         const failure = failureOf(found.error)
         return (
             <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-8 sm:px-10">
-                <BackToList to="/dashboard/workflows">Workflows</BackToList>
+                <BackToList to="/admin/workflows">Workflows</BackToList>
                 {failure.reason === "not-found" ? (
                     <p className="text-muted-foreground text-sm">
                         There's no run with this id.
@@ -167,7 +173,7 @@ export function RunDetailPane({ id }: { id: string }) {
     const stopped = run.status === "failed" || run.status === "canceled"
     return (
         <article className="mx-auto flex max-w-3xl flex-col gap-8 px-5 py-6 sm:px-10 sm:py-8">
-            <BackToList to="/dashboard/workflows">Workflows</BackToList>
+            <BackToList to="/admin/workflows">Workflows</BackToList>
             <header className="flex flex-col gap-3">
                 <h1 className="text-balance font-heading font-semibold text-2xl tracking-tight">
                     {run.title}
@@ -193,18 +199,21 @@ export function RunDetailPane({ id }: { id: string }) {
                             {run.status === "failed"
                                 ? `It stopped: ${run.error ?? "it failed without saying why"}.`
                                 : "It was canceled before it finished."}{" "}
-                            Trying again starts from where it stopped, keeping
-                            what its finished steps returned.
+                            {may_retry
+                                ? "Trying again starts from where it stopped, keeping what its finished steps returned."
+                                : "Your role can see the workflows but not run one again."}
                         </p>
-                        <Button
-                            variant="outline"
-                            disabled={retry.isPending}
-                            onClick={() => retry.mutate({ id: run.id })}
-                            className="h-9 shrink-0 px-3"
-                        >
-                            <RotateCcw aria-hidden />
-                            {retry.isPending ? "Starting…" : "Try again"}
-                        </Button>
+                        {may_retry && (
+                            <Button
+                                variant="outline"
+                                disabled={retry.isPending}
+                                onClick={() => retry.mutate({ id: run.id })}
+                                className="h-9 shrink-0 px-3"
+                            >
+                                <RotateCcw aria-hidden />
+                                {retry.isPending ? "Starting…" : "Try again"}
+                            </Button>
+                        )}
                     </div>
                 )}
                 {retry.error !== null && (

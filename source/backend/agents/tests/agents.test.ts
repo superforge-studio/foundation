@@ -72,7 +72,7 @@ async function loggedInAs(response: Response) {
 describe("Claude's token", () => {
     test("logs in as the person on the team who allowed it", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         expect(
             await loggedInAs(await asClaude(setup, "/api/auth/session"))
         ).toBe(ADA)
@@ -81,22 +81,20 @@ describe("Claude's token", () => {
 
     test("is refused for someone not on the team", async () => {
         const setup = await testApi()
-        await logInAs(setup, "bob@example.com")
+        await logInAs(setup, ADA)
         const session = await asClaude(setup, "/api/auth/session", {
             email: "bob@example.com"
         })
         expect(await loggedInAs(session)).toBeNull()
-        const account = await asClaude(setup, "/api/account", {
-            email: "bob@example.com",
-            method: "PATCH",
-            body: { name: "Bob" }
+        const users = await asClaude(setup, "/api/users", {
+            email: "bob@example.com"
         })
-        expect(account.status).toBe(401)
+        expect(users.status).toBe(401)
     })
 
     test("stops working the moment its person leaves the team", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         expect((await asClaude(setup, "/api/users")).status).toBe(200)
         setup.internal_users.length = 0
         expect((await asClaude(setup, "/api/users")).status).toBe(401)
@@ -104,7 +102,7 @@ describe("Claude's token", () => {
 
     test("is refused on any app but the one it was made for", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const elsewhere = await asClaude(setup, "/api/users", {
             origin: "https://someone-else.example"
         })
@@ -113,7 +111,7 @@ describe("Claude's token", () => {
 
     test("is refused once it has run out", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const token = await standInAgentToken({ email: ADA, expires_in: "0s" })
         const response = await setup.api.request("http://localhost/api/users", {
             headers: { Authorization: `Bearer ${token}` }
@@ -123,13 +121,13 @@ describe("Claude's token", () => {
 
     test("allowed to read, it reads and changes nothing", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const read = { scopes: ["read"] satisfies AgentScope[] }
         expect((await asClaude(setup, "/api/users", read)).status).toBe(200)
-        const change = await asClaude(setup, "/api/account", {
+        const change = await asClaude(setup, "/api/jobs/prune-sessions", {
             ...read,
-            method: "PATCH",
-            body: { name: "Ada" }
+            method: "POST",
+            body: {}
         })
         expect(change.status).toBe(403)
         expect((await change.json()).error.reason).toBe("read-only")
@@ -137,15 +135,10 @@ describe("Claude's token", () => {
 
     test("can't touch who logs in, or where", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const sessions = await asClaude(setup, "/api/account/sessions")
         expect(sessions.status).toBe(403)
         expect((await sessions.json()).error.reason).toBe("browser-only")
-        const added = await asClaude(setup, "/api/users", {
-            method: "POST",
-            body: { email: "eve@example.com" }
-        })
-        expect(added.status).toBe(403)
         const connections = await asClaude(setup, "/api/account/connections")
         expect(connections.status).toBe(403)
     })
@@ -190,7 +183,7 @@ describe("the Allow page and the Connected list", () => {
     test("someone on the team allows it, as themselves", async () => {
         const { infra, allowed } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const response = await setup.client.api.connect[
             ":request_id"
         ].allow.$post(
@@ -201,18 +194,17 @@ describe("the Allow page and the Connected list", () => {
         expect(allowed).toEqual([{ request_id: REQUEST, email: ADA }])
     })
 
-    test("nobody off the team, and no token, may allow it", async () => {
+    test("nobody logged out, and no token, may allow it", async () => {
         const { infra, allowed } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await logInAs(setup, "bob@example.com")
         const outsider = await setup.client.api.connect[
             ":request_id"
-        ].allow.$post(
-            { param: { request_id: REQUEST }, json: { scopes: ["read"] } },
-            { headers: { Cookie: cookie } }
-        )
-        expect(outsider.status).toBe(403)
-        await logInAs(setup, ADA, "internal")
+        ].allow.$post({
+            param: { request_id: REQUEST },
+            json: { scopes: ["read"] }
+        })
+        expect(outsider.status).toBe(401)
+        await logInAs(setup, ADA)
         const token = await asClaude(setup, `/api/connect/${REQUEST}/allow`, {
             method: "POST",
             body: { scopes: ["read"] }
@@ -224,7 +216,7 @@ describe("the Allow page and the Connected list", () => {
     test("someone disconnects only their own", async () => {
         const { infra, ended } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const end = (connection_id: string) =>
             setup.client.api.account.connections[":connection_id"].$delete(
                 { param: { connection_id } },
@@ -324,7 +316,7 @@ describe("the MCP", () => {
 
     test("lists the API's routes, and calls one as the person", async () => {
         const setup = await testApi()
-        await logInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA)
         const token = await standInAgentToken({ email: ADA })
         const mcp = mcpWith(setup.api)
         const client = new Client({ name: "test", version: "1.0.0" })
@@ -345,7 +337,9 @@ describe("the MCP", () => {
                 .join("\n")
 
         const routes = text(await client.callTool({ name: "list_routes" }))
-        expect(routes).toContain("GET /api/users")
+        expect(routes).toContain("GET /api/users (team: read)")
+        expect(routes).toContain("POST /api/jobs/:name (jobs: write)")
+        expect(routes).toContain("GET /api/account/sessions")
 
         const users = await client.callTool({
             name: "call_api",
@@ -354,6 +348,38 @@ describe("the MCP", () => {
         expect(users.isError).toBe(false)
         expect(text(users)).toMatch(/^200/)
         expect(text(users)).toContain(ADA)
+        await client.close()
+    })
+
+    test("lists only the routes the person's role reaches", async () => {
+        const setup = await testApi({
+            access: {
+                internal_users: [],
+                roles: { owner: "everything", member: { workflows: "read" } }
+            }
+        })
+        await logInAs(setup, ADA, "member")
+        const token = await standInAgentToken({ email: ADA })
+        const mcp = mcpWith(setup.api)
+        const client = new Client({ name: "test", version: "1.0.0" })
+        await client.connect(
+            new StreamableHTTPClientTransport(
+                new URL("http://localhost/admin/mcp"),
+                {
+                    fetch: async (url, init) => await mcp.request(url, init),
+                    requestInit: {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                }
+            )
+        )
+        const listed = await client.callTool({ name: "list_routes" })
+        const routes = (Array.isArray(listed.content) ? listed.content : [])
+            .map((part: { text?: string }) => part.text ?? "")
+            .join("\n")
+        expect(routes).toContain("GET /api/workflows/runs (workflows: read)")
+        expect(routes).not.toContain("/api/users")
+        expect(routes).not.toContain("/api/workflows/runs/:id/retry")
         await client.close()
     })
 })

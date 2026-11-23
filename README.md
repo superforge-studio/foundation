@@ -10,17 +10,17 @@ sets the colors, fonts, logo and copy, and writes `PRODUCT.md` and
 
 ## What's in it
 
-| Part      | What                                                                                            |
-| --------- | ----------------------------------------------------------------------------------------------- |
-| Website   | TanStack Start, React and Tailwind, pages prerendered, shadcn's components on Base UI           |
-| API       | Hono under `/api`, called through a typed client and TanStack Query                             |
-| Database  | Postgres with Drizzle, migrations checked by squawk and an upgrade test                         |
-| Workflow  | DBOS, for background work that picks up where it stopped, in the same Postgres                  |
-| Login     | A code or a link by email, sent by Superforge Infra; the users and sessions are yours           |
-| Dashboard | Behind login: your people and your workflows' runs, live, for your team; everyone's own account |
-| Analytics | What visitors view and click, kept in your own database, asking first if you choose             |
-| Tests     | Vitest on a real Postgres, a database of each test's own                                        |
-| Deploys   | Railway, as code (`.railway/railway.ts`), from each merge to `main` once CI passes              |
+| Part      | What                                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| Website   | TanStack Start, React and Tailwind, pages prerendered, shadcn's components on Base UI                |
+| API       | Hono under `/api`, called through a typed client and TanStack Query                                  |
+| Database  | Postgres with Drizzle, migrations checked by squawk and an upgrade test                              |
+| Workflow  | DBOS, for background work that picks up where it stopped, in the same Postgres                       |
+| Login     | A code or a link by email, sent by Superforge Infra, for your team; the users and sessions are yours |
+| Admin     | Behind login: your workflows' runs, live, and your team, each as their role allows                   |
+| Analytics | What visitors view and click, kept in your own database, asking first if you choose                  |
+| Tests     | Vitest on a real Postgres, a database of each test's own                                             |
+| Deploys   | Railway, as code (`.railway/railway.ts`), from each merge to `main` once CI passes                   |
 
 ```
 source/
@@ -50,8 +50,8 @@ Docker and no credentials. `pnpm dev` and the tests run a Postgres of the
 checkout's own, from npm (`workbench/writing-code.md`, "Local
 development"), and logging in at `/login` shows its code on the page
 rather than emailing it. After `pnpm database:seed`, log in as
-`ada@example.com`, one of the sample team, to see the whole dashboard at
-`/dashboard`.
+`ada@example.com`, the sample team's owner, to see the whole admin at
+`/admin`.
 
 Deploys run on Railway when a PR merges to `main`. Setting Railway up is a
 one-time job for each copy

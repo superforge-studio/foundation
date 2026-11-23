@@ -9,7 +9,7 @@
 //   2. `pnpm start` (source/node.ts) on a free port, with DATABASE_URL
 //   3. /api/health, which Railway's healthcheck waits on, answers 200
 //   4. every prerendered page answers 200, the build's hashed files, /api
-//      and the dashboard, drawn on request, answer with the cache headers
+//      and the admin, drawn on request, answer with the cache headers
 //      source/node.ts promises, a path that isn't a page answers 404, and
 //      a POST to a page 405, and pages' heads credit the Superforge
 //      template the site was built on (source/utilities/template.ts)
@@ -125,14 +125,14 @@ try {
         await expectAnswer(base, `/assets/${asset}`, 200, "immutable")
     }
     await expectAnswer(base, "/api/health", 200, "no-store")
-    // The dashboard, which isn't prerendered: drawn on request, for the
+    // The admin, which isn't prerendered: drawn on request, for the
     // browser to fill in, and never kept by the CDN
-    await expectAnswer(base, "/dashboard/workflows", 200, "no-store")
+    await expectAnswer(base, "/admin/workflows", 200, "no-store")
     await expectAnswer(base, "/no-page-here", 404, "no-store")
     // Superforge's credit, in a prerendered page's source and in one drawn
     // on request (source/utilities/template.ts)
     await expectCredit(base, "/")
-    await expectCredit(base, "/dashboard/workflows")
+    await expectCredit(base, "/admin/workflows")
     // A page sent a POST, like a webhook given the site's address, is
     // refused, not drawn and answered 200 (source/server.ts)
     await expectPostRefused(base, "/")
@@ -300,21 +300,26 @@ async function waitForWorkflows() {
     throw new Error("The workflows didn't launch within 30 seconds")
 }
 
-// A login started on a build with no secret key: refused as unavailable,
-// with no code in the answer
+// A login checked on a build with no secret key: refused as unavailable.
+// It's the code's check, which asks Infra whoever's asking: starting one
+// asks Infra only for an address on the team, which a copy's own list
+// has, not this script
 async function expectLoginDown(base) {
-    const response = await fetch(`${base}/api/auth/start`, {
+    const response = await fetch(`${base}/api/auth/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "smoke-test@example.com" })
+        body: JSON.stringify({
+            email: "smoke-test@example.com",
+            code: "000000"
+        })
     })
     const body = await response.json().catch(() => null)
     if (response.status !== 503 || body?.error?.reason !== "unavailable") {
         problems.push(
-            `POST /api/auth/start without INFRA_SECRET_KEY answered ${response.status} ${JSON.stringify(body)}, not 503 unavailable`
+            `POST /api/auth/verify without INFRA_SECRET_KEY answered ${response.status} ${JSON.stringify(body)}, not 503 unavailable`
         )
     } else {
-        console.info("  ✓ POST /api/auth/start 503, with no secret key")
+        console.info("  ✓ POST /api/auth/verify 503, with no secret key")
     }
 }
 

@@ -12,13 +12,55 @@ const found_team = z.array(z.string())
 const told = z.object({ told: z.number() })
 
 /**
- * Tells the business's own people that someone new has signed up, as the
- * template's example of background work: it's on `user-signed-up`, which
- * the login that makes a user queues in its own transaction
- * (backend/auth/login.ts), under an id named for them, so it runs once. Until Superforge Infra can send email it writes the notice to the
- * logs; then `send-notice` emails it, with an idempotency key of the run's
- * id, so sending twice sends once. Every step is safe to run again
+ * Tells the rest of the team that someone new is on it, as the template's
+ * example of background work: it's on `user-added`, which the sync that
+ * makes their row queues in its own transaction (sync.ts), under an id
+ * named for them, so it runs once, from the deploy that lists them. Until
+ * Superforge Infra can send email it writes the notice to the logs; then
+ * `send-notice` emails it, with an idempotency key of the run's id, so
+ * sending twice sends once. Every step is safe to run again
  * (backend/workflows/README.md).
+ */
+export const tellTeamOfNewMember = defineWorkflow({
+    name: "tell-team-of-new-member",
+    input: z.object({ user_id: z.uuid(), email: z.string() }),
+    on: ["user-added"],
+    title: ({ email }) => `Tell the team about ${email}`,
+    run: async ({ user_id }, context) => {
+        const user = found_user.parse(
+            await context.step("read-user", () =>
+                findUser(context.database, user_id)
+            )
+        )
+        if (user === null) {
+            // Removed before the notice went out: there's no one to tell of
+            return { told: 0 }
+        }
+
+        const team = found_team.parse(
+            await context.step("find-team", () =>
+                internalEmails(context.database, user_id)
+            )
+        )
+
+        return told.parse(
+            await context.step("send-notice", async () => {
+                console.info("Someone new is on the team", {
+                    email: user.email,
+                    name: user.name,
+                    telling: team
+                })
+                return { told: team.length }
+            })
+        )
+    }
+})
+
+/**
+ * The template's example before only the team logged in: it told the team
+ * of someone new who'd signed up. Nothing starts it now, and it's listed
+ * only until the runs a copy had in flight have finished: the next release
+ * takes it out (backend/workflows/README.md, "Changing a workflow").
  */
 export const tellTeamOfSignUp = defineWorkflow({
     name: "tell-team-of-sign-up",
@@ -32,7 +74,6 @@ export const tellTeamOfSignUp = defineWorkflow({
             )
         )
         if (user === null) {
-            // Removed before the notice went out: there's no one to tell of
             return { told: 0 }
         }
 

@@ -2,28 +2,36 @@ import type { Context } from "hono"
 import { deleteCookie, getCookie, setCookie } from "hono/cookie"
 import { createFactory } from "hono/factory"
 import type { Database } from "@/database"
+import {
+    type Area,
+    allows,
+    every,
+    type Level,
+    narrowed,
+    type Permissions
+} from "@/utilities/permissions"
 import { AGENT_SCOPES, type AgentScope } from "@/utilities/schemas/agents"
-import { isInternal } from "@/utilities/schemas/users"
 import type { ApiEnvironment } from "../context"
 import { failure } from "../failures"
-import { type Access, roleFor } from "./access"
+import { type Access, listedBySlug, listing, permissionsOf } from "./access"
 import { agentUser, bearerToken } from "./agents"
 import { apiTokenUser, isApiToken } from "./api-tokens"
 import {
     liveSession,
     renewSession,
     SESSION_LIFETIME,
-    type SessionUser
+    type TeamMember
 } from "./sessions"
 
-// Who's logged in: the `session` cookie, or a token in its place, either the
-// one Claude brings (agents.ts) or an API token someone made for a script
-// (api-tokens.ts), and the middleware that reads them. This is the one
-// place that decides who's logged in, so a route that needs the user takes
-// `loggedIn` (or `maybeLoggedIn`, or `internalOnly`) and reads
-// `context.var.user`; nothing else reads the cookie or the tokens. Their
-// role is the one access.ts gives them, whatever the database says, so
-// only the people listed there are ever internal.
+// Who's logged in, and what they may do: the `session` cookie, or a token in
+// its place, either the one Claude brings (agents.ts) or an API token
+// someone made for a script (api-tokens.ts), and the middleware that reads
+// them. This is the one place that decides who's logged in, so a route
+// that needs them takes `permitted` (or `loggedIn`, or `maybeLoggedIn`) and
+// reads `context.var.user`; nothing else reads the cookie or the tokens.
+// Only the team logs in, and someone counts only while access.ts lists
+// them, by their slug, whatever the database says; their role, and so what
+// they may do, is the one the list gives them.
 
 const COOKIE = "session"
 
@@ -87,30 +95,38 @@ export const API_TOKEN_SESSION: RequestSession = { id: "api-token" }
 /**
  * How a request logged in: a browser, by its `session` cookie; Claude, by
  * an access token Infra signed (`Authorization: Bearer`), acting as one of
- * the business's own people (agents.ts); or a script, by an API token one
- * of them made (`Authorization: Bearer api_…`, api-tokens.ts)
+ * the team (agents.ts); or a script, by an API token one of them made
+ * (`Authorization: Bearer api_…`, api-tokens.ts)
  */
 export type LoggedInWith = "session" | "agent" | "token"
 
 type LoggedIn = {
     Variables: ApiEnvironment["Variables"] & {
-        user: SessionUser
+        user: TeamMember
         session: RequestSession
         logged_in_with: LoggedInWith
-        /** What the request may do: everything for a browser */
+        /** What the request was let do: everything for a browser */
         scopes: readonly AgentScope[]
+        /**
+         * What the request may do in each area: the person's role's, and
+         * for a token, no more than the token was given
+         */
+        permissions: Permissions
     }
 }
 
 /**
- * Lets a request through only when someone is logged in, and puts their
- * user on `context.var.user`, the session's id on `context.var.session`,
- * and how they logged in on `context.var.logged_in_with`; without one,
- * it's answered 401 `logged-out`. A browser's session is renewed, keeping
- * the same token, so coming back keeps someone logged in, and one that has
- * ended stays ended. Claude, or a script, with a token, gets through as the
- * person who allowed it or made it, while they're one of the business's
- * own, and with only `read`, makes `GET` requests alone (403 `read-only`).
+ * For what's anyone on the team's own, like their account: lets a request
+ * through only when one of the team is logged in, and puts them on
+ * `context.var.user`, the session's id on `context.var.session`, how they
+ * logged in on `context.var.logged_in_with`, and what they may do on
+ * `context.var.permissions`; without one, it's answered 401 `logged-out`.
+ * A browser's session is renewed, keeping the same token, so coming back
+ * keeps someone logged in, and one that has ended stays ended. Claude, or
+ * a script, with a token, gets through as the person who allowed it or
+ * made it, while they're on the team, and with only `read`, makes `GET`
+ * requests alone (403 `read-only`). What's the business's, rather than
+ * someone's own, takes `permitted` instead.
  */
 export const loggedIn = createFactory<LoggedIn>().createMiddleware(
     // From a factory rather than plain `createMiddleware`, so the 401 below
@@ -128,36 +144,71 @@ export const loggedIn = createFactory<LoggedIn>().createMiddleware(
 )
 
 /**
- * `loggedIn` for the business's side of the dashboard: only someone whose
- * role is one of its own (`isInternal`, utilities/schemas/users.ts) gets
- * through, and anyone else logged in is answered 403 `not-internal`.
+ * `loggedIn` for what's the business's, in one of the app's areas
+ * (utilities/permissions.ts): lets a request through only when whoever's
+ * asking may do this in `area`. A route that reads, a `GET` or a `HEAD`,
+ * needs `read`, and any other needs `write`, unless `level` says, as for a
+ * `POST` that only reads. Someone whose role doesn't reach it is answered
+ * 403 `not-permitted`, saying which area and level it needed, and a token
+ * that wasn't given it, 403 `read-only`. What the request may do is on
+ * `context.var.permissions`. Every route of the business's names its area
+ * this way, which a test checks (tests/routes.test.ts), so who may do what
+ * is said at each route, and nowhere else.
  */
-export const internalOnly = createFactory<LoggedIn>().createMiddleware(
-    async (context, next) => {
-        const asking = await whoIsAsking(context)
-        if (asking === undefined) {
-            return failure(context, 401, "logged-out", "Log in first")
-        } else if (!isInternal(asking.user.role)) {
-            return failure(
-                context,
-                403,
-                "not-internal",
-                "Only the business's own people can see this"
-            )
-        } else if (!mayDo(context, asking)) {
-            return readOnly(context, asking)
-        } else {
-            return await letThrough(context, asking, next)
+export function permitted(area: Area, level?: Exclude<Level, "none">) {
+    const middleware = createFactory<LoggedIn>().createMiddleware(
+        async (context, next) => {
+            const asking = await whoIsAsking(context)
+            const needed = level ?? levelFor(context.req.method)
+            if (asking === undefined) {
+                return failure(context, 401, "logged-out", "Log in first")
+            } else if (
+                !allows(
+                    permissionsOf(context.var.access, asking.user.role),
+                    area,
+                    needed
+                )
+            ) {
+                return failure(
+                    context,
+                    403,
+                    "not-permitted",
+                    `As ${article(asking.user.role)} ${asking.user.role}, you can't ${needed === "read" ? "see" : "change"} ${area} here`,
+                    { area, level: needed }
+                )
+            } else if (!allows(permissionsFor(context, asking), area, needed)) {
+                return readOnly(context, asking)
+            } else {
+                return await letThrough(context, asking, next)
+            }
         }
-    }
-)
+    )
+    REQUIREMENTS.set(middleware, { area, level })
+    return middleware
+}
 
 /**
- * After `loggedIn` or `internalOnly`, for what only a person in a browser
- * may do, never Claude or a script with a token: who can log in and where
- * someone's logged in, Claude's own connections and allowing Claude in, and
- * API tokens. So a token that leaks can't make itself more, or lock anyone
- * out. Answers 403 `browser-only`.
+ * What a route's handler needs, if it's a `permitted` middleware: its area,
+ * and its level, or undefined when it's the method's. For whatever lists
+ * the routes: the test that every route says who may call it, and the
+ * MCP's list_routes.
+ */
+export function requirementOf(handler: unknown) {
+    return typeof handler === "function" ? REQUIREMENTS.get(handler) : undefined
+}
+
+// What each `permitted` middleware needs, by the middleware
+const REQUIREMENTS = new WeakMap<
+    object,
+    { area: Area; level: Exclude<Level, "none"> | undefined }
+>()
+
+/**
+ * After `loggedIn` or `permitted`, for what only a person in a browser
+ * may do, never Claude or a script with a token: where someone's logged
+ * in, Claude's own connections and allowing Claude in, and API tokens. So
+ * a token that leaks can't make itself more, or lock anyone out. Answers
+ * 403 `browser-only`.
  */
 export const inBrowser = createFactory<LoggedIn>().createMiddleware(
     async (context, next) => {
@@ -176,22 +227,28 @@ export const inBrowser = createFactory<LoggedIn>().createMiddleware(
 
 /**
  * `loggedIn` for a route anyone may call, like the one every page asks who's
- * logged in: `context.var.user` is null for a visitor, rather than the
- * request being refused, so a visitor's browser logs no failed request. A
- * user's session is renewed the same way.
+ * logged in: `context.var.user` and `context.var.permissions` are null for
+ * a visitor, rather than the request being refused, so a visitor's browser
+ * logs no failed request. A user's session is renewed the same way.
  */
 export const maybeLoggedIn = createFactory<{
-    Variables: ApiEnvironment["Variables"] & { user: SessionUser | null }
+    Variables: ApiEnvironment["Variables"] & {
+        user: TeamMember | null
+        permissions: Permissions | null
+    }
 }>().createMiddleware(async (context, next) => {
     const asking = await whoIsAsking(context)
     if (asking === undefined) {
         context.set("user", null)
+        context.set("permissions", null)
         await next()
     } else if (asking.by !== "session") {
         context.set("user", asking.user)
+        context.set("permissions", permissionsFor(context, asking))
         await next()
     } else {
         context.set("user", asking.user)
+        context.set("permissions", permissionsFor(context, asking))
         await renewed(
             context,
             context.var.database,
@@ -202,21 +259,21 @@ export const maybeLoggedIn = createFactory<{
     }
 })
 
-// Who's asking: a browser's session, by its cookie, with its user's role
-// as access.ts gives it, or a token's holder: an API token's, by its
-// `api_` prefix (api-tokens.ts), or else Claude's (agents.ts). A request
-// with a token is the token's whatever cookie it carries, and one with a
-// bad token is nobody's.
+// Who's asking: a browser's session, by its cookie, or a token's holder: an
+// API token's, by its `api_` prefix (api-tokens.ts), or else Claude's
+// (agents.ts), each one of the team, with the names and the role access.ts
+// lists them with. A request with a token is the token's whatever cookie it
+// carries, and one with a bad token is nobody's.
 type Asking =
     | {
           by: "session"
-          user: SessionUser
+          user: TeamMember
           id: string
           token: string
           renewable: boolean
       }
-    | { by: "agent"; user: SessionUser; scopes: AgentScope[] }
-    | { by: "token"; user: SessionUser; scopes: AgentScope[] }
+    | { by: "agent"; user: TeamMember; scopes: AgentScope[] }
+    | { by: "token"; user: TeamMember; scopes: AgentScope[] }
 
 async function whoIsAsking<Environment extends ApiEnvironment>(
     context: Context<Environment>
@@ -252,8 +309,38 @@ async function whoIsAsking<Environment extends ApiEnvironment>(
     }
 }
 
-// Whether what's asking may make this request: anyone may read, and only
-// a browser, or a token with `act`, may change anything
+// What a request may do in each area: its person's role's, and for a
+// token, no more than it was given: `read` reads every area, and `act`
+// changes them too
+function permissionsFor<Environment extends ApiEnvironment>(
+    context: Context<Environment>,
+    asking: Asking
+): Permissions {
+    const variables: ApiEnvironment["Variables"] = context.var
+    const role = permissionsOf(variables.access, asking.user.role)
+    if (asking.by === "session") {
+        return role
+    } else {
+        return narrowed(
+            role,
+            every(asking.scopes.includes("act") ? "write" : "read")
+        )
+    }
+}
+
+/** What a request in `method` needs by default: a read reads, and anything else writes. */
+export function levelFor(method: string): Exclude<Level, "none"> {
+    return ["GET", "HEAD"].includes(method) ? "read" : "write"
+}
+
+// "a" or "an", for a role's name
+function article(word: string) {
+    return /^[aeiou]/i.test(word) ? "an" : "a"
+}
+
+// Whether what's asking may make this request, on a route that's anyone's
+// own: anyone may read, and only a browser, or a token with `act`, may
+// change anything
 function mayDo(context: Context, asking: Asking) {
     const reads = ["GET", "HEAD"].includes(context.req.method)
     return reads || asking.by === "session" || asking.scopes.includes("act")
@@ -278,6 +365,7 @@ async function letThrough(
     next: () => Promise<void>
 ) {
     context.set("user", asking.user)
+    context.set("permissions", permissionsFor(context, asking))
     if (asking.by === "agent") {
         context.set("session", AGENT_SESSION)
         context.set("logged_in_with", "agent")
@@ -302,22 +390,25 @@ async function letThrough(
     }
 }
 
-// The live session behind this token, with its user's role as access.ts
-// gives it
+// The live session behind this token, if it still counts: its person's
+// while access.ts lists them by their slug, with the names and the role it
+// lists them with. One that doesn't count answers as no session, so
+// they're logged out.
 async function currentSession(
     database: Database,
     access: Access,
     token: string
 ) {
     const session = await liveSession(database, token)
-    if (session === undefined) {
+    const listed =
+        session === undefined
+            ? undefined
+            : listedBySlug(access, session.user.slug)
+    if (session === undefined || listed === undefined) {
         return undefined
     } else {
-        const { user } = session
-        return {
-            ...session,
-            user: { ...user, role: roleFor(access, user.email, user.role) }
-        }
+        const user: TeamMember = { ...session.user, ...listing(listed) }
+        return { ...session, user }
     }
 }
 

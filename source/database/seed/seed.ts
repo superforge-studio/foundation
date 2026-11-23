@@ -1,9 +1,9 @@
-import { tellTeamOfSignUp } from "@/backend/users/workflows"
+import { tellTeamOfNewMember } from "@/backend/users/workflows"
 import { enqueueFromScript } from "@/backend/workflows/engine"
 import { connect, type Database } from "@/database"
 import { localDatabaseUrl } from "@/database/local"
 import { seedAnalyticsEvents, seedAnalyticsVisits } from "./analytics"
-import { seedApiTokens, seedSessions, seedUsers, signedUp } from "./users"
+import { seedApiTokens, seedSessions, seedUsers, teamAdded } from "./users"
 
 /**
  * Sample rows for this checkout's database, so a dev server has something
@@ -83,18 +83,18 @@ export async function seedLocalDatabase() {
     const database = connect(url, 1)
     try {
         const written = await seed(database)
-        const sign_ups = await signedUp(database)
+        const added = await teamAdded(database)
         await enqueueFromScript(
             url,
-            sign_ups.map((user) => ({
-                workflow: tellTeamOfSignUp,
+            added.map((user) => ({
+                workflow: tellTeamOfNewMember,
                 input: { user_id: user.id, email: user.email },
-                id: `tell-team-of-sign-up-${user.id}`
+                id: `tell-team-of-new-member-${user.id}`
             }))
         )
         console.info("Seeded this checkout's database", {
             written,
-            runs_queued: sign_ups.length
+            runs_queued: added.length
         })
     } finally {
         await database.$client.end()

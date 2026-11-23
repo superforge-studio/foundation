@@ -1,12 +1,13 @@
 import { Hono } from "hono"
 import { z } from "zod"
-import { internalOnly } from "../auth/logged-in"
+import { permitted } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { JOBS } from "./index"
 
-// The jobs, under /api/jobs, for the business's own people: what there is,
-// and starting one, a dry run first. Claude reaches them through the MCP's
+// The jobs, under /api/jobs, for whoever's role may (`permitted("jobs")`):
+// what there is, to whoever may read them, and starting one, a dry run
+// first, to whoever may write them. Claude reaches them through the MCP's
 // call_api as the person who let it in, and needs `act` to (logged-in.ts),
 // since starting one, or planning it, is a POST. The run itself is a
 // workflow's, which /api/workflows/runs/:id shows as it goes.
@@ -22,7 +23,7 @@ const job_request = z.object({
 
 export const jobRoutes = new Hono<ApiEnvironment>()
     // Every job: its name, what it does, and what it takes, as JSON Schema
-    .get("/jobs", internalOnly, (context) =>
+    .get("/jobs", permitted("jobs"), (context) =>
         context.json(
             {
                 jobs: JOBS.map(({ name, description, input_schema }) => ({
@@ -39,7 +40,7 @@ export const jobRoutes = new Hono<ApiEnvironment>()
     // with `dry_run: false`, its start, which answers the run's id
     .post(
         "/jobs/:name",
-        internalOnly,
+        permitted("jobs"),
         validated("param", job_path),
         validated("json", job_request),
         async (context) => {

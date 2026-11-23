@@ -3,51 +3,23 @@ import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
 import { api_failure } from "@/utilities/schemas/failures"
 
-// Someone's own account, through the whole API, whatever their role: their
-// name, and the browsers they're logged in on
+// Someone's own account, through the whole API, whatever their role: who
+// they're listed as, and the browsers they're logged in on
 
 beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
 })
 
-test("sets and clears your name, which the session then says", async () => {
+test("your name and role are the ones you're listed with, which the session says", async () => {
     const api = await testApi()
-    const { cookie } = await logInAs(api, "maria@example.com")
+    const { cookie } = await logInAs(api, "ada@example.com")
     const headers = { headers: { cookie } }
-
-    const named = await api.client.api.account.$patch(
-        { json: { name: "  Maria Santos " } },
-        headers
-    )
-    expect(await named.json()).toEqual({ name: "Maria Santos" })
-    const session = await api.client.api.auth.session.$get({}, headers)
-    expect((await session.json()).user).toMatchObject({
-        name: "Maria Santos",
-        role: "external"
-    })
-
-    const cleared = await api.client.api.account.$patch(
-        { json: { name: null } },
-        headers
-    )
-    expect(await cleared.json()).toEqual({ name: null })
-})
-
-test("one of the business's own keeps the name they're listed with", async () => {
-    const api = await testApi()
-    const { cookie } = await logInAs(api, "ada@example.com", "internal")
-    const headers = { headers: { cookie } }
-
-    const renamed = await api.client.api.account.$patch(
-        { json: { name: "Someone else" } },
-        headers
-    )
-    expect(renamed.status).toBe(409)
-    expect(api_failure.parse(await renamed.json()).error.reason).toBe("listed")
     const session = await api.client.api.auth.session.$get({}, headers)
     expect((await session.json()).user).toMatchObject({
         name: "Ada Example",
-        role: "internal"
+        first_name: "Ada",
+        last_name: "Example",
+        role: "owner"
     })
 })
 
@@ -118,7 +90,7 @@ test("logs out another browser, but not this one, nor anyone else's", async () =
         {},
         { headers: { cookie: elsewhere.cookie } }
     )
-    expect(await gone.json()).toEqual({ user: null })
+    expect(await gone.json()).toEqual({ user: null, permissions: null })
 })
 
 test("logs out everywhere else, keeping this browser", async () => {

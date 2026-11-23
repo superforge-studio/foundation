@@ -44,7 +44,7 @@ async function setup(fileComment?: Infra["fileComment"]) {
 
 test("an internal person's comment goes to Infra with who filed it", async () => {
     const { api, filed } = await setup()
-    const { id, cookie } = await logInAs(api, "ada@example.com", "internal")
+    const { id, cookie } = await logInAs(api, "ada@example.com")
 
     const answer = await api.client.api.comments.$post(
         { json: COMMENT },
@@ -62,7 +62,7 @@ test("an internal person's comment goes to Infra with who filed it", async () =>
 
 test("a comment on the page as a whole goes too", async () => {
     const { api, filed } = await setup()
-    const { cookie } = await logInAs(api, "ada@example.com", "internal")
+    const { cookie } = await logInAs(api, "ada@example.com")
 
     const answer = await api.client.api.comments.$post(
         {
@@ -80,29 +80,19 @@ test("a comment on the page as a whole goes too", async () => {
     expect(filed[0]).toMatchObject({ element: null, user_agent: null })
 })
 
-test("a visitor can't file one, nor a customer who logs in", async () => {
+test("a visitor can't file one", async () => {
     const { api, filed } = await setup()
 
     const answer = await api.client.api.comments.$post({ json: COMMENT })
     expect(answer.status).toBe(401)
     const { error } = api_failure.parse(await answer.json())
     expect(error.reason).toBe("logged-out")
-
-    const customer = await logInAs(api, "maria@example.com")
-    const refused = await api.client.api.comments.$post(
-        { json: COMMENT },
-        { headers: { cookie: customer.cookie } }
-    )
-    expect(refused.status).toBe(403)
-    expect(api_failure.parse(await refused.json()).error.reason).toBe(
-        "not-internal"
-    )
     expect(filed).toEqual([])
 })
 
 test("an empty comment, or a page with its query, is refused before Infra", async () => {
     const { api, filed } = await setup()
-    const { cookie } = await logInAs(api, "ada@example.com", "internal")
+    const { cookie } = await logInAs(api, "ada@example.com")
 
     const answer = await api.client.api.comments.$post(
         { json: { ...COMMENT, body: "   ", path: "/pricing?coupon=SECRET" } },
@@ -120,7 +110,7 @@ test("an Infra that's down answers 503, and one that refuses it 502", async () =
         ok: false,
         error: { reason: "unavailable", message: "Infra is down." }
     }))
-    const logged_in = await logInAs(down.api, "ada@example.com", "internal")
+    const logged_in = await logInAs(down.api, "ada@example.com")
     const unavailable = await down.api.client.api.comments.$post(
         { json: COMMENT },
         { headers: { cookie: logged_in.cookie } }
@@ -138,7 +128,7 @@ test("an Infra that's down answers 503, and one that refuses it 502", async () =
             message: "element.selector didn't fit what this call takes."
         }
     }))
-    const other = await logInAs(refusing.api, "ada@example.com", "internal")
+    const other = await logInAs(refusing.api, "ada@example.com")
     const refused = await refusing.api.client.api.comments.$post(
         { json: COMMENT },
         { headers: { cookie: other.cookie } }

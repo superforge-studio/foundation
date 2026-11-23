@@ -1,14 +1,26 @@
-import { and, desc, eq, gt, inArray, like, lt, ne, sql } from "drizzle-orm"
+import {
+    and,
+    desc,
+    eq,
+    gt,
+    inArray,
+    isNull,
+    like,
+    lt,
+    ne,
+    sql
+} from "drizzle-orm"
 import type { Database } from "@/database"
 import { sessions, users } from "@/database/schema"
 import { fromNow, now } from "@/database/time"
 import { DAY } from "@/utilities/primitives/durations"
+import type { TeamRole } from "./access"
 import { randomToken, sha256 } from "./tokens"
 
 // The sessions, in `auth.sessions`: operations on them by their token, which
 // only the browser's cookie holds (logged-in.ts), and by their id, for the
 // account page. Nothing else reads the cookie or this table: a route that
-// needs the user uses `loggedIn`.
+// needs the user uses `loggedIn` or `permitted`.
 
 /**
  * How long a session lasts from when it was last renewed, so someone who
@@ -32,20 +44,35 @@ export function sessionId(token_hash: string) {
 }
 
 /**
- * Who a session logs in, as every route that needs them sees them: who
- * they are, what they're called, their role, and when they first logged in.
+ * One of the team as their row has them: who they are, by their row and
+ * their slug in access.ts, their address, their name, and when their row
+ * was made.
  */
-export type SessionUser = Pick<
-    typeof users.$inferSelect,
-    "id" | "email" | "name" | "role" | "created_at"
->
+export type TeamRow = {
+    id: string
+    slug: string
+    email: string
+    name: string | null
+    created_at: Date
+}
 
-/** The columns a SessionUser is read from. */
-export const SESSION_USER_COLUMNS = {
+/**
+ * One of the team, logged in, as every route that needs them sees them:
+ * their row, with the name, the first and last names and the role
+ * access.ts lists them with (`listing()`), which the middleware adds.
+ */
+export type TeamMember = TeamRow & {
+    first_name: string
+    last_name: string
+    role: TeamRole
+}
+
+/** The columns a TeamRow is read from. */
+export const TEAM_ROW_COLUMNS = {
     id: users.id,
+    slug: users.slug,
     email: users.email,
     name: users.name,
-    role: users.role,
     created_at: users.created_at
 }
 
@@ -88,14 +115,16 @@ export async function endSession(database: Database, token: string) {
 }
 
 /**
- * The live session behind this token, with its user, its id, and whether
- * it's been long enough since it was renewed to renew it again; undefined
- * for a token with none, or one that has run out.
+ * The live session behind this token, with its user's row, its id, and
+ * whether it's been long enough since it was renewed to renew it again;
+ * undefined for a token with none, one that has run out, or one whose
+ * person has been deactivated. Whether they're still on the list is the
+ * middleware's to say (logged-in.ts).
  */
 export async function liveSession(database: Database, token: string) {
     const [session] = await database
         .select({
-            user: SESSION_USER_COLUMNS,
+            user: TEAM_ROW_COLUMNS,
             token_hash: sessions.token_hash,
             // A comparison, so Postgres answers a boolean
             renewable: sql<boolean>`${sessions.expires_at} < ${RENEW_BEFORE}`
@@ -105,7 +134,8 @@ export async function liveSession(database: Database, token: string) {
         .where(
             and(
                 eq(sessions.token_hash, await sha256(token)),
-                gt(sessions.expires_at, now)
+                gt(sessions.expires_at, now),
+                isNull(users.deactivated_at)
             )
         )
     if (session === undefined) {

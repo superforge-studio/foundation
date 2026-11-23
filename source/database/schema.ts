@@ -26,8 +26,8 @@
 // - A table goes in one of four Postgres schemas, by who owns its rows and
 //   who sees them, never one per feature (features are folders in code):
 //   - `public`: the business's own data, whatever the app is built to do,
-//     its users among it: they're its customers and staff, whom its other
-//     tables point at. A table here is `pgTable(...)`.
+//     its users among it: they're its team, whom its other tables point
+//     at. A table here is `pgTable(...)`.
 //   - `auth`: what lets someone in: their sessions and their API tokens.
 //     The most sensitive rows, since one is as good as a password, kept
 //     apart so a read-only role can leave them out. A table here is
@@ -52,7 +52,7 @@ import {
 } from "drizzle-orm/pg-core"
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
 import { AGENT_SCOPES } from "../utilities/schemas/agents"
-import { ROLES } from "../utilities/schemas/users"
+import { USER_SLUG_PATTERN } from "../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../utilities/visitors"
 import { WEBHOOK_OUTCOMES } from "../utilities/webhooks"
 import { id, timestamp } from "./columns"
@@ -60,36 +60,51 @@ import { id, timestamp } from "./columns"
 export const auth = pgSchema("auth")
 export const internal = pgSchema("internal")
 
-// The business's own people and everyone it serves, everyone who can log
-// in: logging in for the first time makes the row (backend/auth/login.ts),
-// unless an internal person added them first (backend/users/). Infra proves
-// the address is theirs, and keeps nothing of them.
+// The team, the business's own people, as backend/auth/access.ts lists
+// them: the only people who log in. The server's start makes a row for
+// everyone listed, and deactivates anyone taken off the list, keeping
+// their row so what they did still points at them (backend/users/sync.ts).
+// Infra proves an address is theirs at login, and keeps nothing of them.
 export const users = pgTable(
     "users",
     {
         id: id(),
-        // Trimmed and lowercased as it comes in, so the unique constraint
-        // catches case variants
+        // Who they are to the code, as access.ts lists them: lowercase words
+        // joined by hyphens (`ada`, `nick-r`), which never changes, and is
+        // never anyone else's, so a row follows its person through a new
+        // address, and a slug listed again brings its row back. A row made
+        // before slugs had its id for one, until the list gave it its own.
+        slug: text().notNull().unique(),
+        // The address they log in with, as the list has it now: trimmed and
+        // lowercased, so the unique constraint catches case variants
         email: text().notNull().unique(),
-        // What they'd like to be called, which they set on their account
+        // Their first and last name, as the list has them
         name: text(),
-        // Who they are to the business, which decides what of the dashboard
-        // they see (utilities/schemas/users.ts has the roles): text with a
-        // check rather than a Postgres enum, since a role added to an enum
-        // can't be used in the transaction that adds it, and a deploy
-        // applies every pending migration in one
-        role: text({ enum: ROLES }).notNull().default("external"),
+        // What decided, before the team was all there was, whether someone
+        // saw the business's side. Nothing reads or writes it now, and it
+        // goes in the next release's migration: a column the version still
+        // serving reads can't be dropped in the deploy that stops reading it
+        // (workbench/writing-code.md, "Migrations").
+        role: text({ enum: ["internal", "external"] })
+            .notNull()
+            .default("internal"),
+        // When they were taken off the list, or null while they're on it.
+        // Their sessions end with it, and no login is theirs again until
+        // they're listed again.
+        deactivated_at: timestamp(),
         // When they last logged in, or null for someone who never has, like
-        // a user added by hand before they do
+        // someone listed who hasn't yet
         logged_in_at: timestamp(),
         created_at: timestamp().notNull().defaultNow()
     },
     (table) => [
         check(
             "users_role_check",
-            sql.raw(
-                `"${table.role.name}" in (${ROLES.map((role) => `'${role}'`).join(", ")})`
-            )
+            sql.raw(`"${table.role.name}" in ('internal', 'external')`)
+        ),
+        check(
+            "users_slug_check",
+            sql.raw(`"${table.slug.name}" ~ '${USER_SLUG_PATTERN.source}'`)
         )
     ]
 )

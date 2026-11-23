@@ -3,30 +3,43 @@ import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 import { useNow } from "@/frontend/components/dashboard/marks"
 import {
-    AddPersonPane,
-    PeopleList,
-    PersonDetailPane
-} from "@/frontend/components/dashboard/people"
-import {
     CouldNotLoad,
     ListLoading,
+    NotPermitted,
     Panes
 } from "@/frontend/components/dashboard/shell"
+import {
+    PersonDetailPane,
+    TeamList
+} from "@/frontend/components/dashboard/team"
 import { useSession } from "@/frontend/queries/auth"
 import { usersQuery } from "@/frontend/queries/users"
+import { allows } from "@/utilities/permissions"
 
 /**
- * Everyone who can log in: the list on the left, and the chosen person on
- * the right, by their id in the address (`?person=`), or the form that adds
- * someone (`?person=new`).
+ * The team, as the app's code lists it: the list on the left, and the
+ * chosen person on the right, by their id in the address (`?person=`).
+ * Only for a role that may read the team.
  */
-export const Route = createFileRoute("/dashboard/people")({
+export const Route = createFileRoute("/admin/team")({
     validateSearch: z.object({
         person: z.string().optional().catch(undefined)
     }),
-    head: () => ({ meta: [{ title: "People · Dashboard" }] }),
-    component: People
+    head: () => ({ meta: [{ title: "Team · Admin" }] }),
+    component: Team
 })
+
+function Team() {
+    const session = useSession()
+    if (
+        session.status === "logged-in" &&
+        !allows(session.permissions, "team", "read")
+    ) {
+        return <NotPermitted name="the team" />
+    } else {
+        return <People />
+    }
+}
 
 function People() {
     const { person } = Route.useSearch()
@@ -35,9 +48,8 @@ function People() {
     const users = useQuery(usersQuery)
     const list = users.data ?? []
     const chosen =
-        person === "new"
-            ? undefined
-            : (list.find((each) => each.id === person) ?? list[0])
+        list.find((each) => each.id === person) ??
+        list.find((each) => each.listed)
     const you = session.status === "logged-in" ? session.user.id : null
 
     return (
@@ -48,17 +60,15 @@ function People() {
                     <ListLoading />
                 ) : users.isError && users.data === undefined ? (
                     <CouldNotLoad
-                        what="The people"
+                        what="The team"
                         onRetry={() => users.refetch()}
                     />
                 ) : (
-                    <PeopleList people={list} chosen={chosen?.id} now={now} />
+                    <TeamList people={list} chosen={chosen?.id} now={now} />
                 )
             }
             detail={
-                person === "new" ? (
-                    <AddPersonPane />
-                ) : chosen === undefined ? null : (
+                chosen === undefined ? null : (
                     <PersonDetailPane
                         key={chosen.id}
                         person={chosen}

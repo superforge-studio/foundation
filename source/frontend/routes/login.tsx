@@ -22,14 +22,14 @@ const heading =
     "text-balance font-heading font-semibold text-3xl tracking-tight"
 
 /**
- * Where customers and staff log in, and where the email's link lands, as
+ * Where the team logs in, and where the email's link lands, as
  * /login#<token>. The token rides in the fragment, which a browser never
  * sends to a server, so the page stays prerendered. It's spent only when
  * the visitor presses "Finish logging in", never as the page loads: a mail
  * scanner that opens the link, even one that runs the page's script, spends
  * nothing, and a link someone else sent can't log this browser in without
- * a press. Once someone's in, the screens behind login are under
- * /dashboard (routes/dashboard/).
+ * a press. Once someone's in, the screens behind login are under /admin
+ * (routes/admin/).
  */
 function LoginPage() {
     const session = useSession()
@@ -111,12 +111,12 @@ function LoginPage() {
                         <TeamCause cause={cause} />
                         <div className="flex flex-wrap items-center gap-3">
                             <Link
-                                to="/dashboard"
+                                to="/admin"
                                 className={buttonVariants({
                                     className: "h-10 px-4"
                                 })}
                             >
-                                Go to your dashboard
+                                Go to the admin
                             </Link>
                             <Button
                                 variant="outline"

@@ -7,8 +7,8 @@ import { useAddress } from "./environment"
 import { type Finding, useFinding } from "./finding"
 import { type Recovery, RecoveryNote, recoveryFor } from "./recovery"
 import {
+    adminStatus,
     apiStatus,
-    dashboardStatus,
     databaseStatus,
     loginStatus,
     type Status,
@@ -20,7 +20,7 @@ import {
 } from "./status"
 
 // The app as a transit line, a stop for each part, drawn in the theme's main
-// color: you, the website, the API with login, the dashboard, Storage and
+// color: you, the website, the API with login, the admin, Storage and
 // the workflows on branches, and the database. The health check runs down it as a pulse each
 // time it's asked; a stop it passes through fills in, and where it can't
 // get through, the line turns red and the stop says what to do. The parts
@@ -33,7 +33,7 @@ type Station = {
     path?: string
     status?: Status
     // A page of the app's that shows this part working
-    page?: { to: "/login" | "/dashboard"; label: string }
+    page?: { to: "/login" | "/admin"; label: string }
     shape: "origin" | "stop" | "branch" | "planned"
     // Which part this is, when a failed check can be about it
     checks?: Recovery["part"]
@@ -102,19 +102,19 @@ export function LineMap({ className }: { className?: string }) {
         {
             name: "Login",
             kind: "Superforge Infra",
-            what: "Your customers and staff log in with a code or a link by email. No passwords.",
+            what: "Your team logs in with a code or a link by email. No passwords.",
             path: "source/backend/auth/",
             page: { to: "/login", label: "Try logging in" },
             status: loginStatus(),
             shape: "branch"
         },
         {
-            name: "Dashboard",
-            kind: "/dashboard",
-            what: "Your people see everyone who can log in and the workflows as they run; everyone else, their own account.",
-            path: "source/frontend/routes/dashboard/",
-            page: { to: "/dashboard", label: "Open the dashboard" },
-            status: dashboardStatus(),
+            name: "Admin",
+            kind: "/admin",
+            what: "Your team sees the workflows as they run and who's on the team, each as their role allows.",
+            path: "source/frontend/routes/admin/",
+            page: { to: "/admin", label: "Open the admin" },
+            status: adminStatus(),
             shape: "branch"
         },
         {

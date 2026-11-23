@@ -91,7 +91,7 @@ async function reasonOf(response: Response) {
 describe("making one", () => {
     test("shows the token once, and keeps only its hash", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token, api_token } = await makeToken(setup, cookie)
 
         expect(token).toMatch(/^api_[0-9A-Za-z]{43}$/)
@@ -122,7 +122,7 @@ describe("making one", () => {
 
     test("lasts as many days as it's given, or until it's revoked", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const lasting = await makeToken(setup, cookie)
         expect(lasting.api_token.expires_at).toBeNull()
 
@@ -136,7 +136,7 @@ describe("making one", () => {
 
     test("keeps each scope once, in order", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { api_token } = await makeToken(setup, cookie, {
             scopes: ["act", "read", "act"]
         })
@@ -145,7 +145,7 @@ describe("making one", () => {
 
     test("refuses a token with no name, no scope or a lifetime not offered", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         for (const json of [
             { name: "  ", scopes: ["read"] },
             { name: "Export", scopes: [] },
@@ -163,22 +163,20 @@ describe("making one", () => {
         }
     })
 
-    test("is only for the business's own people", async () => {
+    test("is only for someone logged in", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, "maria@example.com")
-        const made = await setup.client.api.account.tokens.$post(
-            { json: { name: "Mine", scopes: ["read"] } },
-            { headers: { cookie } }
-        )
-        expect(made.status).toBe(403)
-        expect(await reasonOf(made)).toBe("not-internal")
+        const made = await setup.client.api.account.tokens.$post({
+            json: { name: "Mine", scopes: ["read"] }
+        })
+        expect(made.status).toBe(401)
+        expect(await reasonOf(made)).toBe("logged-out")
     })
 })
 
 describe("using one", () => {
     test("logs a script in as the person who made it", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie)
 
         expect(
@@ -189,7 +187,7 @@ describe("using one", () => {
 
     test("notes when it was last used, at most once a minute", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token, api_token } = await makeToken(setup, cookie)
         const lastUsed = async () => {
             const [row] = await setup.database
@@ -221,7 +219,7 @@ describe("using one", () => {
 
     test("allowed to read, it reads and changes nothing", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie, { scopes: ["read"] })
 
         expect((await withToken(setup, token, "/api/users")).status).toBe(200)
@@ -241,7 +239,7 @@ describe("using one", () => {
 
     test("allowed to act, it does what its person could", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie)
 
         const started = await withToken(
@@ -259,7 +257,7 @@ describe("using one", () => {
 
     test("can't touch tokens, or who logs in where", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token, api_token } = await makeToken(setup, cookie)
 
         for (const [method, path] of [
@@ -283,7 +281,7 @@ describe("using one", () => {
 
     test("a token that isn't one logs no one in", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie)
 
         for (const wrong of [
@@ -301,7 +299,7 @@ describe("using one", () => {
 describe("its end", () => {
     test("revoking it refuses the next request at once", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token, api_token } = await makeToken(setup, cookie)
         expect((await withToken(setup, token, "/api/users")).status).toBe(200)
 
@@ -323,8 +321,8 @@ describe("its end", () => {
 
     test("no one revokes another person's", async () => {
         const setup = await testApi()
-        const ada = await logInAs(setup, ADA, "internal")
-        const grace = await logInAs(setup, "grace@example.com", "internal")
+        const ada = await logInAs(setup, ADA)
+        const grace = await logInAs(setup, "grace@example.com")
         const { token, api_token } = await makeToken(setup, ada.cookie)
 
         const revoked = await setup.client.api.account.tokens[":id"].$delete(
@@ -337,7 +335,7 @@ describe("its end", () => {
 
     test("stops working the moment its person leaves the team", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie)
         expect((await withToken(setup, token, "/api/users")).status).toBe(200)
 
@@ -350,7 +348,7 @@ describe("its end", () => {
 
     test("is refused once it has run out, and still listed", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token, api_token } = await makeToken(setup, cookie, {
             expires_in_days: 30
         })
@@ -373,7 +371,7 @@ describe("its end", () => {
 describe("the MCP", () => {
     test("takes one as the API does, with what it may do", async () => {
         const setup = await testApi()
-        const { cookie } = await logInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie, { scopes: ["read"] })
         const mcp = mcpWith(setup.api)
         const client = new Client({ name: "test", version: "1.0.0" })

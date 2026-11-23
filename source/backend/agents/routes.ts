@@ -1,17 +1,18 @@
 import { Hono } from "hono"
 import { z } from "zod"
 import { agent_allow } from "@/utilities/schemas/agents"
-import { inBrowser, internalOnly } from "../auth/logged-in"
+import { inBrowser, loggedIn } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 
-// Claude connecting to the app's MCP, as the business's own people see it:
-// the Allow page, which shows what Claude asked for and sends the browser
-// back to Claude once someone allows or declines it, and their Connected
-// list on the account page. Infra logs Claude in (infra/agents.ts); these
-// tell it who allowed what. Only one of the business's own, logged in on
-// a browser, may (`internalOnly`, `inBrowser`): a token can't allow
-// another, or see the connections.
+// Claude connecting to the app's MCP, as the team sees it: the Allow page,
+// which shows what Claude asked for and sends the browser back to Claude
+// once someone allows or declines it, and their Connected list on the
+// account page. Infra logs Claude in (infra/agents.ts); these tell it who
+// allowed what. Anyone on the team, logged in on a browser, may, for
+// themselves (`loggedIn`, `inBrowser`): a token can't allow another, or
+// see the connections. What Claude then may do is what both their role
+// and what they allowed let it (auth/logged-in.ts).
 
 const request_path = z.object({ request_id: z.uuid() })
 const connection_path = z.object({ connection_id: z.uuid() })
@@ -21,7 +22,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     // may do, and until when the page can allow it
     .get(
         "/connect/:request_id",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("param", request_path),
         async (context) => {
@@ -46,7 +47,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     // Claude, with what Claude needs to finish logging in
     .post(
         "/connect/:request_id/allow",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("param", request_path),
         validated("json", agent_allow),
@@ -86,7 +87,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     // They declined it: where their browser goes back to Claude, saying so
     .post(
         "/connect/:request_id/deny",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("param", request_path),
         async (context) => {
@@ -108,7 +109,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     )
 
     // Where they've let Claude in, oldest first
-    .get("/account/connections", internalOnly, inBrowser, async (context) => {
+    .get("/account/connections", loggedIn, inBrowser, async (context) => {
         const listed = await context.var.infra.agentConnections(
             context.var.user.email
         )
@@ -123,7 +124,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     // it holds runs out within minutes
     .delete(
         "/account/connections/:connection_id",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("param", connection_path),
         async (context) => {

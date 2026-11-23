@@ -1,61 +1,41 @@
 import { createHash } from "node:crypto"
-import { and, eq, inArray, isNotNull } from "drizzle-orm"
-import { ACCESS, listedRole, nameOf } from "@/backend/auth/access"
+import { eq, inArray, isNull } from "drizzle-orm"
+import { ACCESS, nameOf } from "@/backend/auth/access"
 import type { Database } from "@/database"
 import { api_tokens, sessions, users } from "@/database/schema"
 import { fromNow } from "@/database/time"
 import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 import type { Seeder } from "./seed"
 
-// Sample users, their sessions and their API tokens: the business's own
-// people, as backend/auth/access.ts lists them, the first logged in now,
-// with three tokens, and the second with a session that has run out, and
-// customers who've signed up over the last few days, one with no name and
-// one added by hand who's never logged in. The customers' addresses are
+// Sample users, their sessions and their API tokens: the team, as
+// backend/auth/access.ts lists them, the first logged in now, with three
+// tokens, and the second with a session that has run out, and someone
+// taken off the list, deactivated, whose row stays. Their addresses are
 // example.com's, which reach nobody.
 
-// The business's own, made from the list, so the seed's internal people
-// are the ones the code says, and the server's start changes none of them
-const INTERNAL = ACCESS.internal_users.map((person, index) => ({
+// The team, made from the list, so the seed's team is the one the code
+// says, and the server's start changes none of them
+const TEAM = ACCESS.internal_users.map((person, index) => ({
+    slug: person.slug,
     email: person.email.trim().toLowerCase(),
     name: nameOf(person),
-    role: listedRole(person),
     logged_in_at: fromNow(-(2 + 43 * index) * DAY),
     created_at: fromNow(-(94 - 3 * index) * DAY)
 }))
 
 // The first two of them, whose sample sessions follow
-const [FIRST_INTERNAL, SECOND_INTERNAL] = INTERNAL
+const [FIRST_INTERNAL, SECOND_INTERNAL] = TEAM
 
 const SAMPLE_USERS = [
-    ...INTERNAL,
+    ...TEAM,
     {
-        email: "maria.santos@example.com",
-        name: "Maria Santos",
-        role: "external" as const,
-        logged_in_at: fromNow(-2 * HOUR),
-        created_at: fromNow(-2 * HOUR)
-    },
-    {
-        email: "jun.park@example.com",
-        name: "Jun Park",
-        role: "external" as const,
-        logged_in_at: fromNow(-5 * HOUR),
-        created_at: fromNow(-19 * HOUR)
-    },
-    {
-        email: "olu.adeyemi@example.com",
-        name: null,
-        role: "external" as const,
-        logged_in_at: fromNow(-26 * HOUR),
-        created_at: fromNow(-26 * HOUR)
-    },
-    {
+        // Taken off the list, so the server's start deactivated them
+        slug: "linus",
         email: "linus@example.com",
-        name: null,
-        role: "external" as const,
-        logged_in_at: null,
-        created_at: fromNow(-40 * DAY)
+        name: "Linus Torvalds",
+        deactivated_at: fromNow(-12 * DAY),
+        logged_in_at: fromNow(-30 * DAY),
+        created_at: fromNow(-80 * DAY)
     }
 ]
 
@@ -96,14 +76,7 @@ const SAMPLE_SESSIONS = [
                   created_at: fromNow(-60 * DAY),
                   expires_at: fromNow(-15 * DAY)
               }
-          ]),
-    {
-        email: "maria.santos@example.com",
-        token: "sample-session-maria",
-        user_agent: SAFARI_ON_AN_IPHONE,
-        created_at: fromNow(-2 * HOUR),
-        expires_at: fromNow(30 * DAY - 2 * HOUR)
-    }
+          ])
 ]
 
 /** The sample users, in place of every user there was. */
@@ -117,16 +90,15 @@ export const seedUsers: Seeder = async (transaction: Database) => {
 }
 
 /**
- * The customers who signed up themselves, whose sign-ups each start the
- * workflow that tells the team (backend/users/workflows.ts): what the seed
- * starts real runs of, rather than writing DBOS's rows.
+ * The team as it is, whom the server's start would have told the rest of
+ * the team about when it made them (backend/users/workflows.ts): what the
+ * seed starts real runs of, rather than writing DBOS's rows.
  */
-export async function signedUp(database: Database) {
-    const rows = await database
+export async function teamAdded(database: Database) {
+    return await database
         .select({ id: users.id, email: users.email })
         .from(users)
-        .where(and(eq(users.role, "external"), isNotNull(users.logged_in_at)))
-    return rows
+        .where(isNull(users.deactivated_at))
 }
 
 /** Their sessions, in place of every session there was. */
@@ -163,7 +135,7 @@ export const seedSessions: Seeder = async (transaction: Database) => {
     return { table: "auth.sessions", rows: rows.length }
 }
 
-// The first internal person's API tokens, one in each state the account
+// The first on the team's API tokens, one in each state the account
 // page shows: in use, never used and running out, and run out. Each is kept
 // by its SHA-256, as a real one is, of a token too short to be one, so no
 // script logs in with them (backend/auth/api-tokens.ts)
@@ -194,7 +166,7 @@ const SAMPLE_API_TOKENS = [
     }
 ]
 
-/** The first internal person's API tokens, in place of every token there was. */
+/** The first on the team's API tokens, in place of every token there was. */
 export const seedApiTokens: Seeder = async (transaction: Database) => {
     await transaction.delete(api_tokens)
     if (FIRST_INTERNAL === undefined) {

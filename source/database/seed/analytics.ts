@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm"
+import { ACCESS } from "@/backend/auth/access"
 import { summarizeVisits } from "@/backend/visits/summarize"
 import type { Database } from "@/database"
 import { analytics_events, analytics_visits, users } from "@/database/schema"
@@ -6,15 +7,19 @@ import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 import type { Seeder } from "./seed"
 
 // Sample visits and their events, as the pages' script and the server
-// would have recorded them (backend/visits/): a customer who came from an
-// ad, looked around and signed up; a visitor the site didn't remember,
-// who bounced; one whose page ran into an error; and one who came back
-// from a newsletter and booked. The remembered ones' addresses are set
-// aside for documentation (RFC 5737 and RFC 3849). Each visit is worked out from its events,
-// as a real one is, so the two always agree.
+// would have recorded them (backend/visits/): one of the team who came from
+// an ad on their phone, looked around and logged in; a visitor the site
+// didn't remember, who bounced; one whose page ran into an error; and one
+// who came back from a newsletter and booked. The remembered ones'
+// addresses are set aside for documentation (RFC 5737 and RFC 3849). Each
+// visit is worked out from its events, as a real one is, so the two
+// always agree.
 
-// The sample customer whose visit ends in their sign-up (./users.ts)
-const SIGNED_UP = "maria.santos@example.com"
+// The one of the team whose visit ends in their login (./users.ts): the
+// second listed, or the first when there's one
+const LOGGED_IN = (ACCESS.internal_users[1] ?? ACCESS.internal_users[0])?.email
+    .trim()
+    .toLowerCase()
 
 // How long ago each visit started, with its ID, written out so its events
 // can name it
@@ -49,19 +54,22 @@ function during(visit: { ago: number }, after: number) {
     return new Date(Date.now() - visit.ago + after)
 }
 
-// The sample customer who signed up, once the users are seeded
-async function signedUpUser(transaction: Database) {
-    const [user] = await transaction
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.email, SIGNED_UP))
+// The one of the team who logged in, once the users are seeded
+async function loggedInUser(transaction: Database) {
+    const [user] =
+        LOGGED_IN === undefined
+            ? []
+            : await transaction
+                  .select({ id: users.id })
+                  .from(users)
+                  .where(eq(users.email, LOGGED_IN))
     return user?.id ?? null
 }
 
 /** The sample visits, in place of every visit there was, and its events. */
 export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
     await transaction.delete(analytics_visits)
-    const signed_up = await signedUpUser(transaction)
+    const logged_in = await loggedInUser(transaction)
 
     const rows = await transaction
         .insert(analytics_visits)
@@ -70,7 +78,7 @@ export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
                 id: FROM_AN_AD.id,
                 visitor_id: VISITORS.maria,
                 anonymous: false,
-                user_id: signed_up,
+                user_id: logged_in,
                 started_at: during(FROM_AN_AD, 0),
                 ended_at: during(FROM_AN_AD, 0),
                 ip_address: "203.0.113.42",
@@ -126,7 +134,7 @@ export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
  */
 export const seedAnalyticsEvents: Seeder = async (transaction: Database) => {
     await transaction.delete(analytics_events)
-    const signed_up = await signedUpUser(transaction)
+    const logged_in = await loggedInUser(transaction)
 
     const maria = {
         source: "browser" as const,
@@ -195,17 +203,10 @@ export const seedAnalyticsEvents: Seeder = async (transaction: Database) => {
                 occurred_at: during(FROM_AN_AD, 41_000)
             },
             {
-                source: "server",
-                name: "signed-up",
-                visitor_id: VISITORS.maria,
-                user_id: signed_up,
-                occurred_at: during(FROM_AN_AD, 12 * MINUTE)
-            },
-            {
                 ...maria,
-                user_id: signed_up,
+                user_id: logged_in,
                 name: "view",
-                path: "/dashboard/account",
+                path: "/admin/account",
                 properties: { title: "Account" },
                 occurred_at: during(FROM_AN_AD, 12 * MINUTE + 2000)
             },

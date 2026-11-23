@@ -75,7 +75,7 @@ database is down, comes back as a 5xx and is sent again.
   a campaign or an error's message: it becomes `[email]`.
 - **The text of anything inside `data-private`**, like the dashboard,
   which shows people's names and the business's data
-  (`routes/dashboard/route.tsx`). Its clicks still count, by `target` and
+  (`routes/admin/route.tsx`). Its clicks still count, by `target` and
   `href`.
 - **A click inside `data-untracked`**, which isn't the visitor's own,
   like the toolbar the business's own people see (`components/toolbar/`).
@@ -166,8 +166,7 @@ that doesn't fit is dropped with a warning in the console. They go like
 the script's own, for every visitor, and are kept under whoever the
 server says the visitor is. What has to count even when a page can't send
 it, like a sign-up or a payment, the server records itself (`recordEvents`
-in `backend/visits/record.ts`), as `backend/auth/routes.ts` records
-`signed-up`.
+in `backend/visits/record.ts`), in the feature where it happens.
 
 ## In this folder
 

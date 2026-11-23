@@ -6,26 +6,41 @@ import { RunDetailPane, RunList } from "@/frontend/components/dashboard/runs"
 import {
     CouldNotLoad,
     ListLoading,
+    NotPermitted,
     Panes,
     sectionHeading
 } from "@/frontend/components/dashboard/shell"
+import { useSession } from "@/frontend/queries/auth"
 import { runsQuery } from "@/frontend/queries/workflows"
+import { allows } from "@/utilities/permissions"
 
 /**
  * The workflows' runs as they run: the list on the left, asked again every
  * couple of seconds while the screen is open, and the chosen run on the
  * right, by its id in the address (`?run=`), the first that needs a look
- * when none is.
+ * when none is. Only for a role that may read the workflows.
  */
-export const Route = createFileRoute("/dashboard/workflows")({
+export const Route = createFileRoute("/admin/workflows")({
     validateSearch: z.object({
         run: z.string().optional().catch(undefined)
     }),
-    head: () => ({ meta: [{ title: "Workflows · Dashboard" }] }),
+    head: () => ({ meta: [{ title: "Workflows · Admin" }] }),
     component: Workflows
 })
 
 function Workflows() {
+    const session = useSession()
+    if (
+        session.status === "logged-in" &&
+        !allows(session.permissions, "workflows", "read")
+    ) {
+        return <NotPermitted name="the workflows" />
+    } else {
+        return <Runs />
+    }
+}
+
+function Runs() {
     const { run } = Route.useSearch()
     const now = useNow(5000)
     const runs = useQuery(runsQuery)

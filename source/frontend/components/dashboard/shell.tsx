@@ -4,10 +4,11 @@ import { ArrowLeft } from "lucide-react"
 import type { ReactNode } from "react"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
 import type { SessionUser } from "@/frontend/queries/auth"
+import { type Area, allows, type Permissions } from "@/utilities/permissions"
 
-// The dashboard's frame: a bar across the top, and under it a list and
-// what's chosen from it, side by side, as a mail client lays them out. On a
-// phone the list and the detail are a screen each.
+// The admin's frame: a bar across the top, and under it a list and what's
+// chosen from it, side by side, as a mail client lays them out. On a phone
+// the list and the detail are a screen each.
 
 /** Classes the dashboard's text buttons and headings share. */
 export const textButton =
@@ -15,33 +16,43 @@ export const textButton =
 export const sectionHeading =
     "font-heading font-semibold text-base tracking-tight"
 
-// The business's side of the dashboard, which the switch in the bar moves
-// between
-const SECTIONS = [
-    { to: "/dashboard/workflows", name: "Workflows" },
-    { to: "/dashboard/people", name: "People" }
-] as const
+/**
+ * The admin's sections, which the switch in the bar moves between, each
+ * with the area of the app it shows (utilities/permissions.ts): someone
+ * whose role can't read an area doesn't see its section.
+ */
+export const SECTIONS: readonly {
+    to: "/admin/workflows" | "/admin/team"
+    name: string
+    area: Area
+}[] = [
+    { to: "/admin/workflows", name: "Workflows", area: "workflows" },
+    { to: "/admin/team", name: "Team", area: "team" }
+]
 
 /**
- * The bar: the business's mark, the switch between its sections for its
- * own people, and who's logged in, which opens their account.
+ * The bar: the business's mark, the switch between the sections someone
+ * may read, and who's logged in, which opens their account.
  */
 export function DashboardBar({
     user,
-    internal
+    permissions
 }: {
     user: SessionUser
-    internal: boolean
+    permissions: Permissions
 }) {
+    const shown = SECTIONS.filter((section) =>
+        allows(permissions, section.area, "read")
+    )
     return (
         <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-sidebar px-4 sm:px-5">
             <BusinessMark className="shrink-0" />
-            {internal && (
+            {shown.length > 0 && (
                 <nav
-                    aria-label="Dashboard"
+                    aria-label="Admin"
                     className="flex rounded-lg border bg-background p-0.5"
                 >
-                    {SECTIONS.map((section) => (
+                    {shown.map((section) => (
                         <Link
                             key={section.to}
                             to={section.to}
@@ -53,7 +64,7 @@ export function DashboardBar({
                 </nav>
             )}
             <Link
-                to="/dashboard/account"
+                to="/admin/account"
                 aria-label="Your account"
                 className="ml-auto flex min-w-0 items-center gap-2 rounded-md px-1 py-1 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-muted sm:px-2"
             >
@@ -126,7 +137,7 @@ export function BackToList({
     to,
     children
 }: {
-    to: "/dashboard/workflows" | "/dashboard/people"
+    to: "/admin/workflows" | "/admin/team"
     children: string
 }) {
     return (
@@ -137,6 +148,57 @@ export function BackToList({
             <ArrowLeft aria-hidden className="size-4" />
             {children}
         </Link>
+    )
+}
+
+/**
+ * What a section shows someone whose role can't read its area: why, and
+ * who can change that. The API refuses them whatever this shows.
+ */
+export function NotPermitted({ name }: { name: string }) {
+    return (
+        <SinglePane>
+            <div className="flex flex-col gap-3">
+                <h1 className="text-balance font-heading font-semibold text-2xl tracking-tight">
+                    Your role can't see {name}
+                </h1>
+                <p className="max-w-prose text-pretty text-muted-foreground">
+                    Each role on the team sees what the app's code gives it, in
+                    backend/auth/access.ts. Ask the owner if you need this.
+                </p>
+                <Link
+                    to="/admin/account"
+                    className="w-fit text-sm underline underline-offset-4"
+                >
+                    See what your role can do
+                </Link>
+            </div>
+        </SinglePane>
+    )
+}
+
+/**
+ * A page of the admin that isn't there, in the admin's own frame, with the
+ * way back: what routes/admin/route.tsx answers for an address under it
+ * that's no page. Anywhere else, the site's own not-found page answers
+ * (components/states/not-found.tsx).
+ */
+export function AdminNotFound() {
+    return (
+        <SinglePane>
+            <div className="flex flex-col gap-3">
+                <p className="text-muted-foreground text-sm">404</p>
+                <h1 className="text-balance font-heading font-semibold text-2xl tracking-tight">
+                    There's nothing here.
+                </h1>
+                <Link
+                    to="/admin"
+                    className="w-fit text-sm underline underline-offset-4"
+                >
+                    Back to the admin
+                </Link>
+            </div>
+        </SinglePane>
     )
 }
 
