@@ -1086,6 +1086,9 @@ anything there, and keep it current in the same change:
 
 | Working on                                     | Read                                           |
 | ---------------------------------------------- | ---------------------------------------------- |
+| Logging in, the team, and who may do what      | `source/backend/auth/README.md`                |
+| Your files, and what's in the bucket           | `source/backend/files/README.md`               |
+| The database's folder, part by part            | `source/database/README.md`                    |
 | Background work, schedules, events, runners    | `source/backend/workflows/README.md`           |
 | A change to many rows, started on purpose      | `source/backend/jobs/README.md`                |
 | Another service posting to the app             | `source/backend/webhooks/README.md`            |
