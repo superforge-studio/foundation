@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.20.1](.superforge/releases/0.20.1.md) (2026-11-23): `writing-code.md` says a column still in `schema.ts` is one the running code names, so dropping it takes two deploys, and how a copy takes 0.19.0's drop of `users.role` without breaking the version still serving.
 - [0.20.0](.superforge/releases/0.20.0.md) (2026-11-23): on `@superforge/infra` 0.3.0, Infra's v1 API, which a copy has to take when Infra moves to it: login sends a channel, an address and the page its link opens, `rate-limited` replaces `too-soon` and `too-many`, comments and Claude's connections name their person by user ID, and a build never reads `INFRA_URL`.
 - [0.19.0](.superforge/releases/0.19.0.md) (2026-11-23): the team's own files, in folders in the bucket, with an API to upload, sort, share and delete them, a rate limiter by network for routes anyone may call, and `users.role` dropped.
 - [0.18.1](.superforge/releases/0.18.1.md) (2026-11-23): the smoke test waits for the server itself to stop, not just pnpm, so its traces check no longer fails at random on CI.
