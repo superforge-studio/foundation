@@ -77,8 +77,9 @@ merging" (0 approvals) and "Require status checks to pass" with `check`.
   `check` passes. When the version in `.superforge/superforge.json` has no
   tag yet, it tags the commit on `main` that set that version, `v` and the
   version, and pushes the tag, which is the release going out (`README.md`,
-  "Releases"). It refuses a version with no heading in `CHANGELOG.md`,
-  since the agent updating a copy reads those notes first. A copy skips it
+  "Releases"). It refuses a version without its notes,
+  `.superforge/releases/<version>.md` headed with it, and its line in
+  `CHANGELOG.md`, since the agent updating a copy reads those notes first. A copy skips it
   (`github.event.repository.is_template`), since a copy's version says
   which template release it's on. Railway waits for the whole run, so a
   release whose tagging fails doesn't deploy the template's own site

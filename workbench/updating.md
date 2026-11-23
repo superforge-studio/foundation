@@ -1,8 +1,9 @@
 # Updating from the template
 
 Read this before taking a newer release of the template this codebase came
-from: when the owner asks for the latest, for an update, or for a fix the
-template has shipped.
+from (when the owner asks for the latest, for an update, or for a fix the
+template has shipped), before checking whether one is out, and before
+writing one in the template itself.
 
 This codebase started as a copy of one of Superforge's templates, and
 `.superforge/superforge.json` says which one, and which release it's on:
@@ -12,15 +13,83 @@ This codebase started as a copy of one of Superforge's templates, and
 ```
 
 The template is public, at `github.com/superforge-studio/<template>`, and
-each release is a tag there (`v0.1.0`), with its notes in the template's
-`CHANGELOG.md`. An update takes what changed in the template between this
-codebase's release and a later one, applies it here on a branch, and opens
-a PR. There's no script and no account to sign in to.
+each release is a tag there (`v0.1.0`), with its notes in a file of their
+own. An update takes what changed in the template between this codebase's
+release and a later one, applies it here on a branch, and opens a PR.
+There's no script and no account to sign in to.
 
 **The diff is between two of the template's releases**, never this
 codebase against the template, which would show every change the owner
 has made too. The template's own diff is only what changed upstream, and
 `git apply --3way` merges it into the files as the owner has them.
+
+## Where the releases are
+
+- **The tags** are the list of releases: `v` and the version, on the
+  template's `main`. A release is out once it's tagged.
+- **Each release's notes** are `.superforge/releases/<version>.md` in the
+  template, headed with its version and day (`# 0.9.0 (2026-11-22)`).
+  Read only the ones after this codebase's version, from the template's
+  latest tag, which has every release's file (step 3).
+- **`CHANGELOG.md`** is their index: a line per release, newest first.
+- **Here**, `.superforge/releases/` holds the notes of the releases this
+  codebase has taken, which each update brings with it. Don't edit them:
+  this codebase's own history is its git log.
+
+Until 0.8.0, every release's notes were sections of `CHANGELOG.md`. 0.9.0
+moved each into its own file, so a tag before `v0.9.0` has no
+`.superforge/releases/`: read those releases' notes from a later tag.
+
+## Whether a newer release is out
+
+The template's tags, with nothing fetched and no remote added:
+
+```bash
+git ls-remote --tags --refs https://github.com/superforge-studio/starter-template.git 'v*' |
+    sed 's|.*refs/tags/v||' | sort -V
+```
+
+The repository's name is the `template` in `.superforge/superforge.json`.
+A version after this codebase's `version` is a release it hasn't taken:
+tell the owner what it brings (step 3) and that it's theirs to take. With
+none, it's up to date.
+
+## How a release is written
+
+Every release, in the template, is a PR that changes what a copy gets
+(the template's `README.md`, "This template", "Releases"). In that PR, its
+notes go in `.superforge/releases/<version>.md`, a line for it at the top
+of `CHANGELOG.md`'s list, and its version in
+`.superforge/superforge.json`. The notes are written for the agent that
+updates a copy, which reads every release between the copy's version and
+the latest before it applies any of them. Each release says:
+
+- **What changed, and why**, a part at a time, naming the files.
+- **Machinery or a starting point**, for each part. Machinery is the
+  setup every copy runs on (CI, the checks, the local Postgres, workflows,
+  the Railway project's shape), so a copy takes it as the template has it.
+  A starting point is something the owner is expected to make their own
+  (the home page, the theme, an example feature), so an update offers the
+  change and keeps the owner's version where they've changed it.
+- **Flags**, when they apply:
+  - **Schema**: `schema.ts` changed. The update applies the change and
+    generates the copy's own migration (`pnpm database:generate`), since
+    the template's migration files can't be copied (the update skips
+    them). Any SQL written by hand is given here, to go in that migration.
+  - **Variable** or **Secret**: a new variable on the app's Railway
+    service. A secret's value is the owner's to set in Railway's
+    dashboard before the update merges.
+  - **Railway**: a change to `.railway/railway.ts` that costs money, or
+    that needs a destructive apply.
+  - **Owner**: a step only the owner can take, like a token or a DNS
+    record.
+- **How to tell a copy already has it**: a file, a line or a command's
+  output that shows the change is there, for a copy that took some of it
+  by hand.
+
+A patch release (`0.1.1`) fixes something; a minor release (`0.2.0`) adds
+or changes something. Until `1.0.0`, a minor release may also change how
+something already there works, which its notes flag.
 
 ## What an update leaves out
 
@@ -55,7 +124,6 @@ git remote add template https://github.com/superforge-studio/starter-template.gi
 git fetch --no-tags template "+refs/tags/v*:refs/remotes/template/tags/v*"
 ```
 
-The repository's name is the `template` in `.superforge/superforge.json`.
 Its releases, oldest first:
 
 ```bash
@@ -67,14 +135,15 @@ there are none, it's up to date: say so, and stop.
 
 ## 3. Read the notes, and tell the owner
 
-Every release's notes are in the latest one's `CHANGELOG.md`:
+Read each release after this codebase's from its own file, at the latest
+tag. Here, with `v0.10.0` the latest and this codebase on `0.8.0`:
 
 ```bash
-git show template/tags/v0.2.0:CHANGELOG.md
+git show template/tags/v0.10.0:.superforge/releases/0.9.0.md
+git show template/tags/v0.10.0:.superforge/releases/0.10.0.md
 ```
 
-Read each release after this codebase's, with its flags (the changelog's
-"How a release is written" says what each one means). Then, before
+Read each with its flags ("How a release is written", above). Then, before
 changing anything, tell the owner in plain words what's coming, and get
 their yes for anything that costs money, needs a secret, or needs them to
 do something (**Railway**, **Secret**, **Owner**). Don't start an update
@@ -136,8 +205,8 @@ Then, before the next release:
    ```bash
    pnpm database:generate --name=<what-it-changed>
    ```
-3. Check that `.superforge/superforge.json` says the release's version: the
-   diff moves it.
+3. Check that `.superforge/superforge.json` says the release's version,
+   and that `.superforge/releases/` has its notes: the diff brings both.
 4. `pnpm format`, and commit the release on its own. The tree was clean
    when the update began, so everything in it is the release's:
 

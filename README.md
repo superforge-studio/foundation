@@ -86,9 +86,11 @@ its own copy runs on Railway, in the `superforge-starter` project, at
 this section, and the names above, in `START-HERE.md`'s step 5.
 
 **Releases: every PR that changes what a copy gets is a release of its
-own.** It puts its notes at the top of `CHANGELOG.md`, under the next
-version and the day (`## 0.3.0 (2026-12-01)`), written as that file's "How
-a release is written" says, and sets `version` in
+own.** It puts its notes in a file of their own,
+`.superforge/releases/<version>.md`, headed with the next version and the
+day (`# 0.3.0 (2026-12-01)`) and written as `workbench/updating.md`'s "How
+a release is written" says, adds a line for it at the top of
+`CHANGELOG.md`'s list, and sets `version` in
 `.superforge/superforge.json` to match. A fix moves the last number
 (`0.2.1`); anything added or changed moves the middle one (`0.3.0`). A PR
 a copy wouldn't take, like a change to this section or a typo in the
@@ -98,10 +100,9 @@ notes, changes neither and adds no notes. Once a release merges and passes
 side by side: the second to merge rebases on `main` and takes the version
 after the first's. A change a copy has to deploy before another, like a
 table its code stops reading before the table is dropped, goes in two PRs,
-so two releases, each deployed before the next. Notes still under
-`## Unreleased` from before this rule go out with the next release, under
-its heading. A version with no heading in `CHANGELOG.md` isn't tagged: the
-job fails and says why. If CI ever misses a release, tag the commit that
+so two releases, each deployed before the next. A version without its
+notes file, headed with it, and its line in `CHANGELOG.md` isn't tagged:
+the job fails and says why. If CI ever misses a release, tag the commit that
 set the version by hand:
 
 ```bash
