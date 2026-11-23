@@ -30,7 +30,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
             const asked = await context.var.infra.agentRequest(request_id)
             if (asked.ok) {
                 return context.json({ request: asked.data }, 200)
-            } else if ("reason" in asked.error) {
+            } else if (asked.error.reason === "unavailable") {
                 return unavailable(context)
             } else {
                 return failure(
@@ -55,7 +55,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
             const { request_id } = context.req.valid("param")
             const { scopes } = context.req.valid("json")
             const allowed = await context.var.infra.allowAgent(request_id, {
-                email: context.var.user.email,
+                user_id: context.var.user.id,
                 scopes
             })
             if (allowed.ok) {
@@ -64,9 +64,9 @@ export const agentRoutes = new Hono<ApiEnvironment>()
                     scopes
                 })
                 return context.json(allowed.data, 200)
-            } else if ("reason" in allowed.error) {
+            } else if (allowed.error.reason === "unavailable") {
                 return unavailable(context)
-            } else if (allowed.error.error === "not-asked") {
+            } else if (allowed.error.reason === "not-asked") {
                 return failure(
                     context,
                     400,
@@ -95,7 +95,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
             const denied = await context.var.infra.denyAgent(request_id)
             if (denied.ok) {
                 return context.json(denied.data, 200)
-            } else if ("reason" in denied.error) {
+            } else if (denied.error.reason === "unavailable") {
                 return unavailable(context)
             } else {
                 return failure(
@@ -111,7 +111,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     // Where they've let Claude in, oldest first
     .get("/account/connections", loggedIn, inBrowser, async (context) => {
         const listed = await context.var.infra.agentConnections(
-            context.var.user.email
+            context.var.user.id
         )
         if (listed.ok) {
             return context.json({ connections: listed.data }, 200)
@@ -130,7 +130,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
         async (context) => {
             const { connection_id } = context.req.valid("param")
             const { infra, user } = context.var
-            const listed = await infra.agentConnections(user.email)
+            const listed = await infra.agentConnections(user.id)
             if (!listed.ok) {
                 return unavailable(context)
             } else if (!listed.data.some(({ id }) => id === connection_id)) {
@@ -148,7 +148,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
                     connection_id
                 })
                 return context.json({ ended: true as const }, 200)
-            } else if ("reason" in ended.error) {
+            } else if (ended.error.reason === "unavailable") {
                 return unavailable(context)
             } else {
                 return failure(

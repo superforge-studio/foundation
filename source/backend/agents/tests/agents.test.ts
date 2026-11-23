@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { oauthWith } from "@/backend/agents/oauth"
 import {
@@ -11,6 +12,7 @@ import {
 import { mcpWith } from "@/backend/mcp"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
+import { users } from "@/database/schema"
 import type { AgentScope } from "@/utilities/schemas/agents"
 
 // Claude in the app: its token in a cookie's place, what it may and may not
@@ -29,14 +31,29 @@ afterEach(() => {
 
 const ADA = "ada@example.com"
 
+// The address Claude's tokens are for: the app's MCP
+const RESOURCE = "http://localhost/admin/mcp"
+
 type Setup = Awaited<ReturnType<typeof testApi>>
 
-// A request to the API as Claude, with a token for `email`
+// The ID of the team member at `email`, as a token names them, or one no
+// one has when nobody on the team is
+async function userIdOf(setup: Setup, email: string) {
+    const [user] = await setup.database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+    return user?.id ?? crypto.randomUUID()
+}
+
+// A request to the API as Claude, with a token for the team member at
+// `email`, or for `user_id`
 async function asClaude(
     setup: Setup,
     path: string,
     options: {
         email?: string
+        user_id?: string
         scopes?: AgentScope[]
         origin?: string
         method?: string
@@ -44,7 +61,9 @@ async function asClaude(
     } = {}
 ) {
     const token = await standInAgentToken({
-        email: options.email ?? ADA,
+        user_id:
+            options.user_id ?? (await userIdOf(setup, options.email ?? ADA)),
+        resource: `${options.origin ?? "http://localhost"}/admin/mcp`,
         scopes: options.scopes,
         origin: options.origin
     })
@@ -92,6 +111,27 @@ describe("Claude's token", () => {
         expect(users.status).toBe(401)
     })
 
+    test("is refused for a token that names an email, not an ID", async () => {
+        const setup = await testApi()
+        await logInAs(setup, ADA)
+        expect(
+            (await asClaude(setup, "/api/users", { user_id: ADA })).status
+        ).toBe(401)
+    })
+
+    test("is refused for another MCP's address on the same app", async () => {
+        const setup = await testApi()
+        await logInAs(setup, ADA)
+        const token = await standInAgentToken({
+            user_id: await userIdOf(setup, ADA),
+            resource: "http://localhost/mcp"
+        })
+        const response = await setup.api.request("http://localhost/api/users", {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        expect(response.status).toBe(401)
+    })
+
     test("stops working the moment its person leaves the team", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
@@ -112,7 +152,11 @@ describe("Claude's token", () => {
     test("is refused once it has run out", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
-        const token = await standInAgentToken({ email: ADA, expires_in: "0s" })
+        const token = await standInAgentToken({
+            user_id: await userIdOf(setup, ADA),
+            resource: RESOURCE,
+            expires_in: "0s"
+        })
         const response = await setup.api.request("http://localhost/api/users", {
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -147,25 +191,26 @@ describe("Claude's token", () => {
 describe("the Allow page and the Connected list", () => {
     // The stand-in, recording what the app tells Infra
     function recordingInfra() {
-        const allowed: { request_id: string; email: string }[] = []
+        const allowed: { request_id: string; user_id: string }[] = []
         const ended: string[] = []
         const infra: Infra = {
             ...standInInfra(),
-            allowAgent: async (request_id, { email }) => {
-                allowed.push({ request_id, email })
+            allowAgent: async (request_id, { user_id }) => {
+                allowed.push({ request_id, user_id })
                 return {
                     ok: true,
                     data: { redirect_to: "https://claude.ai/callback?code=x" }
                 }
             },
-            agentConnections: async (email) => ({
+            agentConnections: async (user_id) => ({
                 ok: true,
                 data: [
                     {
                         id: "6b9c0a52-7d1b-4c43-9a4b-2f7e3d1c5a01",
-                        email,
+                        user_id,
                         client_name: "Claude",
                         scopes: ["read", "act"],
+                        resource: RESOURCE,
                         last_used_at: new Date(),
                         created_at: new Date()
                     }
@@ -183,15 +228,15 @@ describe("the Allow page and the Connected list", () => {
     test("someone on the team allows it, as themselves", async () => {
         const { infra, allowed } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await logInAs(setup, ADA)
+        const ada = await logInAs(setup, ADA)
         const response = await setup.client.api.connect[
             ":request_id"
         ].allow.$post(
             { param: { request_id: REQUEST }, json: { scopes: ["read"] } },
-            { headers: { Cookie: cookie } }
+            { headers: { Cookie: ada.cookie } }
         )
         expect(response.status).toBe(200)
-        expect(allowed).toEqual([{ request_id: REQUEST, email: ADA }])
+        expect(allowed).toEqual([{ request_id: REQUEST, user_id: ada.id }])
     })
 
     test("nobody logged out, and no token, may allow it", async () => {
@@ -250,17 +295,39 @@ describe("where Claude logs in", () => {
         )
     })
 
-    test("Claude's OAuth calls go to Infra as they are, with the app's key and origin", async () => {
+    test("the server's metadata names the app's own addresses, with no call to Infra", async () => {
         const sent: Request[] = []
         const infra = infraClient({
             key: `sf_secret_${"a".repeat(32)}`,
             url: "https://infra.example/v1",
             send: async (input, init) => {
                 sent.push(new Request(input, init))
-                return new Response(null, {
-                    status: 302,
-                    headers: { Location: "https://vmdsystem.com/connect/1" }
-                })
+                return Response.json({})
+            }
+        })
+        const oauth = oauthWith(() => infra)
+        const response = await oauth.request(
+            "http://vmdsystem.com/.well-known/oauth-authorization-server"
+        )
+        expect(response.status).toBe(200)
+        expect(await response.json()).toMatchObject({
+            issuer: "https://vmdsystem.com",
+            authorization_endpoint: "https://vmdsystem.com/oauth/authorize",
+            token_endpoint: "https://vmdsystem.com/oauth/token",
+            scopes_supported: ["read", "act"]
+        })
+        expect(sent).toEqual([])
+    })
+
+    test("Claude's OAuth calls go to Infra with the app's key and origin, and authorize ends on the Allow page", async () => {
+        const sent: Request[] = []
+        const request_id = "3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90"
+        const infra = infraClient({
+            key: `sf_secret_${"a".repeat(32)}`,
+            url: "https://infra.example/v1",
+            send: async (input, init) => {
+                sent.push(new Request(input, init))
+                return Response.json({ request: { id: request_id } })
             }
         })
         const oauth = oauthWith(() => infra)
@@ -269,11 +336,11 @@ describe("where Claude logs in", () => {
         )
         expect(response.status).toBe(302)
         expect(response.headers.get("location")).toBe(
-            "https://vmdsystem.com/connect/1"
+            `https://vmdsystem.com/connect/${request_id}`
         )
         const [call] = sent
         expect(call?.url).toBe(
-            "https://infra.example/v1/oauth/authorize?client_id=c&state=s"
+            "https://infra.example/v1/agents/oauth/authorize?client_id=c&state=s"
         )
         expect(call?.headers.get("authorization")).toBe(
             `Bearer sf_secret_${"a".repeat(32)}`
@@ -317,7 +384,10 @@ describe("the MCP", () => {
     test("lists the API's routes, and calls one as the person", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
-        const token = await standInAgentToken({ email: ADA })
+        const token = await standInAgentToken({
+            user_id: await userIdOf(setup, ADA),
+            resource: RESOURCE
+        })
         const mcp = mcpWith(setup.api)
         const client = new Client({ name: "test", version: "1.0.0" })
         await client.connect(
@@ -359,7 +429,10 @@ describe("the MCP", () => {
             }
         })
         await logInAs(setup, ADA, "member")
-        const token = await standInAgentToken({ email: ADA })
+        const token = await standInAgentToken({
+            user_id: await userIdOf(setup, ADA),
+            resource: RESOURCE
+        })
         const mcp = mcpWith(setup.api)
         const client = new Client({ name: "test", version: "1.0.0" })
         await client.connect(

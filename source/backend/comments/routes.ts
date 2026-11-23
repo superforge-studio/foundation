@@ -34,7 +34,8 @@ export const commentRoutes = new Hono<ApiEnvironment>()
             const user_agent = visitorUserAgent(context)
             const filed = await context.var.infra.fileComment({
                 ...comment,
-                user: context.var.user.id,
+                user_id: context.var.user.id,
+                user_name: context.var.user.first_name,
                 user_agent: user_agent === "" ? null : user_agent
             })
             if (filed.ok) {

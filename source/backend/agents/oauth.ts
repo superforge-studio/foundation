@@ -1,16 +1,26 @@
 import { Hono } from "hono"
 import { AGENT_SCOPES, MCP_PATH } from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
-import { appInfra, type Infra, requestOrigin } from "../infra"
+import {
+    APP_PATHS,
+    appInfra,
+    type Infra,
+    OAUTH_CALLS,
+    type OAuthCall,
+    requestOrigin
+} from "../infra"
 
 // What Claude finds at the app's own addresses, outside /api, when it
-// logs in to the MCP (source/server.ts): where to log in, and the OAuth
-// calls themselves, which Infra answers, passed through with the app's key
-// so the app's own domain is what Claude sees (infra/agents.ts). Infra's
-// README, "Claude", has the flow.
+// logs in to the MCP (source/server.ts): where to log in, the server's
+// metadata, and the OAuth calls themselves, which Infra answers, passed on
+// with the app's key so the app's own domain is what Claude sees, at the
+// package's paths (`APP_PATHS`: `/oauth`, and the Allow page at
+// `/connect`). Infra's README, "Claude", has the flow.
 
-/** The OAuth calls Claude makes, which go through to Infra as they are */
-const OAUTH_CALLS = ["authorize", "token", "register", "revoke"]
+// Whether a call under `/oauth` is one Claude makes
+function isOAuthCall(call: string): call is OAuthCall {
+    return OAUTH_CALLS.some((known) => known === call)
+}
 
 /**
  * The addresses Claude logs in through, on `infra`: the server's, below,
@@ -49,18 +59,18 @@ export function oauthWith(infra: () => Infra) {
             .get("/.well-known/oauth-authorization-server", (context) =>
                 infra().passOAuth(
                     context.req.raw,
-                    "/metadata",
+                    "metadata",
                     requestOrigin(context.req.url)
                 )
             )
-            .all("/oauth/:call", (context) => {
+            .all(`${APP_PATHS.oauth}/:call`, (context) => {
                 const call = context.req.param("call")
-                if (!OAUTH_CALLS.includes(call)) {
+                if (!isOAuthCall(call)) {
                     return context.json({ error: "not-found" }, 404)
                 } else {
                     return infra().passOAuth(
                         context.req.raw,
-                        `/${call}`,
+                        call,
                         requestOrigin(context.req.url)
                     )
                 }

@@ -268,14 +268,16 @@ export function whatWentWrong(failure: ApiFailure) {
     switch (failure.reason) {
         case "invalid":
             return "Check what you entered and try again."
-        case "too-soon":
-            return "We sent a code less than a minute ago. Check your inbox, or ask again in a minute."
-        case "too-many": {
-            const minutes = Math.max(
-                1,
-                Math.ceil((failure.retry_after ?? 3600) / 60)
-            )
-            return `That's a lot of codes for now. Try again in ${minutes === 1 ? "a minute" : `${minutes} minutes`}.`
+        case "rate-limited": {
+            // A minute or less: a code went to this address just now, and
+            // is on its way
+            const seconds = failure.retry_after ?? 3600
+            if (seconds <= 60) {
+                return "We sent a code less than a minute ago. Check your inbox, or ask again in a minute."
+            } else {
+                const minutes = Math.ceil(seconds / 60)
+                return `That's a lot of codes for now. Try again in ${minutes} minutes.`
+            }
         }
         case "not-sent":
             return "The email didn't go out. Check the address and try again."
