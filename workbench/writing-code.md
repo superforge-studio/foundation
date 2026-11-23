@@ -189,14 +189,25 @@ matters:
   may see what, is decided in one place, whatever a page shows.
 - **Something that runs in the background** → a workflow, in its
   feature's `workflows.ts`, listed in `backend/workflows/index.ts`, and
-  started from a route through `context.var.workflows`
-  (`source/backend/workflows/README.md` has the rules every step follows).
+  queued in the transaction of the write it's for, by name with
+  `queueWorkflow` or on an event with `queueEvent`
+  (`backend/workflows/queue.ts`), or started from a route through
+  `context.var.workflows` (`source/backend/workflows/README.md` has the
+  rules every step follows, and "Queueing a run with a write" what goes in
+  the transaction and what goes in a workflow). Work at set times, like a
+  nightly digest, is a workflow with a cron `schedule`, which DBOS fires.
   Something short that's just due at a time is a timestamp in Postgres
   that a runner checks, not a workflow. A second service in the Railway
   project (`.railway/railway.ts`), started from this same package with its
   own start command, or a cron service with a `cronSchedule`, only when
   something must deploy or scale on its own. Not a second package: one
   database means one package.
+- **A webhook from another service** → a source in
+  `backend/webhooks/sources.ts`'s `SOURCES`, posting to
+  `/api/webhooks/<source>`, whose deliveries are kept as they came,
+  checked, and turned into events for the workflows on them
+  (`source/backend/webhooks/README.md`, "Adding a source"). Never a route
+  of its own.
 - **Content** lives where it's published: a page's copy in its route, and
   copy more than one page shares in `source/utilities/`.
 
@@ -314,7 +325,9 @@ against `now` and `fromNow` from `time.ts`.
   `database.transaction(async (transaction) => …)`. Inside it, every query
   goes through `transaction`: one on `database` runs on another
   connection, outside it. A function that may run inside one takes the
-  `Database` type, which a `transaction` is too.
+  `Database` type, which a `transaction` is too. The work a write means
+  goes in it too, queued (`queueWorkflow`, `queueEvent`), so a write never
+  lands without its run, and no run starts for one that rolled back.
 - **Index the column a foreign key or a join follows.** Postgres doesn't
   index a foreign key's column by itself, and a cascade from a parent then
   scans the child's table.

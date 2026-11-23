@@ -12,10 +12,22 @@ beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
 })
 
-test("a sign-up's run is listed, named for whom it's about, to internal people only", async () => {
+test("the runs are listed to internal people only", async () => {
     const api = await testApi()
     const customer = await signInAs(api, "maria@example.com")
     const owner = await signInAs(api, "ada@example.com", "internal")
+    api.runs.set("queued-run", {
+        id: "queued-run",
+        workflow: "tell-team-of-sign-up",
+        title: "Tell the team about maria@example.com",
+        status: "queued",
+        input: "{}",
+        error: null,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+        output: null,
+        steps: []
+    })
 
     const refused = await api.client.api.workflows.runs.$get(
         {},
@@ -30,7 +42,6 @@ test("a sign-up's run is listed, named for whom it's about, to internal people o
     expect(listed.status).toBe(200)
     if (listed.status === 200) {
         const { runs } = await listed.json()
-        // The customer's sign-up, and none for one of the business's own
         expect(runs.map((run) => run.title)).toEqual([
             "Tell the team about maria@example.com"
         ])

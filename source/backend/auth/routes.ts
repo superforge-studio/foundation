@@ -3,7 +3,6 @@ import type { Database } from "@/database"
 import { sign_in_start, sign_in_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
-import { tellTeamOfSignUp } from "../users/workflows"
 import { keptVisitorId } from "../visits/cookies"
 import { recordEvents } from "../visits/record"
 import { endSession } from "./sessions"
@@ -126,7 +125,6 @@ export const authRoutes = new Hono<ApiEnvironment>()
                 setSessionCookie(context, token)
                 console.info("Signed in", { user_id: user.id, joined })
                 if (joined) {
-                    await tellTeam(context.var.workflows, user)
                     await recordSignUp(context.var.database, {
                         user_id: user.id,
                         visitor_id: keptVisitorId(context) ?? undefined
@@ -173,28 +171,6 @@ export const authRoutes = new Hono<ApiEnvironment>()
         clearSessionCookie(context)
         return context.json({ signed_out: true as const }, 200)
     })
-
-// Starts the workflow that tells the business's own people someone new has
-// signed up, once a sign-in has made them. It's named for the user, so it
-// runs once whatever happens to the request. A start that fails is logged
-// and leaves them signed in: the notice matters less than getting in.
-async function tellTeam(
-    workflows: ApiEnvironment["Variables"]["workflows"],
-    user: { id: string; email: string }
-) {
-    try {
-        await workflows.start(
-            tellTeamOfSignUp,
-            { user_id: user.id, email: user.email },
-            { id: `tell-team-of-sign-up-${user.id}` }
-        )
-    } catch (error) {
-        console.error("The sign-up's notice didn't start", {
-            user_id: user.id,
-            error
-        })
-    }
-}
 
 // Records that someone new has signed up, as a `signed-up` event with their
 // user's ID, and their browser's when the site remembers it, which joins

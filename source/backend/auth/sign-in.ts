@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm"
 import type { Database } from "@/database"
 import { users } from "@/database/schema"
 import { now } from "@/database/time"
+import { queueEvent } from "../workflows/queue"
 import {
     type Access,
     listedInternal,
@@ -46,9 +47,12 @@ export async function maySignIn(
  * (`replacing`), all together. Their role and, for the business's own, their
  * name are set as access.ts lists them every time, so the database follows
  * the list: someone listed is internal with the name they're listed with,
- * and someone taken off it is external again. Answers the user, the new
- * session's token, for its cookie, and whether this sign-in made them.
- * Refuses someone nobody listed or added when only they may sign in.
+ * and someone taken off it is external again. A sign-in that makes
+ * someone new queues `user-signed-up` in the same transaction, named for
+ * them, so whatever's on it (the notice to the team) runs once, and only
+ * if they're made. Answers the user, the new session's token, for its
+ * cookie, and whether this sign-in made them. Refuses someone nobody
+ * listed or added when only they may sign in.
  */
 export async function signIn(
     database: Database,
@@ -137,6 +141,14 @@ export async function signIn(
             replacing,
             user_agent
         )
+        if (joined) {
+            await queueEvent(
+                transaction,
+                "user-signed-up",
+                { user_id: signed_in.id, email: signed_in.email },
+                { id: signed_in.id }
+            )
+        }
         return { ok: true, data: { user: signed_in, token, joined } }
     })
 }

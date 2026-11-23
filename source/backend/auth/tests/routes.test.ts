@@ -348,7 +348,7 @@ test("signedIn lets a live session through with its user, and answers 401 withou
     )
 })
 
-test("someone new is external, and their sign-up starts the notice to the team, once", async () => {
+test("someone new is external, and their sign-up queues the notice to the team, once", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const api = await testApi()
     for (let time = 0; time < 2; time++) {
@@ -357,13 +357,17 @@ test("someone new is external, and their sign-up starts the notice to the team, 
     }
     const [user] = await api.database.select().from(users)
     expect(user?.role).toBe("external")
-    expect(api.started).toEqual([
+    // `user-signed-up`, queued in the sign-in's own transaction, named for
+    // them, and the notice is on it
+    expect(await api.queued()).toEqual([
         {
             workflow: "tell-team-of-sign-up",
             input: { user_id: user?.id, email: EMAIL },
-            id: `tell-team-of-sign-up-${user?.id}`
+            id: `tell-team-of-sign-up-${user?.id}`,
+            queue: "background"
         }
     ])
+    expect(api.started).toEqual([])
 })
 
 test("someone listed as internal is internal from their first sign-in, with their listed name, and no sign-up", async () => {
@@ -396,7 +400,7 @@ test("someone listed as internal is internal from their first sign-in, with thei
     const [session] = await api.database.select().from(sessions)
     expect(session?.user_agent).toBe("Test browser")
     // One of the business's own isn't a sign-up: no notice about them
-    expect(api.started).toEqual([])
+    expect(await api.queued()).toEqual([])
 })
 
 test("only the list makes anyone internal: taken off it, or made internal by hand, someone is external from their next request", async () => {
@@ -490,5 +494,5 @@ test("when only listed people may sign in, anyone else is refused before Infra i
     expect(verified.status).toBe(200)
     expect(asked).toEqual([EMAIL, "grace@example.com"])
     // Neither joined by signing in, so no notice went out
-    expect(api.started).toHaveLength(0)
+    expect(await api.queued()).toHaveLength(0)
 })

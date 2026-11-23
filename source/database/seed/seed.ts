@@ -50,7 +50,10 @@ const SEEDERS: Seeder[] = [
  * seeder names it: bare in `public`, after its schema in another, like
  * `internal.error_log`.
  */
-export const UNSEEDED: Record<string, string> = {}
+export const UNSEEDED: Record<string, string> = {
+    "internal.webhook_deliveries":
+        "What other services posted, kept as it came: a log nothing should make up, and the template lists no source to have sent any"
+}
 
 /**
  * Writes every seeder's rows in one transaction, so a failure leaves the

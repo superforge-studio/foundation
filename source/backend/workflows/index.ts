@@ -1,6 +1,7 @@
 import { JOBS } from "@/backend/jobs"
 import { tellTeamOfSignUp } from "@/backend/users/workflows"
 import { pruneAnalyticsRunner } from "@/backend/visits/prune"
+import { pruneWebhookDeliveries } from "@/backend/webhooks/workflows"
 import type { Workflow } from "./define"
 import type { Runner } from "./runners"
 
@@ -19,6 +20,8 @@ import type { Runner } from "./runners"
  */
 export const WORKFLOWS: Workflow[] = [
     tellTeamOfSignUp,
+    // Each hour, the webhooks older than they're kept (backend/webhooks/)
+    pruneWebhookDeliveries,
     // Each job's, which makes its change (backend/jobs/)
     ...JOBS.map((job) => job.workflow)
 ]
