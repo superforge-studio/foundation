@@ -3,6 +3,7 @@ import { login_start, login_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { listedInternal, permissionsOf } from "./access"
+import { OTHERS } from "./app"
 import {
     clearSessionCookie,
     maybeLoggedIn,
@@ -10,6 +11,7 @@ import {
     setSessionCookie
 } from "./logged-in"
 import { logIn, mayLogIn } from "./login"
+import { NOT_LISTED } from "./others"
 import { endSession } from "./sessions"
 import { appOrigin, visitorBrowser, visitorIp } from "./visitor"
 
@@ -18,15 +20,13 @@ import { appOrigin, visitorBrowser, visitorIp } from "./visitor"
 // to the business's own people (`forTheTeam`)
 const UNAVAILABLE = "Login isn't working right now. Try again soon."
 
-// What someone hears when the team doesn't have them (access.ts)
-const NOT_LISTED =
-    "This address can't log in here. Ask whoever runs this app to add you to the team."
-
 /**
  * Logging in, under /api/auth, with no password: Infra emails a six-digit
  * code and a link, and says whose email the code or the link is when the
  * visitor brings one back (backend/infra/). Only the team logs in, as
- * access.ts lists them, and the app keeps their user and their session. Starting and verifying take JSON, which a form on another site
+ * access.ts lists them, and the app keeps their user and their session,
+ * unless the app gives someone else a way in (./others.ts), who's asked
+ * only of an address the team doesn't have. Starting and verifying take JSON, which a form on another site
  * can't send; logging out takes no body, and the API refuses another
  * site's form (`csrf()` in index.ts). The cookie is SameSite=Lax, so
  * another site's page can't act as anyone (logged-in.ts).
@@ -34,12 +34,14 @@ const NOT_LISTED =
 export const authRoutes = new Hono<ApiEnvironment>()
     // Who's logged in, and what they may do in each area, or null for a
     // visitor: what every page asks, so the dashboard leaves out what
-    // someone can't use
-    .get("/auth/session", maybeLoggedIn, (context) =>
+    // someone can't use; and whatever else the app says of whoever else
+    // logs in (./others.ts)
+    .get("/auth/session", maybeLoggedIn, async (context) =>
         context.json(
             {
                 user: context.var.user,
-                permissions: context.var.permissions
+                permissions: context.var.permissions,
+                ...(await OTHERS.session(context))
             },
             200
         )
@@ -48,11 +50,14 @@ export const authRoutes = new Hono<ApiEnvironment>()
     // Emails the code, and a link to this app's /login when this is one of
     // the project's domains. In a dev server, which emails nothing, the
     // answer holds the code and the link for the page to show. Anyone not
-    // on the team is refused before Infra is asked, so nothing is emailed
-    // to them.
+    // on the team, whom nothing else lets in either, is refused before
+    // Infra is asked, so nothing is emailed to them.
     .post("/auth/start", validated("json", login_start), async (context) => {
         const { email } = context.req.valid("json")
-        if (!mayLogIn(context.var.access, email)) {
+        if (
+            !mayLogIn(context.var.access, email) &&
+            !(await OTHERS.mayLogIn(context, email))
+        ) {
             return failure(context, 403, "not-listed", NOT_LISTED)
         }
         const started = await context.var.infra.startLogin({
@@ -124,7 +129,14 @@ export const authRoutes = new Hono<ApiEnvironment>()
                 access: context.var.access
             })
             if (!logged_in.ok) {
-                return failure(context, 403, logged_in.error, NOT_LISTED)
+                // Not one of the team: whoever else logs in, if anyone
+                // does, or refused (./others.ts)
+                return await OTHERS.logIn(context, verified.data.address)
+            }
+            // The session this browser had, if it was someone else's
+            const replaced = sessionToken(context)
+            if (replaced !== undefined) {
+                await OTHERS.logOut(context, replaced)
             }
             const { user, token } = logged_in.data
             setSessionCookie(context, token)
@@ -174,11 +186,12 @@ export const authRoutes = new Hono<ApiEnvironment>()
         }
     })
 
-    // Ends this browser's session
+    // Ends this browser's session, whoever's it is
     .post("/auth/logout", async (context) => {
         const token = sessionToken(context)
         if (token !== undefined) {
             await endSession(context.var.database, token)
+            await OTHERS.logOut(context, token)
         }
         clearSessionCookie(context)
         return context.json({ logged_out: true as const }, 200)

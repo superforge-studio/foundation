@@ -81,10 +81,19 @@ export const startLogin = mutationOptions({
     }
 })
 
+/**
+ * Whoever a login logged in, as the API answers them: one of the team, or
+ * whoever else the app lets in (backend/auth/others.ts).
+ */
+export type Verified = InferResponseType<
+    typeof client.api.auth.verify.$post,
+    200
+>
+
 /** Logging in with the code from the email, or its link's token. */
 export const verifyLogin = mutationOptions({
     mutationKey: ["auth", "verify"],
-    mutationFn: async (input: LoginProof): Promise<LoggedIn> => {
+    mutationFn: async (input: LoginProof): Promise<Verified> => {
         const response = await client.api.auth.verify.$post({ json: input })
         if (response.status === 200) {
             return await response.json()
@@ -92,11 +101,22 @@ export const verifyLogin = mutationOptions({
             throw new FailedRequest(await readFailure(response))
         }
     },
-    onSuccess: async (logged_in, _input, _result, context) => {
+    onSuccess: async (verified, _input, _result, context) => {
         // A session fetched before this login, and answered after it,
         // would put the visitor back
         await context.client.cancelQueries({ queryKey: sessionQuery.queryKey })
-        context.client.setQueryData(sessionQuery.queryKey, logged_in)
+        if ("user" in verified) {
+            const logged_in: LoggedIn = {
+                user: verified.user,
+                permissions: verified.permissions
+            }
+            context.client.setQueryData(sessionQuery.queryKey, logged_in)
+        } else {
+            // Someone else the app lets in: no one on the team is logged
+            // in, and whatever asks about them asks again
+            context.client.setQueryData(sessionQuery.queryKey, null)
+            await context.client.invalidateQueries()
+        }
     }
 })
 

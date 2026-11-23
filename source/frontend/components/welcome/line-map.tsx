@@ -137,7 +137,7 @@ export function LineMap({ className }: { className?: string }) {
             name: "Database",
             kind: "Postgres",
             what: "What the business keeps: customers, orders, bookings.",
-            path: "source/database/schema.ts",
+            path: "source/database/schema/app.ts",
             status: databaseStatus(seen),
             shape: "stop",
             checks: "database"

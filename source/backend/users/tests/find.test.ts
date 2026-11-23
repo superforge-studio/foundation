@@ -3,12 +3,12 @@ import { users } from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
 import { findUser, internalEmails } from "../find"
 
-// What the notice's steps read (users/workflows.ts): whom it's about, and
-// whom it goes to
+// What the sign-up notices' steps read (users/workflows.ts): whom one is
+// about, and whom it goes to
 
-test("the team is everyone active, but the one it's about", async () => {
+test("the team is everyone active, but the one a notice is about", async () => {
     const database = await testDatabase()
-    const [ada, , linus] = await database
+    const [ada] = await database
         .insert(users)
         .values([
             { slug: "ada", email: "ada@example.com" },
@@ -20,11 +20,11 @@ test("the team is everyone active, but the one it's about", async () => {
             }
         ])
         .returning({ id: users.id })
-    if (ada === undefined || linus === undefined) {
+    if (ada === undefined) {
         throw new Error("The users weren't made")
     }
 
-    expect(await internalEmails(database, linus.id)).toEqual([
+    expect(await internalEmails(database)).toEqual([
         "ada@example.com",
         "grace@example.com"
     ])

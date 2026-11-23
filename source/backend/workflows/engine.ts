@@ -431,16 +431,20 @@ async function shownRunIds(quiet: Set<string>, limit: number) {
     return shown
 }
 
+/** A run a script puts on a workflow's queue (`enqueueFromScript`). */
+export type ScriptRun = {
+    workflow: Workflow<unknown>
+    input: unknown
+    id: string
+}
+
 /**
  * Puts runs on their workflows' queues from a script, like the seed, which
  * runs no workflows itself: through a DBOS client of its own, on the
  * database at `url`, closed once they're queued. Whichever process runs
  * the workflows there, like a dev server, then runs them.
  */
-export async function enqueueFromScript(
-    url: string,
-    runs: { workflow: Workflow<unknown>; input: unknown; id: string }[]
-) {
+export async function enqueueFromScript(url: string, runs: ScriptRun[]) {
     const client = await DBOSClient.create({
         systemDatabaseUrl: url,
         systemDatabaseSchemaName: "dbos",

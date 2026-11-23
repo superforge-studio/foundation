@@ -6,6 +6,7 @@ import { traceRoutes } from "@/utilities/tracing"
 import { VISITOR_MODE } from "@/utilities/visitors"
 import { accountRoutes } from "./account/routes"
 import { agentRoutes } from "./agents/routes"
+import { appRoutes, appVariables, takesFormsFromOtherSites } from "./app"
 import { ACCESS } from "./auth/access"
 import { authRoutes } from "./auth/routes"
 import { commentRoutes } from "./comments/routes"
@@ -27,7 +28,8 @@ import { workflowRoutes } from "./workflows/routes"
  * The API under /api, with what every route sees on its `context`
  * (context.ts): the server's, below, or a test's own, with a database of
  * the test's (tests/support/api.ts). Each feature's routes are a Hono app of
- * their own, in its folder's `routes.ts`, mounted here.
+ * their own, in its folder's `routes.ts`: the template's mounted here, and
+ * this app's own after them, from ./app.ts (`appRoutes`).
  */
 export function apiWith(variables: () => ApiEnvironment["Variables"]) {
     return (
@@ -44,29 +46,18 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // `context.var.workflows`, Infra on `context.var.infra`, who
             // can log in on `context.var.access`, whom the site remembers
             // on `context.var.visitor_mode`, what places a visitor on
-            // `context.var.locate`, and the services that post the app
-            // webhooks on `context.var.webhook_sources`. Nothing under /api
-            // is kept in Railway's cache (source/node.ts), so each request
-            // reaches the server.
+            // `context.var.locate`, the services that post the app
+            // webhooks on `context.var.webhook_sources`, and whatever this
+            // app adds of its own (./app.ts). Nothing under /api is kept in
+            // Railway's cache (source/node.ts), so each request reaches the
+            // server.
             .use(async (context, next) => {
-                const {
-                    database,
-                    storage,
-                    workflows,
-                    infra,
-                    access,
-                    visitor_mode,
-                    locate,
-                    webhook_sources
-                } = variables()
-                context.set("database", database)
-                context.set("storage", storage)
-                context.set("workflows", workflows)
-                context.set("infra", infra)
-                context.set("access", access)
-                context.set("visitor_mode", visitor_mode)
-                context.set("locate", locate)
-                context.set("webhook_sources", webhook_sources)
+                const given = variables()
+                // Object.keys can only say its keys are strings, but
+                // they're the variables' own
+                for (const name of Object.keys(given) as VariableName[]) {
+                    put(context, given, name)
+                }
                 await next()
                 context.header("Cache-Control", "no-store")
             })
@@ -82,9 +73,11 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // browser says the request came from this site. JSON, which a
             // form can't send, is left alone, and so is a request that says
             // nothing of its body, like a script's bodiless POST, since a
-            // form always says.
+            // form always says. A route of the app's that must take one
+            // says so (./app.ts).
             .use((context, next) =>
-                context.req.header("Content-Type") === undefined
+                context.req.header("Content-Type") === undefined ||
+                takesFormsFromOtherSites(context.req.method, context.req.path)
                     ? next()
                     : refuseCrossSiteForms(context, next)
             )
@@ -129,7 +122,21 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // /connect, and someone's connections, under
             // /account/connections (agents/)
             .route("/", agentRoutes)
+
+            // This app's own routes, after the template's (app.ts)
+            .route("/", appRoutes)
     )
+}
+
+type VariableName = keyof ApiEnvironment["Variables"]
+
+// Puts one of what every route sees on its `context`, by its name
+function put<Name extends VariableName>(
+    context: Context<ApiEnvironment>,
+    given: ApiEnvironment["Variables"],
+    name: Name
+) {
+    context.set(name, given[name])
 }
 
 const refuseCrossSiteForms = csrf({ origin: fromThisHost })
@@ -148,8 +155,8 @@ function fromThisHost(origin: string, context: Context) {
  * The server's API, on its database, bucket, workflows and Infra, with who
  * can log in as auth/access.ts says, whom the site remembers as
  * utilities/visitors.ts says, visitors placed by the database Railway
- * names (visits/location.ts), and the webhook sources webhooks/sources.ts
- * lists.
+ * names (visits/location.ts), the webhook sources webhooks/sources.ts
+ * lists, and this app's own (./app.ts).
  */
 export const api = apiWith(() => ({
     database: appDatabase(),
@@ -159,7 +166,8 @@ export const api = apiWith(() => ({
     access: ACCESS,
     visitor_mode: VISITOR_MODE,
     locate: appLocate(),
-    webhook_sources: SOURCES
+    webhook_sources: SOURCES,
+    ...appVariables()
 }))
 
 export type AppType = typeof api

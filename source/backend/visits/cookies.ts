@@ -62,6 +62,32 @@ export function rememberVisitor(context: Context, id: string) {
     setCookie(context, VISITOR, id, cookieOptions(context))
 }
 
+/**
+ * Follows what `recordVisit` answered about a visitor kept as `id`: sets or
+ * renews their `visitor` cookie when the site remembers them, and clears
+ * one they had when it doesn't. Every call that keeps a visitor's events
+ * follows its answer this way, as visits/routes.ts does.
+ */
+export function followAnswer(
+    context: Context,
+    {
+        id,
+        kept_id,
+        remembered
+    }: {
+        id: string | null
+        kept_id: string | null | undefined
+        remembered: boolean
+    }
+) {
+    if (remembered && id !== null) {
+        // Set, or renewed for another 400 days
+        rememberVisitor(context, id)
+    } else if (!remembered && kept_id !== undefined) {
+        forgetVisitor(context)
+    }
+}
+
 /** Clears the visitor's `visitor` cookie. */
 export function forgetVisitor(context: Context) {
     deleteCookie(context, VISITOR, {

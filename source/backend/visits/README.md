@@ -102,7 +102,8 @@ Beside them are who the visitor was (`visitor_id`, `anonymous`,
 `user_id`, and a remembered visitor's `ip_address`), where (`country`,
 `region`, `city`) and on what (`device`, `browser`, `os`), set as the
 visit starts. A visitor who logs in during a
-visit is on it from then on. `source/database/schema.ts` has every column.
+visit is on it from then on. `source/database/schema/foundation.ts` has
+every column.
 
 ## The server's events: `recordEvents`
 

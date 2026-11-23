@@ -68,10 +68,16 @@ test("a window that has ended starts again, and one ended a day ago is deleted",
     expect(left).toEqual([{ key }])
 })
 
-test("a network is counted by a hash of it, an IPv6 address by its /64", () => {
+test("a network is counted by a hash of it, an IPv6 address by its /64, however it's written", () => {
     expect(networkKey("2001:db8:85a3:12::1")).toBe(
         networkKey("2001:db8:85a3:12:abcd::9")
     )
+    for (const written of [
+        "2001:0db8:85a3:0012:ffff:0:0:1",
+        "2001:DB8:85A3:12:1:2:3:4"
+    ]) {
+        expect(networkKey(written)).toBe(networkKey("2001:db8:85a3:12::1"))
+    }
     expect(networkKey("2001:db8:85a3:12::1")).not.toBe(
         networkKey("2001:db8:85a3:13::1")
     )

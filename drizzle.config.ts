@@ -1,6 +1,7 @@
 import { defineConfig } from "drizzle-kit"
 
-// Schema-first: `source/database/schema.ts` is the source of truth.
+// Schema-first: `source/database/schema.ts` is the source of truth, which
+// exports the template's tables and the app's own (./source/database/schema/).
 // `pnpm database:generate` diffs it into a SQL migration under
 // source/database/migrations, which is committed and reviewed like code.
 // Drizzle Kit only writes migrations here; `pnpm database:migrate`
