@@ -43,7 +43,10 @@ export async function takeDelivery(
     database: Database,
     source: WebhookSource,
     delivery: Delivery
-): AsyncOperation<Taken, Refusal | { reason: "unreadable"; problem: string }> {
+): AsyncOperationResult<
+    Taken,
+    Refusal | { reason: "unreadable"; problem: string }
+> {
     const delivery_id = source.deliveryId(delivery)
 
     // Kept as it came, before anything else

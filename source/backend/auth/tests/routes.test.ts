@@ -3,7 +3,7 @@ import { Hono } from "hono"
 import { expect, onTestFinished, test, vi } from "vitest"
 import type { ApiEnvironment } from "@/backend/context"
 import type { Infra } from "@/backend/infra"
-import { standInInfra } from "@/backend/infra/stand-in"
+import { standInInfra } from "@/backend/infra"
 import { testApi } from "@/backend/tests/support/api"
 import type { Database } from "@/database"
 import { sessions, users } from "@/database/schema"
@@ -187,7 +187,7 @@ function refusing(
     start: Awaited<ReturnType<Infra["startLogin"]>>,
     verify: Awaited<ReturnType<Infra["verifyLogin"]>> = {
         ok: false,
-        error: { reason: "unavailable" }
+        error: { reason: "unavailable", message: "Infra is down." }
     }
 ): Infra {
     return {
@@ -196,7 +196,7 @@ function refusing(
         verifyLogin: async () => verify,
         fileComment: async () => ({
             ok: false,
-            error: { reason: "unavailable" }
+            error: { reason: "unavailable", message: "Infra is down." }
         })
     }
 }
@@ -205,7 +205,12 @@ test("Infra's limits are answered 429, with when to ask again", async () => {
     const { client } = await testApi({
         infra: refusing({
             ok: false,
-            error: { reason: "too-many", limit: "email", retry_after: 1800 }
+            error: {
+                reason: "too-many",
+                limit: "email",
+                retry_after: 1800,
+                message: "Ask again in about 30 minutes."
+            }
         })
     })
     const response = await client.api.auth.start.$post({
@@ -217,9 +222,73 @@ test("Infra's limits are answered 429, with when to ask again", async () => {
     expect(error).toMatchObject({ reason: "too-many", retry_after: 1800 })
 })
 
+test("why Infra failed reaches the business's own people and a dev server, never a visitor", async () => {
+    vi.stubEnv("DEV", false)
+    onTestFinished(() => {
+        vi.unstubAllEnvs()
+    })
+    const cause =
+        "No one can log in: INFRA_SECRET_KEY isn't set on the app's service in Railway."
+    const { client } = await testApi({
+        infra: refusing(
+            { ok: false, error: { reason: "unavailable", message: cause } },
+            { ok: false, error: { reason: "unavailable", message: cause } }
+        ),
+        access: {
+            login: "anyone",
+            internal_users: [
+                {
+                    first_name: "Grace",
+                    last_name: "Hopper",
+                    email: "grace@example.com"
+                }
+            ]
+        }
+    })
+    async function failed(response: Response | { json(): Promise<unknown> }) {
+        return api_failure.parse(await response.json()).error
+    }
+
+    // One of the team, by the address they typed, is told why, with the
+    // same plain message a visitor gets
+    const team = await client.api.auth.start.$post({
+        json: { email: "Grace@Example.com" }
+    })
+    expect(team.status).toBe(503)
+    expect(await failed(team)).toEqual({
+        reason: "unavailable",
+        message: "Login isn't working right now. Try again soon.",
+        cause
+    })
+    const team_code = await client.api.auth.verify.$post({
+        json: { email: "grace@example.com", code: "123456" }
+    })
+    expect((await failed(team_code)).cause).toBe(cause)
+
+    // A visitor isn't, nor is a link, which names no one in a build
+    const visitor = await client.api.auth.start.$post({
+        json: { email: EMAIL }
+    })
+    expect((await failed(visitor)).cause).toBeUndefined()
+    const link = await client.api.auth.verify.$post({
+        json: { token: "a".repeat(43) }
+    })
+    expect((await failed(link)).cause).toBeUndefined()
+
+    // A dev server tells whoever's there
+    vi.stubEnv("DEV", true)
+    const developer = await client.api.auth.start.$post({
+        json: { email: EMAIL }
+    })
+    expect((await failed(developer)).cause).toBe(cause)
+})
+
 test("an email that didn't go out is 502, and an Infra that can't be asked 503", async () => {
     const not_sent = await testApi({
-        infra: refusing({ ok: false, error: { reason: "not-sent" } })
+        infra: refusing({
+            ok: false,
+            error: { reason: "not-sent", message: "Resend refused it." }
+        })
     })
     const response = await not_sent.client.api.auth.start.$post({
         json: { email: EMAIL }
@@ -227,7 +296,10 @@ test("an email that didn't go out is 502, and an Infra that can't be asked 503",
     expect(response.status).toBe(502)
 
     const down = await testApi({
-        infra: refusing({ ok: false, error: { reason: "unavailable" } })
+        infra: refusing({
+            ok: false,
+            error: { reason: "unavailable", message: "Infra is down." }
+        })
     })
     const started = await down.client.api.auth.start.$post({
         json: { email: EMAIL }

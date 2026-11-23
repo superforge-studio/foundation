@@ -1,10 +1,11 @@
-import { Hono } from "hono"
+import { type Context, Hono } from "hono"
 import type { Database } from "@/database"
 import { login_start, login_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { keptVisitorId } from "../visits/cookies"
 import { recordEvents } from "../visits/record"
+import { listedInternal } from "./access"
 import {
     clearSessionCookie,
     maybeLoggedIn,
@@ -16,7 +17,8 @@ import { endSession } from "./sessions"
 import { appOrigin, visitorBrowser, visitorIp } from "./visitor"
 
 // What the page says when Infra can't be asked: the reason the route
-// answers, and why, for whoever reads the logs
+// answers. Why, in Infra's words or its package's, goes to the logs, and
+// to the business's own people (`forTheTeam`)
 const UNAVAILABLE = "Login isn't working right now. Try again soon."
 
 // What someone hears when only listed people may log in, and they aren't
@@ -93,10 +95,17 @@ export const authRoutes = new Hono<ApiEnvironment>()
                 context,
                 502,
                 refused.reason,
-                "The email didn't go out. Asking again can work at once."
+                "The email didn't go out. Asking again can work at once.",
+                forTheTeam(context, email, refused.message)
             )
         } else {
-            return failure(context, 503, refused.reason, UNAVAILABLE)
+            return failure(
+                context,
+                503,
+                refused.reason,
+                UNAVAILABLE,
+                forTheTeam(context, email, refused.message)
+            )
         }
     })
 
@@ -105,9 +114,8 @@ export const authRoutes = new Hono<ApiEnvironment>()
     // once the visitor presses to finish, so it stays out of addresses and
     // logs, and a mail scanner that opens the link spends nothing
     .post("/auth/verify", validated("json", login_verify), async (context) => {
-        const verified = await context.var.infra.verifyLogin(
-            context.req.valid("json")
-        )
+        const proof = context.req.valid("json")
+        const verified = await context.var.infra.verifyLogin(proof)
         if (verified.ok) {
             const logged_in = await logIn(context.var.database, {
                 email: verified.data.email,
@@ -154,7 +162,15 @@ export const authRoutes = new Hono<ApiEnvironment>()
                 "The link has expired or was used: send a new one"
             )
         } else {
-            return failure(context, 503, refused.reason, UNAVAILABLE)
+            // A link's token names no one until Infra says whose it is
+            const email = "email" in proof ? proof.email : null
+            return failure(
+                context,
+                503,
+                refused.reason,
+                UNAVAILABLE,
+                forTheTeam(context, email, refused.message)
+            )
         }
     })
 
@@ -184,5 +200,27 @@ async function recordSignUp(
             user_id: who.user_id,
             error
         })
+    }
+}
+
+/**
+ * Why login failed, in Infra's words or its package's, as `cause`, for
+ * whoever can act on it: one of the business's own people, by the address
+ * they typed (`internal_users`, access.ts), or anyone on a dev server. A
+ * visitor gets the plain message alone, since the cause can name the app's
+ * keys and settings, which aren't theirs to read.
+ */
+function forTheTeam(
+    context: Context<ApiEnvironment>,
+    email: string | null,
+    cause: string
+): { cause: string } | Record<never, never> {
+    const listed =
+        email !== null &&
+        listedInternal(context.var.access, email) !== undefined
+    if (import.meta.env.DEV || listed) {
+        return { cause }
+    } else {
+        return {}
     }
 }

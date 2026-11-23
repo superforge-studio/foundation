@@ -15,7 +15,12 @@ export const failure_details = z.object({
     // For a failure that passes with time, like a 429: about how many
     // seconds until asking again can work, which its Retry-After header says
     // too
-    retry_after: z.number().optional()
+    retry_after: z.number().optional(),
+    // Why it failed, in plain words, from whatever refused, like Infra's
+    // message, with what fixes it: only ever for the business's own people
+    // or a dev server, never a visitor, since it can name the app's keys
+    // and settings
+    cause: z.string().optional()
 })
 export type ApiFailure = z.infer<typeof failure_details>
 

@@ -777,11 +777,11 @@ a schema that nothing parses only looks like a check.
 ### Tagged results for expected failures
 
 Functions that can fail in expected, recoverable ways return an
-`OperationResult` instead of throwing. It and `AsyncOperation` are global
+`OperationResult` instead of throwing. It and `AsyncOperationResult` are global
 types, declared in `source/globals.d.ts`, so no file imports them.
 
 ```typescript
-async function getPost(slug: string): AsyncOperation<Post, "not-found"> {
+async function getPost(slug: string): AsyncOperationResult<Post, "not-found"> {
     const [post] = await database
         .select()
         .from(posts)

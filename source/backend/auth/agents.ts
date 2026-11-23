@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import { users } from "@/database/schema"
 import { isInternal } from "@/utilities/schemas/users"
 import type { ApiEnvironment } from "../context"
-import { requestOrigin } from "../infra/agents"
+import { requestOrigin } from "../infra"
 import { roleFor } from "./access"
 import { SESSION_USER_COLUMNS } from "./sessions"
 

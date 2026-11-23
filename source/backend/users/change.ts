@@ -11,7 +11,7 @@ import type { Role } from "@/utilities/schemas/users"
 export async function changeRole(
     database: Database,
     { id, role, by }: { id: string; role: Role; by: string }
-): AsyncOperation<null, "yourself" | "not-found"> {
+): AsyncOperationResult<null, "yourself" | "not-found"> {
     if (id === by) {
         return { ok: false, error: "yourself" }
     }

@@ -3,7 +3,11 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import { Button, buttonVariants } from "@/frontend/components/primitives/button"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
-import { LoginForm, whatWentWrong } from "@/frontend/components/site/login-form"
+import {
+    LoginForm,
+    TeamCause,
+    whatWentWrong
+} from "@/frontend/components/site/login-form"
 import { logOut, useSession, verifyLogin } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
 
@@ -63,6 +67,7 @@ function LoginPage() {
             : leave.error !== null
               ? "That didn't log you out. Try again in a moment."
               : null
+    const cause = link.error === null ? undefined : failureOf(link.error).cause
 
     return (
         <main className="mx-auto flex min-h-screen max-w-md flex-col gap-10 px-5 py-6 sm:py-10">
@@ -103,6 +108,7 @@ function LoginPage() {
                             </p>
                         </div>
                         <Problem text={problem} />
+                        <TeamCause cause={cause} />
                         <div className="flex flex-wrap items-center gap-3">
                             <Link
                                 to="/dashboard"
@@ -132,7 +138,10 @@ function LoginPage() {
                                     and a link. There's no password.
                                 </p>
                             ) : (
-                                <Problem text={problem} />
+                                <>
+                                    <Problem text={problem} />
+                                    <TeamCause cause={cause} />
+                                </>
                             )}
                         </div>
                         <LoginForm />

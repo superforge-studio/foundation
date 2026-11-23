@@ -2,9 +2,12 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { oauthWith } from "@/backend/agents/oauth"
-import type { Infra } from "@/backend/infra"
-import { infraClient } from "@/backend/infra/client"
-import { standInAgentToken, standInInfra } from "@/backend/infra/stand-in"
+import {
+    type Infra,
+    infraClient,
+    standInAgentToken,
+    standInInfra
+} from "@/backend/infra"
 import { mcpWith } from "@/backend/mcp"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"

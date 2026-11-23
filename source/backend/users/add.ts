@@ -11,7 +11,7 @@ import type { user_addition } from "@/utilities/schemas/users"
 export async function addUser(
     database: Database,
     addition: z.output<typeof user_addition>
-): AsyncOperation<{ id: string }, "taken"> {
+): AsyncOperationResult<{ id: string }, "taken"> {
     const [added] = await database
         .insert(users)
         .values({

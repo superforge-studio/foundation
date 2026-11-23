@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest"
 import type { FiledComment, Infra } from "@/backend/infra"
-import { standInInfra } from "@/backend/infra/stand-in"
+import { standInInfra } from "@/backend/infra"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
 import type { PageComment } from "@/utilities/schemas/comments"
@@ -118,7 +118,7 @@ test("an Infra that's down answers 503, and one that refuses it 502", async () =
     vi.spyOn(console, "error").mockImplementation(() => {})
     const down = await setup(async () => ({
         ok: false,
-        error: { reason: "unavailable" }
+        error: { reason: "unavailable", message: "Infra is down." }
     }))
     const logged_in = await logInAs(down.api, "ada@example.com", "internal")
     const unavailable = await down.api.client.api.comments.$post(
@@ -132,7 +132,11 @@ test("an Infra that's down answers 503, and one that refuses it 502", async () =
 
     const refusing = await setup(async () => ({
         ok: false,
-        error: { reason: "invalid", fields: ["element.selector"] }
+        error: {
+            reason: "invalid",
+            fields: ["element.selector"],
+            message: "element.selector didn't fit what this call takes."
+        }
     }))
     const other = await logInAs(refusing.api, "ada@example.com", "internal")
     const refused = await refusing.api.client.api.comments.$post(
@@ -159,6 +163,10 @@ test("the stand-in checks a comment as Infra does", async () => {
     })
     expect(refused).toEqual({
         ok: false,
-        error: { reason: "invalid", fields: ["user"] }
+        error: {
+            reason: "invalid",
+            fields: ["user"],
+            message: "user didn't fit what this call takes."
+        }
     })
 })

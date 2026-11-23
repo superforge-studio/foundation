@@ -1,13 +1,18 @@
 # Infra
 
 Superforge Infra is the backend services this app runs on, at
-`https://infra.superforge.studio/v1`. This folder is the one wrapper the
-app calls it through: a route or a workflow's step calls
-`context.var.infra`, never a bare `fetch` to Infra
-(`workbench/writing-code.md`, "A call to an outside service"). For now
-Infra does three things for the app: login for its people; keeping its
-comments, what its people said about it from the toolbar; and logging
-Claude in to its MCP. The app's analytics isn't Infra's: its visits and
+`https://infra.superforge.studio/v1`. The app calls it through
+[`@superforge/infra`](https://www.npmjs.com/package/@superforge/infra),
+the package every Foundation and Skylevel app shares, which holds the
+client, the stand-in and the choice between them; its README has how they
+work. This folder is the app's one seam to it: a route or a workflow's
+step calls `context.var.infra`, never a bare `fetch` to Infra
+(`workbench/writing-code.md`, "A call to an outside service"), and the
+rest of the app imports what it needs of the package from `index.ts`
+here. A change to how Infra is called is a new version of the package,
+which the app takes by bumping its dependency. For now Infra does three
+things for the app: login for its people; keeping its comments, what its
+people said about it from the toolbar; and logging Claude in to its MCP. The app's analytics isn't Infra's: its visits and
 events are rows in its own database (`backend/visits/README.md`).
 
 ## Login
@@ -46,6 +51,20 @@ What the wrapper answers, and what the routes under `/api/auth` make of it:
 | 400 `wrong-code`, `attempts_left`                 | `wrong-code`                       | 400                         |
 | 400 `no-code` or `no-link`                        | `no-code`, `no-link`               | 400                         |
 | 401 (a key it refused), anything else, or nothing | `unavailable`, logged              | 503                         |
+
+**Every refusal says why in words**: Infra's `message`, which says what
+went wrong and what fixes it, or the package's own when Infra couldn't be
+asked (no key in a build, an Infra that didn't answer, an error this
+version of the package doesn't know, like a call Infra retired). The
+package logs every refusal with it (`Infra refused a call`). `/api/auth`
+answers the visitor the plain message alone, and adds the why as `cause`
+for one of the business's own people, by the address they typed, and for
+anyone on a dev server, when the email didn't go out or Infra couldn't be
+asked: the login form shows it under the plain message, as "For the team:
+…". A link's token names no one until Infra says whose it is, so a link
+that fails tells only a dev server. So when login breaks, whoever runs the
+app reads why on the login page instead of asking Claude to dig through
+the logs.
 
 Infra's limits, an hour each, per project: five emails to one address, a
 minute apart; 20 from one visitor's network; 300 from the project. They
@@ -146,44 +165,41 @@ once as it's made:
 
 A test key's comments are kept, marked as a test's.
 
-Which one the server uses is decided once, as it starts (`choose.ts`):
+Which one the server uses is decided once, as it starts (`appInfra()` in
+`index.ts`, by the package's `chooseInfra`):
 
 - **A build** (production, `pnpm preview`) takes only a secret key.
   Without one, or with a test key in its place, every login answers 503
-  and the logs say `Login is down`. It never falls back to the stand-in,
-  which would show anyone's code on the page.
+  and the logs say `Login is down`, with why, which the team sees on the
+  login page too. It never falls back to the stand-in, which would show
+  anyone's code on the page.
 - **A dev server** takes only a test key, from the shell or the checkout's
   `.env`, so it can't email real people. A git worktree with no `.env` of
   its own reads its main checkout's, so the key is set once per computer.
 - **A dev server with no test key**, as right after a clone, uses the
-  stand-in (`stand-in.ts`): Infra's test mode in memory, with nothing to
-  set up. Logging in works the same, without Infra.
+  stand-in (the package's `standInInfra`): Infra's test mode in memory,
+  with nothing to set up. Logging in works the same, without Infra.
 - **The tests** always use the stand-in (`backend/tests/support/api.ts`),
   so they never reach Infra.
 
 `INFRA_URL` points the server at another Infra, like a Superforge
 checkout's own dev server (`http://infra.localhost:3002/v1`), to work on
-both at once; without it, the server calls the real one (`INFRA_URL` in
-`client.ts`).
+both at once; without it, the server calls the real one (the package's
+`INFRA_URL`).
 
 ## In this folder
 
-- `index.ts`: `Infra`, what the app asks of it, its results, and
-  `appInfra()`, the server's.
-- `agents.ts`: Claude's login: where a request reached the app
-  (`requestOrigin`), passing an OAuth call through, what Infra answers
-  about requests and connections, and checking a token with `jose`.
-- `answers.ts`: what Infra answers, as zod schemas, which `index.ts`'s
-  types come from.
-- `comments.ts`: a comment from the toolbar, with who filed it, checked
-  as Infra checks it.
-- `client.ts`: Infra over HTTP with a key, its answers parsed with them.
-  No call is retried: a second start would send a second email, and a
-  comment sent again is kept twice.
-- `stand-in.ts`: Infra's test mode, in memory, which checks a comment and
-  keeps none.
-- `choose.ts`: which of them the server uses, and reading a checkout's
-  `.env`.
+- `index.ts`: `appInfra()`, the server's Infra, and what the rest of the
+  app uses of `@superforge/infra`: `Infra` and its results, the stand-in
+  and `standInAgentToken` for the tests, `requestOrigin` for Claude's
+  login, and `infraClient`. Everything else, the client, what Infra
+  answers as zod schemas, the stand-in and choosing between them, is the
+  package's.
+
+To try a change to the package before it's released, point this checkout
+at the package's own (`pnpm add @superforge/infra@link:<its folder>`), and
+back to a released version before a PR: a `link:` is one computer's
+alone.
 
 To check a key from a terminal, `GET /v1/project` answers its project and
 its mode, `live` or `test`:

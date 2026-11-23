@@ -10,7 +10,7 @@ import { users } from "@/database/schema"
 export async function removeUser(
     database: Database,
     { id, by }: { id: string; by: string }
-): AsyncOperation<null, "yourself" | "not-found"> {
+): AsyncOperationResult<null, "yourself" | "not-found"> {
     if (id === by) {
         return { ok: false, error: "yourself" }
     }

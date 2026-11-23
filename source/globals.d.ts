@@ -17,5 +17,9 @@ type OperationResult<Data, Err> =
     | { ok: true; data: Data }
     | { ok: false; error: Err }
 
-/** The async form of `OperationResult`, for functions that are async. */
-type AsyncOperation<Data, Err> = Promise<OperationResult<Data, Err>>
+/**
+ * The async form of `OperationResult`, for functions that are async.
+ * `@superforge/infra` exports the same two types, the same shape, so its
+ * results and the app's are one and the same to TypeScript.
+ */
+type AsyncOperationResult<Data, Err> = Promise<OperationResult<Data, Err>>

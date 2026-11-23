@@ -67,7 +67,7 @@ export async function logIn(
         user_agent: string | null
         access: Access
     }
-): AsyncOperation<
+): AsyncOperationResult<
     { user: SessionUser; token: string; joined: boolean },
     "not-listed"
 > {

@@ -168,7 +168,7 @@ export async function endSessionById(
     database: Database,
     user_id: string,
     id: string
-): AsyncOperation<null, "not-found"> {
+): AsyncOperationResult<null, "not-found"> {
     const ended = await database
         .delete(sessions)
         .where(
