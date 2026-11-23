@@ -182,9 +182,12 @@ short, lowercase name for the business (like `acme-plumbing`):
 
 Leave `.superforge/` as it is: `superforge.json`'s `starter-template` is
 the template this codebase came from, which updates read
-(`workbench/updating.md`), not this codebase's name, and `releases/` holds
-the notes of the template's releases. Keep `CHANGELOG.md` and `LICENSE`
-too.
+(`workbench/updating.md`) and every page's `<meta name="generator">`
+names, not this codebase's name, and `releases/` holds the notes of the
+template's releases. Keep `CHANGELOG.md` and `LICENSE` too, and that
+generator tag (`source/utilities/template.ts`): it credits Superforge in
+the pages' source, never on the page, and it's the one thing Superforge
+asks a site built on its templates to keep.
 
 ## 6. Check it, and ship it
 
