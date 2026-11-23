@@ -17,7 +17,8 @@ import * as schema from "../../schema"
 // - a foreign key names a row of the table it points at, every column of a
 //   key over several (`(account_id, contact_id)`) from the same row
 // Where a check constraint lists a text column's values (`text({ enum })`
-// in schema.ts), the rows use them, read from the database's own check, so
+// in schema.ts), or a list column's (`<@ array[…]`), the rows use them,
+// read from the database's own check, so
 // a table schema.ts has since renamed gets them too. Where a check wants
 // exactly one of several columns set (`num_nonnulls(user_id, contact_id) =
 // 1`), or at least one (`>= 1`), each row sets one of them, in turn, and
@@ -166,7 +167,11 @@ function setValue(
 // A value of the column's type: the `variant`th of its kind
 function sample(table: string, column: Column, variant: number) {
     const listed = column.listed ?? enumValues(table, column.name)
-    if (listed !== undefined) {
+    if (listed !== undefined && column.type === "_text") {
+        // A list column whose check names what it may hold, like a token's
+        // scopes: one of them
+        return [listed[variant % listed.length]]
+    } else if (listed !== undefined) {
         return listed[variant % listed.length]
     }
     switch (column.type) {
@@ -382,14 +387,16 @@ async function tablesInOrder(client: pg.ClientBase) {
     }
 
     // The values a column's check lists, or null when no check lists any:
-    // only a list's (`= ANY (ARRAY[…])`), not a pattern's, like a slug's
-    // `CHECK ((slug ~ '^[a-z0-9]+…'::text))`, whose quoted text isn't a value
+    // only a list's (`= ANY (ARRAY[…])`, or a list column's `<@ ARRAY[…]`),
+    // not a pattern's, like a slug's `CHECK ((slug ~ '^[a-z0-9]+…'::text))`,
+    // whose quoted text isn't a value
     const listed = (table: string, column: string) => {
         for (const check of checks) {
             if (
                 check.table_name === table &&
                 check.column_name === column &&
-                check.definition.includes("ANY (ARRAY[")
+                (check.definition.includes("ANY (ARRAY[") ||
+                    check.definition.includes("<@ ARRAY["))
             ) {
                 const values = [
                     ...check.definition.matchAll(/'((?:[^']|'')*)'::text/g)

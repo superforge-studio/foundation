@@ -28,7 +28,7 @@
 //   - `public`: the business's own data, whatever the app is built to do,
 //     its users among it: they're its customers and staff, whom its other
 //     tables point at. A table here is `pgTable(...)`.
-//   - `auth`: what lets someone in: their sessions, and API tokens later.
+//   - `auth`: what lets someone in: their sessions and their API tokens.
 //     The most sensitive rows, since one is as good as a password, kept
 //     apart so a read-only role can leave them out. A table here is
 //     `auth.table(...)`. The login codes aren't here: Infra keeps them.
@@ -50,6 +50,7 @@ import {
     uuid
 } from "drizzle-orm/pg-core"
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
+import { AGENT_SCOPES } from "../utilities/schemas/agents"
 import { ROLES } from "../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../utilities/visitors"
 import { WEBHOOK_OUTCOMES } from "../utilities/webhooks"
@@ -109,6 +110,46 @@ export const sessions = auth.table(
         created_at: timestamp().notNull().defaultNow()
     },
     (table) => [index("sessions_user_id_index").on(table.user_id)]
+)
+
+// A token one of the business's own people made on their account page, for
+// what can't log in through a browser, like a script, a scheduled job or
+// another platform's agent: it calls the API as them, with what they let it
+// do, until they revoke it, which deletes the row, or it runs out
+// (backend/auth/api-tokens.ts). Only the token's SHA-256 is kept.
+export const api_tokens = auth.table(
+    "api_tokens",
+    {
+        id: id(),
+        user_id: uuid()
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+        // What they called it, so they know which script holds it
+        name: text().notNull(),
+        token_hash: text().notNull().unique(),
+        // The token's last characters, shown beside its name, so a token in
+        // a script can be matched to its row
+        preview: text().notNull(),
+        // What it may do (`AGENT_SCOPES`, utilities/schemas/agents.ts), as
+        // Claude's tokens may: `read`, the API's `GET` routes, and `act`,
+        // everything else its person could do themselves
+        scopes: text({ enum: AGENT_SCOPES }).array().notNull(),
+        // When it runs out, or null for a token that lasts until it's revoked
+        expires_at: timestamp(),
+        // When a request last came with it, to within a minute, or null for
+        // one never used
+        last_used_at: timestamp(),
+        created_at: timestamp().notNull().defaultNow()
+    },
+    (table) => [
+        index("api_tokens_user_id_index").on(table.user_id),
+        check(
+            "api_tokens_scopes_check",
+            sql.raw(
+                `"${table.scopes.name}" <@ array[${AGENT_SCOPES.map((scope) => `'${scope}'`).join(", ")}]::text[] and cardinality("${table.scopes.name}") > 0`
+            )
+        )
+    ]
 )
 
 // A visit to the site, a row each: one visitor's page events until 30

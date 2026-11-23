@@ -8,6 +8,7 @@ import type { ApiEnvironment } from "../context"
 import { failure } from "../failures"
 import { type Access, roleFor } from "./access"
 import { agentUser, bearerToken } from "./agents"
+import { apiTokenUser, isApiToken } from "./api-tokens"
 import {
     liveSession,
     renewSession,
@@ -15,11 +16,12 @@ import {
     type SessionUser
 } from "./sessions"
 
-// Who's logged in: the `session` cookie, or the token Claude brings in its
-// place (agents.ts), and the middleware that reads them. This is the one
+// Who's logged in: the `session` cookie, or a token in its place, either the
+// one Claude brings (agents.ts) or an API token someone made for a script
+// (api-tokens.ts), and the middleware that reads them. This is the one
 // place that decides who's logged in, so a route that needs the user takes
 // `loggedIn` (or `maybeLoggedIn`, or `internalOnly`) and reads
-// `context.var.user`; nothing else reads the cookie or the token. Their
+// `context.var.user`; nothing else reads the cookie or the tokens. Their
 // role is the one access.ts gives them, whatever the database says, so
 // only the people listed there are ever internal.
 
@@ -71,20 +73,24 @@ export function secureCookie(request_url: string) {
 
 /**
  * The session a request came with, as a route behind `loggedIn` sees it.
- * Claude's requests have none, and get `AGENT_SESSION`, which no session's
- * id ever is.
+ * A token's requests have none, and get `AGENT_SESSION` or
+ * `API_TOKEN_SESSION`, which no session's id ever is.
  */
 export type RequestSession = { id: string }
 
 /** The session Claude's requests get, which is never a real one's id */
 export const AGENT_SESSION: RequestSession = { id: "agent" }
 
+/** The session an API token's requests get, which is never a real one's id */
+export const API_TOKEN_SESSION: RequestSession = { id: "api-token" }
+
 /**
- * How a request logged in: a browser, by its `session` cookie, or Claude,
- * by an access token Infra signed (`Authorization: Bearer`), acting as one
- * of the business's own people (agents.ts)
+ * How a request logged in: a browser, by its `session` cookie; Claude, by
+ * an access token Infra signed (`Authorization: Bearer`), acting as one of
+ * the business's own people (agents.ts); or a script, by an API token one
+ * of them made (`Authorization: Bearer api_…`, api-tokens.ts)
  */
-export type LoggedInWith = "session" | "agent"
+export type LoggedInWith = "session" | "agent" | "token"
 
 type LoggedIn = {
     Variables: ApiEnvironment["Variables"] & {
@@ -102,9 +108,9 @@ type LoggedIn = {
  * and how they logged in on `context.var.logged_in_with`; without one,
  * it's answered 401 `logged-out`. A browser's session is renewed, keeping
  * the same token, so coming back keeps someone logged in, and one that has
- * ended stays ended. Claude, with a token, gets through as the person who
- * allowed it, while they're one of the business's own, and with only
- * `read`, makes `GET` requests alone (403 `read-only`).
+ * ended stays ended. Claude, or a script, with a token, gets through as the
+ * person who allowed it or made it, while they're one of the business's
+ * own, and with only `read`, makes `GET` requests alone (403 `read-only`).
  */
 export const loggedIn = createFactory<LoggedIn>().createMiddleware(
     // From a factory rather than plain `createMiddleware`, so the 401 below
@@ -114,7 +120,7 @@ export const loggedIn = createFactory<LoggedIn>().createMiddleware(
         if (asking === undefined) {
             return failure(context, 401, "logged-out", "Log in first")
         } else if (!mayDo(context, asking)) {
-            return readOnly(context)
+            return readOnly(context, asking)
         } else {
             return await letThrough(context, asking, next)
         }
@@ -139,7 +145,7 @@ export const internalOnly = createFactory<LoggedIn>().createMiddleware(
                 "Only the business's own people can see this"
             )
         } else if (!mayDo(context, asking)) {
-            return readOnly(context)
+            return readOnly(context, asking)
         } else {
             return await letThrough(context, asking, next)
         }
@@ -148,10 +154,10 @@ export const internalOnly = createFactory<LoggedIn>().createMiddleware(
 
 /**
  * After `loggedIn` or `internalOnly`, for what only a person in a browser
- * may do, never Claude with a token: who can log in and where someone's
- * logged in, Claude's own connections, and allowing Claude in. So a token
- * that leaks can't make itself more, or lock anyone out. Answers 403
- * `browser-only`.
+ * may do, never Claude or a script with a token: who can log in and where
+ * someone's logged in, Claude's own connections and allowing Claude in, and
+ * API tokens. So a token that leaks can't make itself more, or lock anyone
+ * out. Answers 403 `browser-only`.
  */
 export const inBrowser = createFactory<LoggedIn>().createMiddleware(
     async (context, next) => {
@@ -181,7 +187,7 @@ export const maybeLoggedIn = createFactory<{
     if (asking === undefined) {
         context.set("user", null)
         await next()
-    } else if (asking.by === "agent") {
+    } else if (asking.by !== "session") {
         context.set("user", asking.user)
         await next()
     } else {
@@ -197,9 +203,10 @@ export const maybeLoggedIn = createFactory<{
 })
 
 // Who's asking: a browser's session, by its cookie, with its user's role
-// as access.ts gives it, or Claude, by its token (agents.ts). A request
-// with a token is Claude's whatever cookie it carries, and one with a bad
-// token is nobody's.
+// as access.ts gives it, or a token's holder: an API token's, by its
+// `api_` prefix (api-tokens.ts), or else Claude's (agents.ts). A request
+// with a token is the token's whatever cookie it carries, and one with a
+// bad token is nobody's.
 type Asking =
     | {
           by: "session"
@@ -209,13 +216,21 @@ type Asking =
           renewable: boolean
       }
     | { by: "agent"; user: SessionUser; scopes: AgentScope[] }
+    | { by: "token"; user: SessionUser; scopes: AgentScope[] }
 
 async function whoIsAsking<Environment extends ApiEnvironment>(
     context: Context<Environment>
 ): Promise<Asking | undefined> {
     const variables: ApiEnvironment["Variables"] = context.var
     const bearer = bearerToken(context.req.header("Authorization"))
-    if (bearer !== null) {
+    if (bearer !== null && isApiToken(bearer)) {
+        const holder = await apiTokenUser(
+            variables.database,
+            variables.access,
+            bearer
+        )
+        return holder === undefined ? undefined : { by: "token", ...holder }
+    } else if (bearer !== null) {
         const agent = await agentUser(variables, bearer, context.req.url)
         return agent === undefined ? undefined : { by: "agent", ...agent }
     }
@@ -238,18 +253,20 @@ async function whoIsAsking<Environment extends ApiEnvironment>(
 }
 
 // Whether what's asking may make this request: anyone may read, and only
-// a browser or Claude with `act` may change anything
+// a browser, or a token with `act`, may change anything
 function mayDo(context: Context, asking: Asking) {
     const reads = ["GET", "HEAD"].includes(context.req.method)
     return reads || asking.by === "session" || asking.scopes.includes("act")
 }
 
-function readOnly(context: Context) {
+function readOnly(context: Context, asking: Asking) {
     return failure(
         context,
         403,
         "read-only",
-        "Claude was allowed to read here, not to change anything"
+        asking.by === "token"
+            ? "This API token may read here, not change anything"
+            : "Claude was allowed to read here, not to change anything"
     )
 }
 
@@ -264,6 +281,11 @@ async function letThrough(
     if (asking.by === "agent") {
         context.set("session", AGENT_SESSION)
         context.set("logged_in_with", "agent")
+        context.set("scopes", asking.scopes)
+        await next()
+    } else if (asking.by === "token") {
+        context.set("session", API_TOKEN_SESSION)
+        context.set("logged_in_with", "token")
         context.set("scopes", asking.scopes)
         await next()
     } else {

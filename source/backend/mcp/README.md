@@ -38,6 +38,29 @@ A dev server connects the same way with an Infra test key
 (`INFRA_TEST_KEY`), at `http://localhost:3000/admin/mcp`. Without one, the
 stand-in can't log Claude in.
 
+### Without a browser: an API token
+
+Logging in this way needs a person to click Allow in a browser. What
+can't, like a script, a scheduled job or another platform's agent, calls
+the API under `/api` with an API token instead: someone on the team makes
+one on their account page, named, to read or to read and act, lasting
+until it's revoked or for 30, 90 or 365 days, and it's shown once. It's
+sent as `Authorization: Bearer api_…`, in place of Claude's token, acts as
+the person who made it, with the same `read` and `act`, and is refused by
+`inBrowser` as Claude's is. Only its SHA-256 is kept, in `auth.api_tokens`
+(`backend/auth/api-tokens.ts`); the account page lists each with when it
+was last used, and Revoke ends it at once.
+
+```bash
+curl -H "Authorization: Bearer $API_TOKEN" https://<its domain>/api/users
+```
+
+`/admin/mcp` takes one too, for an agent whose MCP client sends a header
+it's given rather than logging in: the MCP asks the API who a token logs
+in, and its tools call the API with it, so it does there what it may do
+here. Claude, which can log in, connects as above instead, so its person
+never handles a token.
+
 ## How it works
 
 - **It's a client of the API, not of the database.** Each tool calls the

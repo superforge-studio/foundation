@@ -13,6 +13,7 @@ import {
 import { logOut, type SessionUser } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
 import { isInternal, person_name } from "@/utilities/schemas/users"
+import { ApiTokens } from "./api-tokens"
 import { Connections } from "./connections"
 import { useNow } from "./marks"
 import { sectionHeading, textButton } from "./shell"
@@ -22,7 +23,7 @@ import { describeBrowser, isHandheld, moment, since } from "./words"
 // and one screen of an internal person's. What they're called, the address
 // they log in with, and the browsers they're logged in on, with logging
 // out of the others, and for the business's own, where they've let Claude
-// in (connections.tsx).
+// in (connections.tsx) and their API tokens (api-tokens.tsx).
 
 export function AccountPanel({ user }: { user: SessionUser }) {
     return (
@@ -30,6 +31,7 @@ export function AccountPanel({ user }: { user: SessionUser }) {
             <DetailsForm user={user} />
             <Sessions />
             {isInternal(user.role) && <Connections />}
+            {isInternal(user.role) && <ApiTokens />}
         </div>
     )
 }

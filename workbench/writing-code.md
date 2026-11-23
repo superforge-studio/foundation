@@ -65,6 +65,13 @@ wrote it its own way, their checks would drift apart:
   (`backend/auth/agents.ts`), and its tools call the routes under `/api`
   in this process. So every route is a tool, with its checks, and a
   route that changes who can log in takes `inBrowser`, so no token can.
+- **So is a script with an API token.** What can't log in through a
+  browser as Claude does, like a scheduled job or another platform's
+  agent, calls `/api` with `Authorization: Bearer api_…`, a token one of
+  the business's own made on their account page, acting as them with the
+  scopes they gave it (`backend/auth/api-tokens.ts`), until they revoke
+  it. `loggedIn` takes it as it takes Claude's, and `inBrowser` refuses
+  it the same way.
 - **A feature is a route before it's a screen.** Anything a person or an
   agent can do is a route, with its checks, so a script or an agent can do
   through the same route what a person does on the site. A workflow, which
@@ -296,19 +303,19 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
 There's **one database, Postgres**, on Railway, queried with Drizzle
 (`drizzle-orm/node-postgres`) from `source/database/`.
 
-|                       | Postgres                                                                     |
-| --------------------- | ---------------------------------------------------------------------------- |
-| Holds                 | the users, in `public`, with their roles, and their sessions, in `auth`      |
-| And                   | the site's analytics, `analytics_visits` and `analytics_events`, in `public` |
-| And                   | DBOS's, the workflows' runs and steps, in `dbos` (`backend/workflows/`)      |
-| Schema                | `source/database/schema.ts`                                                  |
-| New migration         | `pnpm database:generate`, into `source/database/migrations/`                 |
-| Applied in production | `pnpm database:migrate`, Railway's pre-deploy command, before each deploy    |
-| `pnpm dev` uses       | the checkout's own (`source/database/local/`), with the branch's migrations  |
-| The tests use         | a database of each test's own, on the checkout's Postgres, in CI too         |
-| Checked in CI by      | `pnpm database:check`, the tests from empty, and the PR's upgrade test       |
-| Read by hand with     | `pnpm database:sql "<query>"`, or the database's Data tab on Railway         |
-| Restored with         | point-in-time recovery, to any moment in about the last four weeks (below)   |
+|                       | Postgres                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| Holds                 | the users, in `public`, with their roles, and their sessions and API tokens, in `auth` |
+| And                   | the site's analytics, `analytics_visits` and `analytics_events`, in `public`           |
+| And                   | DBOS's, the workflows' runs and steps, in `dbos` (`backend/workflows/`)                |
+| Schema                | `source/database/schema.ts`                                                            |
+| New migration         | `pnpm database:generate`, into `source/database/migrations/`                           |
+| Applied in production | `pnpm database:migrate`, Railway's pre-deploy command, before each deploy              |
+| `pnpm dev` uses       | the checkout's own (`source/database/local/`), with the branch's migrations            |
+| The tests use         | a database of each test's own, on the checkout's Postgres, in CI too                   |
+| Checked in CI by      | `pnpm database:check`, the tests from empty, and the PR's upgrade test                 |
+| Read by hand with     | `pnpm database:sql "<query>"`, or the database's Data tab on Railway                   |
+| Restored with         | point-in-time recovery, to any moment in about the last four weeks (below)             |
 
 The conventions every table follows are in `schema.ts`'s header: named for
 what it hangs off, snake_case columns, uuids for our own rows, every
@@ -374,7 +381,7 @@ against `now` and `fromNow` from `time.ts`.
     do: `pgTable(...)`. The users are here: they're the business's
     customers and staff, whom its other tables point at
     (`references(() => users.id)`).
-  - **`auth`**, what lets someone in: the sessions, and API tokens later:
+  - **`auth`**, what lets someone in: the sessions and the API tokens:
     `auth.table(...)`. They're the most sensitive rows, since one is as
     good as a password, kept apart so a read-only role can be given
     everything but them. The login codes aren't here: Infra keeps them.
