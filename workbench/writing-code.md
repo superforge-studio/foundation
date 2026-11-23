@@ -1079,6 +1079,26 @@ says who sent it, is `railway logs --http --filter "@httpStatus:404"`.
 American English throughout — identifiers, comments, strings. `CLAUDE.md`
 owns the rule.
 
+## Each part's own guide
+
+A directory's `README.md` owns its deep context. Read it before changing
+anything there, and keep it current in the same change:
+
+| Working on                                     | Read                                           |
+| ---------------------------------------------- | ---------------------------------------------- |
+| Background work, schedules, events, runners    | `source/backend/workflows/README.md`           |
+| A change to many rows, started on purpose      | `source/backend/jobs/README.md`                |
+| Another service posting to the app             | `source/backend/webhooks/README.md`            |
+| The site's analytics                           | `source/backend/visits/README.md`              |
+| What the pages' script records                 | `source/frontend/visitors/README.md`           |
+| Claude connecting to the app                   | `source/backend/mcp/README.md`                 |
+| Calling Superforge Infra, and login through it | `source/backend/infra/README.md`               |
+| The toolbar and its comments                   | `source/frontend/components/toolbar/README.md` |
+| The Railway project                            | `.railway/README.md`                           |
+
+A feature the app adds gets a README of its own when its context can't be
+read from its code, and a line here.
+
 ## Before you call it done
 
 - **Search before you declare.** Re-declared types, zod schemas, helpers and
