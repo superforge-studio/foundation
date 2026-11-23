@@ -16,7 +16,7 @@
 //   })
 //
 // A table in `auth` or `internal` takes its Postgres schema from
-// ./foundation.ts too (`auth.table(...)`, `internal.table(...)`). Imports
+// ./namespaces.ts (`auth.table(...)`, `internal.table(...)`). Imports
 // here are relative, since drizzle-kit reads this file without the app's
 // `@/` paths.
 

@@ -12,7 +12,6 @@ import {
     inet,
     integer,
     jsonb,
-    pgSchema,
     pgTable,
     primaryKey,
     text,
@@ -25,9 +24,11 @@ import { USER_SLUG_PATTERN } from "../../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../../utilities/visitors"
 import { WEBHOOK_OUTCOMES } from "../../utilities/webhooks"
 import { id, timestamp } from "../columns"
+import { auth, internal } from "./namespaces"
 
-export const auth = pgSchema("auth")
-export const internal = pgSchema("internal")
+// The Postgres schemas beside `public`, from a file of their own, so
+// ./app.ts can use them whichever of the two files loads first
+export { auth, internal }
 
 // The team, the business's own people, as backend/auth/access.ts lists
 // them: the only people who log in. The server's start makes a row for
