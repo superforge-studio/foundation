@@ -11,6 +11,7 @@ import { authRoutes } from "./auth/routes"
 import { commentRoutes } from "./comments/routes"
 import type { ApiEnvironment } from "./context"
 import { answerNotFound, answerUnexpected } from "./failures"
+import { fileRoutes } from "./files/routes"
 import { healthRoutes } from "./health/routes"
 import { appInfra } from "./infra"
 import { jobRoutes } from "./jobs/routes"
@@ -119,6 +120,10 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // The changes to the app's data someone starts on purpose, each
             // a dry run first, under /jobs (jobs/)
             .route("/", jobRoutes)
+
+            // Everything in the app's bucket, under /files: Your files, the
+            // team's own, and the folders the app keeps for itself (files/)
+            .route("/", fileRoutes)
 
             // Claude connecting to the app's MCP: the Allow page, under
             // /connect, and someone's connections, under

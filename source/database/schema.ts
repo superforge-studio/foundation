@@ -10,15 +10,21 @@
 //   })
 //
 // The conventions:
-// - A table is named for what it hangs off (`customer_*` for what belongs
-//   to a customer), or for the area it's part of when it hangs off nothing
-//   (`analytics_*`), in the plural, with snake_case columns, which Drizzle
-//   keeps as written. A plain word like `visits` or `events` is left for
-//   the business's own.
+// - A table that is the thing itself is named for it, in the plural
+//   (`users`, `files`). Every other table starts with what it's about,
+//   then what its rows are (`file_folders` for the folders the files are
+//   in, `customer_notes` for what belongs to a customer), or with the area
+//   it's part of when it hangs off nothing (`analytics_visits`), so a
+//   feature's tables sort together, with snake_case columns, which Drizzle
+//   keeps as written. The Postgres schema already says who sees a table, so
+//   its name never repeats it (`auth.sessions`).
 // - A single value the server keeps for itself, like a day's salt, is a
 //   file in the Storage bucket (storage/files.ts), not a table of one row.
-// - Our own rows are keyed by a uuid (`id()` in columns.ts), or by what
-//   makes them unique when that's natural.
+// - Our own rows are keyed by a uuid (`id()` in columns.ts), which Postgres
+//   makes, and a column that points at one is a `uuid()`, or by what makes
+//   them unique when that's natural, like a session by its token's hash.
+//   A row that people need to read or say aloud gets a field of its own for
+//   it, like a number or a slug, rather than a shorter key.
 // - Every timestamp is a `timestamptz` to the millisecond (`timestamp()`),
 //   compared against `now` and `fromNow` from time.ts.
 // - Every table gets sample rows in seed/seed.ts in the same change, or a
@@ -32,13 +38,15 @@
 //     The most sensitive rows, since one is as good as a password, kept
 //     apart so a read-only role can leave them out. A table here is
 //     `auth.table(...)`. The login codes aren't here: Infra keeps them.
-//   - `internal`: the rest of the machinery, what no person sees, like an
-//     error log or rate limits. A table here is `internal.table(...)`.
+//   - `internal`: the rest of the machinery, what no person sees, like
+//     the webhooks' deliveries or rate limits. A table here is
+//     `internal.table(...)`.
 //   - `dbos`: DBOS's own tables, the workflows' runs and their steps
 //     (backend/workflows/), which it makes and migrates itself. Nothing
 //     here writes to it, and it isn't declared below.
 import { sql } from "drizzle-orm"
 import {
+    type AnyPgColumn,
     boolean,
     check,
     index,
@@ -47,11 +55,13 @@ import {
     jsonb,
     pgSchema,
     pgTable,
+    primaryKey,
     text,
     uuid
 } from "drizzle-orm/pg-core"
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
 import { AGENT_SCOPES } from "../utilities/schemas/agents"
+import { FILE_STATES } from "../utilities/schemas/files"
 import { USER_SLUG_PATTERN } from "../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../utilities/visitors"
 import { WEBHOOK_OUTCOMES } from "../utilities/webhooks"
@@ -80,14 +90,6 @@ export const users = pgTable(
         email: text().notNull().unique(),
         // Their first and last name, as the list has them
         name: text(),
-        // What decided, before the team was all there was, whether someone
-        // saw the business's side. Nothing reads or writes it now, and it
-        // goes in the next release's migration: a column the version still
-        // serving reads can't be dropped in the deploy that stops reading it
-        // (workbench/writing-code.md, "Migrations").
-        role: text({ enum: ["internal", "external"] })
-            .notNull()
-            .default("internal"),
         // When they were taken off the list, or null while they're on it.
         // Their sessions end with it, and no login is theirs again until
         // they're listed again.
@@ -98,10 +100,6 @@ export const users = pgTable(
         created_at: timestamp().notNull().defaultNow()
     },
     (table) => [
-        check(
-            "users_role_check",
-            sql.raw(`"${table.role.name}" in ('internal', 'external')`)
-        ),
         check(
             "users_slug_check",
             sql.raw(`"${table.slug.name}" ~ '${USER_SLUG_PATTERN.source}'`)
@@ -163,6 +161,75 @@ export const api_tokens = auth.table(
             "api_tokens_scopes_check",
             sql.raw(
                 `"${table.scopes.name}" <@ array[${AGENT_SCOPES.map((scope) => `'${scope}'`).join(", ")}]::text[] and cardinality("${table.scopes.name}") > 0`
+            )
+        )
+    ]
+)
+
+// The team's own folders, in Your files (backend/files/): each in another,
+// or at the top. Only the names and the tree are here; the files' bytes are
+// in the Storage bucket, under `files/<file id>` (database/storage/files.ts),
+// so a rename or a move changes a row and nothing in the bucket.
+export const file_folders = pgTable(
+    "file_folders",
+    {
+        id: id(),
+        // The folder it's in, or null at the top
+        parent_id: uuid().references((): AnyPgColumn => file_folders.id, {
+            onDelete: "cascade"
+        }),
+        name: text().notNull(),
+        // Who made it, or null once they've been removed
+        created_by: uuid().references(() => users.id, {
+            onDelete: "set null"
+        }),
+        created_at: timestamp().notNull().defaultNow(),
+        // When it went to Trash, with everything in it, or null while it's
+        // in use. What's been in Trash for 30 days is deleted for good
+        trashed_at: timestamp()
+    },
+    (table) => [
+        index("file_folders_parent_id_index").on(table.parent_id),
+        index("file_folders_created_by_index").on(table.created_by),
+        index("file_folders_trashed_at_index").on(table.trashed_at)
+    ]
+)
+
+// The team's own files, each in a folder or at the top of Your files: its
+// name and type as it was uploaded, its size, and whether its bytes have
+// reached the bucket yet (`uploading`, then `ready`). The bytes are under
+// `files/<id>`, never the name, so the name can change freely.
+export const files = pgTable(
+    "files",
+    {
+        id: id(),
+        folder_id: uuid().references(() => file_folders.id, {
+            onDelete: "cascade"
+        }),
+        name: text().notNull(),
+        content_type: text().notNull(),
+        // In bytes: what was declared until it's `ready`, then what the
+        // bucket has. A file is at most 100 MB (utilities/schemas/files.ts)
+        size: integer().notNull(),
+        // Text with a check, as `users.slug` has one
+        state: text({ enum: FILE_STATES }).notNull().default("uploading"),
+        uploaded_by: uuid().references(() => users.id, {
+            onDelete: "set null"
+        }),
+        created_at: timestamp().notNull().defaultNow(),
+        // When its name, folder or bytes last changed
+        updated_at: timestamp().notNull().defaultNow(),
+        // As a folder's: in Trash since then, or null
+        trashed_at: timestamp()
+    },
+    (table) => [
+        index("files_folder_id_index").on(table.folder_id),
+        index("files_uploaded_by_index").on(table.uploaded_by),
+        index("files_trashed_at_index").on(table.trashed_at),
+        check(
+            "files_state_check",
+            sql.raw(
+                `"${table.state.name}" in (${FILE_STATES.map((state) => `'${state}'`).join(", ")})`
             )
         )
     ]
@@ -342,5 +409,23 @@ export const webhook_deliveries = internal.table(
             table.source,
             table.delivery_id
         )
+    ]
+)
+
+// How often each network has done something that's limited, like sending a
+// form (backend/rate-limits/): a count over a window, by what's limited
+// (`bucket`) and a hash of who did it (`key`), never their address itself.
+// A row whose window ended a day ago is deleted as the next one is counted.
+export const rate_limits = internal.table(
+    "rate_limits",
+    {
+        bucket: text().notNull(),
+        key: text().notNull(),
+        window_started_at: timestamp().notNull(),
+        count: integer().notNull()
+    },
+    (table) => [
+        primaryKey({ columns: [table.bucket, table.key] }),
+        index("rate_limits_window_started_at_index").on(table.window_started_at)
     ]
 )
