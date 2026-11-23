@@ -6,6 +6,7 @@ import { logFailure, logMiss } from "./backend/misses/log"
 import { syncAppInternalUsers } from "./backend/users/sync"
 import { startWorkflows } from "./backend/workflows/engine"
 import { MCP_PATH } from "./utilities/schemas/agents"
+import { nameRequest } from "./utilities/tracing"
 
 // What the Node server runs once it's listening (source/node.ts): the
 // internal users made to follow the list in backend/auth/access.ts
@@ -43,10 +44,28 @@ const answer = createServerEntry({
         } else if (request.method !== "GET" && request.method !== "HEAD") {
             return refuseForPage(request)
         } else {
+            const route = pageRoute(pathname)
+            if (route !== null) {
+                nameRequest(request.method, route)
+            }
             return start.fetch(request)
         }
     }
 })
+
+// The route a page drawn on request is traced as (utilities/tracing.ts):
+// the dashboard's, whichever of its screens, since each is drawn in the
+// browser, and Claude's Allow page. Anything else is the not-found page,
+// whose span keeps its path alone.
+function pageRoute(pathname: string) {
+    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+        return "/dashboard/*"
+    } else if (pathname.startsWith("/connect/")) {
+        return "/connect/:request_id"
+    } else {
+        return null
+    }
+}
 
 // A page is only ever fetched: Start would draw it for a POST too, and
 // answer 200, so a webhook sent to a page's address would look delivered

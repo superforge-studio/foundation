@@ -1,6 +1,9 @@
 import { serve } from "@hono/node-server"
 import { serveStatic } from "@hono/node-server/serve-static"
+import { trace } from "@opentelemetry/api"
+import { ATTR_HTTP_ROUTE } from "@opentelemetry/semantic-conventions"
 import { Hono } from "hono"
+import { stopTracing } from "./tracing.ts"
 
 /**
  * The Node server Railway runs, `pnpm start` after `pnpm build`. The client
@@ -8,7 +11,9 @@ import { Hono } from "hono"
  * request goes to source/server.ts, as Start built it.
  *
  * Node runs this file from source, stripping its types, so it imports only
- * packages and the build: no `@/` paths, nothing else from source/.
+ * packages, the build, and source/tracing.ts, which `pnpm start` has
+ * already run with `--import`, before this, so it could instrument what
+ * this imports: no `@/` paths, nothing else from source/.
  */
 
 type ServerEntry = { fetch(request: Request): Promise<Response> }
@@ -22,6 +27,23 @@ const built: {
     startWorkflows(): Promise<void>
     stopWorkflows(): Promise<void>
 } = await import(new URL("../output/server/server.js", import.meta.url).href)
+
+/**
+ * The route a request for one of the build's files is traced as
+ * (source/tracing.ts): a page, or anything else at the root, by its own
+ * path, since there are only so many, and the hashed files under /assets
+ * as one. What's rendered on request is named by its app
+ * (utilities/tracing.ts's `traceRoutes`).
+ */
+function nameFileRequest(method: string, request_path: string) {
+    const route = request_path.startsWith("/assets/")
+        ? "/assets/*"
+        : request_path
+    trace
+        .getActiveSpan()
+        ?.updateName(`${method} ${route}`)
+        .setAttribute(ATTR_HTTP_ROUTE, route)
+}
 
 /**
  * What browsers and Railway's CDN may keep of the build's files
@@ -55,6 +77,7 @@ const app = new Hono()
                     "Cache-Control",
                     cacheControl(context.req.path, file)
                 )
+                nameFileRequest(context.req.method, context.req.path)
             }
         })
     )
@@ -90,7 +113,8 @@ built.startWorkflows()
 
 // Railway stops the old deployment with SIGTERM once a new one is healthy:
 // stop the workflows first, which lets the new one's start, then finish the
-// requests in flight, and exit. Once, however many signals come: pnpm
+// requests in flight, send the spans not yet sent (source/tracing.ts), and
+// exit. Once, however many signals come: pnpm
 // passes its own on, so a signal to both is two here, and a second stop
 // mustn't exit while the first is still shutting DBOS down.
 let stopping = false
@@ -105,5 +129,8 @@ process.on("SIGTERM", async () => {
     } catch (error) {
         console.error("The workflows didn't stop cleanly", { error })
     }
-    server.close(() => process.exit(0))
+    server.close(async () => {
+        await stopTracing()
+        process.exit(0)
+    })
 })

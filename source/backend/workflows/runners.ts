@@ -1,5 +1,7 @@
 import type { Database } from "@/database"
 import type { Storage } from "@/database/storage"
+import { MINUTE } from "@/utilities/primitives/durations"
+import { traced } from "@/utilities/tracing"
 import type { Workflows } from "./define"
 
 /** What a runner's turn is handed: the process's database, bucket and workflows. */
@@ -23,21 +25,32 @@ export type Runner = {
     run: (context: RunnerContext) => Promise<void>
 }
 
+// How far apart a runner's turns are for each to be traced, as a trace of
+// its own (source/tracing.ts): one every few seconds would fill the traces
+// with turns that found nothing due, and what it starts is traced anyway,
+// as its workflow's run
+const TRACED_EVERY = MINUTE
+
 /**
  * Starts each runner on its timer. A turn never overlaps the one before,
- * and one that throws is logged and the runner goes on. Answers what stops
- * them all, which a stop calls before DBOS shuts down.
+ * and one that throws is logged and the runner goes on. A runner a minute
+ * or more apart has each turn traced, as `runner <name>`. Answers what
+ * stops them all, which a stop calls before DBOS shuts down.
  */
 export function startRunners(runners: Runner[], context: RunnerContext) {
     const timers = runners.map((runner) => {
         let running = false
+        const turn =
+            runner.every >= TRACED_EVERY
+                ? () =>
+                      traced(`runner ${runner.name}`, () => runner.run(context))
+                : () => runner.run(context)
         return setInterval(() => {
             if (running) {
                 return
             }
             running = true
-            runner
-                .run(context)
+            turn()
                 .catch((error: unknown) => {
                     console.error("A runner's turn failed", {
                         runner: runner.name,

@@ -3,6 +3,7 @@ import type { Context, ErrorHandler, NotFoundHandler } from "hono"
 import { HTTPException } from "hono/http-exception"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import type { z } from "zod"
+import { recordError } from "@/utilities/tracing"
 import { logMiss } from "./misses/log"
 
 // How every route fails, in the one shape the site, scripts and agents all
@@ -78,8 +79,9 @@ export const answerNotFound: NotFoundHandler = (context) => {
 
 /**
  * A route that threw: a bug, or something it was never meant to handle,
- * since an expected failure is answered, not thrown. It's logged, and the
- * caller learns only that it failed. Hono's own refusals throw too, before
+ * since an expected failure is answered, not thrown. It's logged, its
+ * request's span is marked failed with the error and its stack
+ * (utilities/tracing.ts), and the caller learns only that it failed. Hono's own refusals throw too, before
  * the route runs, and are answered as what they are: a body that isn't
  * JSON (400 `invalid`), or another site's form (403 `forbidden`, index.ts).
  */
@@ -106,6 +108,7 @@ export const answerUnexpected: ErrorHandler = (error, context) => {
         )
     } else {
         console.error("A route threw", { ...request, error })
+        recordError(error)
         return failure(context, 500, "unexpected", "Something went wrong")
     }
 }

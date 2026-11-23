@@ -4,6 +4,7 @@ import { z } from "zod"
 import { appDatabase, appDatabaseUrl } from "@/database"
 import { appStorage } from "@/database/storage"
 import { HOUR, MINUTE } from "@/utilities/primitives/durations"
+import { tracingOn } from "@/utilities/tracing"
 import { register, type Workflow, type Workflows } from "./define"
 import { RUNNERS, WORKFLOWS } from "./index"
 import { type WorkflowDependencies, workflowsProcess } from "./process"
@@ -126,7 +127,15 @@ async function launch(dependencies: WorkflowDependencies, session: number) {
         // So a deploy's new code recovers the runs the old one left: without
         // it, DBOS versions the app by a hash of its code, and only runs a
         // run under the version that started it, which every deploy changes
-        enablePatching: true
+        enablePatching: true,
+        // A span for each run, named for its workflow, and one inside it
+        // for each step, named for the step, while this process traces
+        // (source/tracing.ts), made with its provider, never DBOS's own
+        // exporter. Their attributes take OpenTelemetry's style
+        // (`dbos.operation.workflow_id`), which Railway's Traces page finds
+        // a run's trace by.
+        tracingEnabled: tracingOn(),
+        otelAttributeFormat: "semconv"
     })
     await DBOS.launch()
     if (held.session !== session) {

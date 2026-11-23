@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono"
 import { csrf } from "hono/csrf"
 import { appDatabase } from "@/database"
 import { appStorage } from "@/database/storage"
+import { traceRoutes } from "@/utilities/tracing"
 import { VISITOR_MODE } from "@/utilities/visitors"
 import { accountRoutes } from "./account/routes"
 import { agentRoutes } from "./agents/routes"
@@ -29,6 +30,11 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
     return (
         new Hono<ApiEnvironment>()
             .basePath("/api")
+
+            // Each request's span named for the route it matched, and a
+            // request an MCP's tool makes in-process a span inside its
+            // (utilities/tracing.ts)
+            .use(traceRoutes)
 
             // The database on `context.var.database` for every route, the
             // Storage bucket on `context.var.storage`, the workflows on

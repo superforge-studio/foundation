@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.11.0](.superforge/releases/0.11.0.md) (2026-11-22): the app traces itself into Railway: every request by its route, every query and call out, each workflow run and step, and its logs on them.
 - [0.10.1](.superforge/releases/0.10.1.md) (2026-11-22): every PR to the template is a release, a small improvement is a patch, and CI checks each PR takes the next version.
 - [0.10.0](.superforge/releases/0.10.0.md) (2026-11-22): every request nothing answers, and every one that fails, logged, and a page sent a POST refused.
 - [0.9.0](.superforge/releases/0.9.0.md) (2026-11-22): each release's notes in a file of its own, and this file their index.
