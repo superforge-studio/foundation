@@ -711,8 +711,9 @@ on it.
   connected every minute and stops the server once nothing has been for
   half an hour. Whatever needs it next starts it again, with its data, in
   about a second. A dev server holds a connection for as long as it runs
-  (`local/hold.ts`), so it's never stopped under one. Its connection is
-  `app idle watch` in `pg_stat_activity`.
+  (`local/hold.ts`), so it's never stopped under one. In
+  `pg_stat_activity` the dev server's connection is `app dev server`, and
+  the watch's own `app idle watch`.
 - **Each checkout has its own**, with its data, its port and its log in
   `.postgres/` (ignored by git), so a branch's migration never lands under
   another worktree's code. Its port is picked free the first time and kept

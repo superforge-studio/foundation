@@ -18,7 +18,7 @@ export const sectionHeading =
 
 /**
  * The admin's sections, which the switch in the bar moves between, each
- * with the area of the app it shows (utilities/permissions.ts): someone
+ * with the area of the app it shows (utilities/permissions/): someone
  * whose role can't read an area doesn't see its section.
  */
 export const SECTIONS: readonly {

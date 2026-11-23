@@ -29,8 +29,10 @@ export type OtherLogins<Refused, LoggedIn, Session> = {
     ): Promise<boolean>
     /**
      * Answers `/api/auth/verify` for `email`, which isn't one of the team's,
-     * once Infra has said it's theirs: starts their session, sets its
-     * cookie (`setSessionCookie`), and answers who they are, or refuses.
+     * once Infra has said it's theirs: ends whatever session this browser
+     * had, the team's or one of theirs (`sessionToken`, `endSession`),
+     * starts theirs, sets its cookie (`setSessionCookie`), and answers who
+     * they are, or refuses.
      */
     logIn<Environment extends ApiEnvironment>(
         context: Context<Environment>,

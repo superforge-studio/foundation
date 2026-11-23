@@ -8,7 +8,7 @@ import { failure, validated } from "../failures"
 // Claude connecting to the app's MCP, as the team sees it: the Allow page,
 // which shows what Claude asked for and sends the browser back to Claude
 // once someone allows or declines it, and their Connected list on the
-// account page. Infra logs Claude in (infra/agents.ts); these tell it who
+// account page. Infra logs Claude in (through `@superforge/infra`, infra/); these tell it who
 // allowed what. Anyone on the team, logged in on a browser, may, for
 // themselves (`loggedIn`, `inBrowser`): a token can't allow another, or
 // see the connections. What Claude then may do is what both their role

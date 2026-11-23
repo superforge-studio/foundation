@@ -81,8 +81,8 @@ export const TEAM_ROW_COLUMNS = {
  * (`replacing`, its cookie's token), and answers its token, for the
  * cookie. Their sessions that have run out are cleared away with it. A
  * user who never logs in again leaves theirs, which no request accepts
- * (`liveSession`): a workflow can prune them once there are enough to
- * matter. `user_agent` is the browser's, for the account page.
+ * (`liveSession`): the `prune-sessions` job deletes them once there are
+ * enough to matter (jobs.ts). `user_agent` is the browser's, for the account page.
  */
 export async function startSession(
     database: Database,

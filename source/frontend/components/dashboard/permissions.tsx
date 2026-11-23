@@ -8,7 +8,7 @@ import {
 
 // What a role lets someone do, as the admin shows it: on their account, and
 // on each person on the Team screen. The levels are the API's, which it
-// checks on every route whatever this shows (utilities/permissions.ts).
+// checks on every route whatever this shows (utilities/permissions/).
 
 /** What each role is called on screen. A role a business adds goes here. */
 export const ROLE_NAMES: Record<TeamRole, string> = {
