@@ -8,7 +8,7 @@ import type { Database } from "@/database"
  */
 export async function checkDatabase(
     database: Database
-): AsyncOperation<null, "database-unreachable"> {
+): AsyncOperationResult<null, "database-unreachable"> {
     try {
         await database.execute(sql`select 1`)
         return { ok: true, data: null }

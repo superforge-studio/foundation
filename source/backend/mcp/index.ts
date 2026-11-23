@@ -6,7 +6,7 @@ import { z } from "zod"
 import { MCP_PATH } from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
 import { api, type apiWith } from "../index"
-import { requestOrigin } from "../infra/agents"
+import { requestOrigin } from "../infra"
 
 // The app's own MCP, at /admin/mcp (`MCP_PATH`, source/server.ts), which
 // Claude connects to

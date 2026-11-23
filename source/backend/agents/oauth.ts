@@ -1,8 +1,7 @@
 import { Hono } from "hono"
 import { AGENT_SCOPES, MCP_PATH } from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
-import { appInfra, type Infra } from "../infra"
-import { requestOrigin } from "../infra/agents"
+import { appInfra, type Infra, requestOrigin } from "../infra"
 
 // What Claude finds at the app's own addresses, outside /api, when it
 // logs in to the MCP (source/server.ts): where to log in, and the OAuth

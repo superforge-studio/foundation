@@ -15,7 +15,7 @@
 //   5. its workflows launched: DBOS registers the app's queues in its own
 //      tables once it has (source/backend/workflows/engine.ts)
 //   6. with no INFRA_SECRET_KEY, login answers 503, never the stand-in a
-//      dev server logs in with (source/backend/infra/choose.ts)
+//      dev server logs in with (@superforge/infra's chooseInfra)
 //   7. its traces reach a collector, as they reach Railway's once tracing
 //      is on (source/tracing.ts): its requests named for their routes,
 //      with their queries inside them, sent as it stops on SIGTERM
@@ -137,7 +137,7 @@ try {
 
     // 6. Login, which a build without INFRA_SECRET_KEY refuses, rather
     //    than falling back to the dev server's stand-in, which shows the
-    //    code on the page (source/backend/infra/choose.ts)
+    //    code on the page (@superforge/infra's chooseInfra)
     await expectLoginDown(base)
 
     // 7. The traces, which the server sends its collector in batches, and

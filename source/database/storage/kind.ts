@@ -55,10 +55,10 @@ export type Shown = { name: string; about: string } & (
 export type FileByPath = {
     path: string
     head(): Promise<FileDetails | null>
-    open(range?: ByteRange): AsyncOperation<Opened, OpenFailure>
+    open(range?: ByteRange): AsyncOperationResult<Opened, OpenFailure>
     presignGet(
         options: PresignGetOptions
-    ): AsyncOperation<string, PresignFailure>
+    ): AsyncOperationResult<string, PresignFailure>
 }
 
 /** The files of one kind: each filed under its key, in the kind's folder. */

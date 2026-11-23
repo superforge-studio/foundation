@@ -28,7 +28,10 @@ export type ObjectStore = {
      * `range`, without holding it in memory: for a large file sent on to a
      * browser, like a video, which asks for it a range at a time.
      */
-    open(key: string, range?: ByteRange): AsyncOperation<Opened, OpenFailure>
+    open(
+        key: string,
+        range?: ByteRange
+    ): AsyncOperationResult<Opened, OpenFailure>
     /** Deletes what's kept under `key`, if anything is. */
     delete(key: string): Promise<void>
     /**
@@ -50,7 +53,7 @@ export type ObjectStore = {
     presignGet(
         key: string,
         options: PresignGetOptions
-    ): AsyncOperation<string, PresignFailure>
+    ): AsyncOperationResult<string, PresignFailure>
     /**
      * A form a browser posts a file to, straight to the bucket, kept under
      * `key`: the bucket refuses any other key, content type or a file
@@ -60,7 +63,7 @@ export type ObjectStore = {
     presignPost(
         key: string,
         options: PresignPostOptions
-    ): AsyncOperation<PresignedPost, PresignFailure>
+    ): AsyncOperationResult<PresignedPost, PresignFailure>
 }
 
 /**

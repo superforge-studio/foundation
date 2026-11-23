@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.14.0](.superforge/releases/0.14.0.md) (2026-11-23): Infra through `@superforge/infra`, an npm package every app shares; the login page tells the business's own people why login broke, in Infra's words; and `AsyncOperation` is `AsyncOperationResult`.
 - [0.13.0](.superforge/releases/0.13.0.md) (2026-11-22): "log in" and "login", never "sign in": the login page at `/login`, and Infra's new login calls, which a copy needs to log anyone in.
 - [0.12.0](.superforge/releases/0.12.0.md) (2026-11-22): runs queued inside a write's own transaction, workflows on events and on cron schedules, quiet workflows, and webhooks in at `/api/webhooks/<source>`.
 - [0.11.0](.superforge/releases/0.11.0.md) (2026-11-22): the app traces itself into Railway: every request by its route, every query and call out, each workflow run and step, and its logs on them.

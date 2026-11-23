@@ -81,7 +81,7 @@ export type Workflows = {
      * stopped at: the steps before it keep what they returned, and aren't
      * run again.
      */
-    retry(id: string): AsyncOperation<null, "not-found" | "not-stopped">
+    retry(id: string): AsyncOperationResult<null, "not-found" | "not-stopped">
 }
 
 // How a step is tried: again after 10 seconds when it throws, then twice as

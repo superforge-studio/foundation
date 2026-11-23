@@ -61,6 +61,10 @@ function EmailStep({
         : start.error === null
           ? null
           : whatWentWrong(failureOf(start.error))
+    const cause =
+        invalid || start.error === null
+            ? undefined
+            : failureOf(start.error).cause
 
     function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -101,6 +105,7 @@ function EmailStep({
                 </Button>
             </div>
             <Problem id={`${ids}-problem`} text={problem} />
+            <TeamCause cause={cause} />
         </form>
     )
 }
@@ -130,6 +135,8 @@ function CodeStep({
         : failed === null
           ? null
           : whatWentWrong(failureOf(failed))
+    const cause =
+        invalid || failed === null ? undefined : failureOf(failed).cause
 
     function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -196,6 +203,7 @@ function CodeStep({
                 </Button>
             </div>
             <Problem id={`${ids}-problem`} text={problem} />
+            <TeamCause cause={cause} />
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-muted-foreground text-sm">
                 <button
                     type="button"
@@ -279,6 +287,26 @@ export function whatWentWrong(failure: ApiFailure) {
             return "That link has expired or was already used. Enter your email and we'll send a new one."
         default:
             return "Login isn't working right now. Try again in a few minutes."
+    }
+}
+
+/**
+ * Why logging in failed, in Infra's words, for the business's own people
+ * and a dev server, which the API answers them alone as `cause`, under
+ * what a visitor is told
+ */
+export function TeamCause({ cause }: { cause: string | undefined }) {
+    if (cause === undefined) {
+        return null
+    } else {
+        return (
+            <p className="text-pretty text-muted-foreground text-sm leading-relaxed">
+                <span className="font-medium text-foreground">
+                    For the team:
+                </span>{" "}
+                {cause}
+            </p>
+        )
     }
 }
 
