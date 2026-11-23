@@ -481,6 +481,25 @@ runs before the new one starts. So:
   or a column with a default is safe. Renaming or dropping something the
   running code reads is not: do it in two deploys, first code that stops
   using it, then the migration that removes it.
+- **A column in `schema.ts` is one the code uses**, whether or not anything
+  reads it: Drizzle names every column its table has in the SQL it writes.
+  An insert lists them all, with `default` for each one it isn't given,
+  and `select()` and `.returning()` list them all too:
+
+  ```sql
+  insert into "users" ("id", "email", "role", "created_at") values (default, $1, default, default)
+  ```
+
+  So the deploy that stops using a column takes it out of `schema.ts`,
+  and deletes the `DROP COLUMN` that `pnpm database:generate` then writes
+  from its migration, leaving the column where it is: the version still
+  serving names it, until the new one starts. A column that's `NOT NULL`
+  without a default gets `DROP NOT NULL` in its place, since the new code's
+  inserts leave it out. The next deploy drops it, in a migration of its own
+  (`pnpm database:generate --custom`). A table renamed is the same: its old
+  name has to answer the old version, as a view under it
+  (`CREATE VIEW "old" AS SELECT * FROM "new"`, which Postgres lets the old
+  version write through), until the next deploy drops the view.
 - **It must not hold a lock the app waits on.** The migration's connection
   sets `lock_timeout` to 10 seconds and `statement_timeout` to 240
   (`MIGRATION_SETTINGS`), under Railway's 300-second pre-deploy timeout, so
