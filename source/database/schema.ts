@@ -42,6 +42,7 @@ import {
     boolean,
     check,
     index,
+    inet,
     integer,
     jsonb,
     pgSchema,
@@ -159,8 +160,8 @@ export const api_tokens = auth.table(
 // `ad_network` is worked out from the visit's events
 // (backend/visits/summarize.ts) each time more of them arrive, so a visit
 // outlives its events, which are deleted sooner (backend/visits/prune.ts).
-// No visitor's IP address is kept, here or anywhere: their country is read
-// from it as the visit starts.
+// A remembered visitor's IP address is kept on their visit for as long as
+// its events are, and nobody else's ever is.
 export const analytics_visits = pgTable(
     "analytics_visits",
     {
@@ -199,6 +200,11 @@ export const analytics_visits = pgTable(
         utm_term: text(),
         utm_content: text(),
         ad_network: text(),
+        // The visitor's IP address as the visit started, only of a visitor
+        // the site remembers: the day's hash is never kept beside an
+        // address, which would undo it. Blanked once the visit is
+        // `KEEP_IP_ADDRESSES_FOR` old (backend/visits/prune.ts)
+        ip_address: inet(),
         // Where the visitor was, from their IP address, when the server
         // could tell (backend/visits/location.ts): an ISO 3166-1 country
         // code, like `US`, and, only with the city database, its region's
@@ -220,6 +226,11 @@ export const analytics_visits = pgTable(
             table.visitor_id,
             table.ended_at
         ),
+        // The addresses old enough to blank, and only those: the rest of
+        // the visits have none
+        index("analytics_visits_ip_address_started_at_index")
+            .on(table.started_at)
+            .where(sql`${table.ip_address} is not null`),
         // Whose visits to unlink when a user is removed
         index("analytics_visits_user_id_index")
             .on(table.user_id)

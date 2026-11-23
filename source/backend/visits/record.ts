@@ -16,7 +16,12 @@ import type { VisitorMode } from "@/utilities/visitors"
 import { describeBrowser } from "./browsers"
 import type { Locate } from "./location"
 import { summarizeVisits } from "./summarize"
-import { anonymousVisitor, type Consent, whomToRemember } from "./visitors"
+import {
+    addressToKeep,
+    anonymousVisitor,
+    type Consent,
+    whomToRemember
+} from "./visitors"
 
 // Keeping what happened on the site, in the app's own database
 // (`analytics_visits` and `analytics_events`): a visitor's page events,
@@ -51,7 +56,10 @@ export type PageVisit = {
         consent: Consent
         /** Whoever is logged in */
         user_id: string | null
-        /** For their country, and to count them when they aren't remembered */
+        /**
+         * For their country, kept on their visit when they're remembered,
+         * and to count them when they aren't
+         */
         ip: string
         /** For bots, and what they're on */
         user_agent: string
@@ -68,10 +76,11 @@ export type PageVisit = {
  * site's mode, their answer and their country.
  *
  * A remembered visitor's events are kept under their ID, with whoever is
- * logged in. One who isn't is kept under the day's hash, with no user.
- * Neither's IP address or User-Agent is kept: their country, and what
- * they're on, are read from them as the visit starts. A bot's events are
- * answered and dropped, and so are events more than a week old.
+ * logged in, and their visit with their IP address. One who isn't is kept
+ * under the day's hash, with no user and no address. Nobody's User-Agent
+ * is kept: their country, and what they're on, are read as the visit
+ * starts. A bot's events are answered and dropped, and so are events more
+ * than a week old.
  */
 export async function recordVisit(
     {
@@ -122,9 +131,10 @@ export async function recordVisit(
             ip: visitor.ip,
             user_agent: visitor.user_agent
         }))
-    // A remembered visitor's user: one who isn't is only the day's hash,
-    // which a user beside it would undo
+    // A remembered visitor's user and address: one who isn't is only the
+    // day's hash, which either beside it would undo
     const user_id = remembered_id === null ? null : visitor.user_id
+    const ip_address = remembered_id === null ? null : addressToKeep(visitor.ip)
 
     await database.transaction(async (transaction) => {
         // One visitor's batches in turn, so two that arrive together, like
@@ -176,7 +186,8 @@ export async function recordVisit(
         }
 
         // The visits these events start, with where the visitor is and what
-        // they're on, read now and kept in place of what they were read from
+        // they're on, read now and kept in place of the User-Agent they were
+        // read from, and a remembered visitor's address
         if (started.length > 0) {
             await transaction.insert(analytics_visits).values(
                 started.map(({ id, at }) => ({
@@ -187,6 +198,7 @@ export async function recordVisit(
                     // Until the visit is worked out from its events, below
                     started_at: at,
                     ended_at: at,
+                    ip_address,
                     country: place?.country ?? null,
                     region: place?.region ?? null,
                     city: place?.city ?? null,

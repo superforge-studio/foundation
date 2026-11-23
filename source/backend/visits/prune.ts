@@ -1,4 +1,4 @@
-import { inArray, lt } from "drizzle-orm"
+import { and, inArray, isNotNull, lt } from "drizzle-orm"
 import type { Database } from "@/database"
 import { analytics_events, analytics_visits } from "@/database/schema"
 import { fromNow } from "@/database/time"
@@ -7,14 +7,22 @@ import type { Runner } from "../workflows/runners"
 
 // How long the site's analytics is kept, and the runner that deletes what's
 // older. The events are the bulk of it, and say the most about one
-// visitor, so they go first; a visit, a row with what its events came to,
-// stays for the reports that look back a year or two.
+// visitor, so they go first, with the IP addresses kept on the visits; a
+// visit, a row with what its events came to, stays for the reports that
+// look back a year or two.
 
 /**
  * How long an event is kept after it happened, or `"forever"`. Every
  * report over events reads this far back at most.
  */
 export const KEEP_EVENTS_FOR: number | "forever" = 90 * DAY
+
+/**
+ * How long a remembered visitor's IP address is kept on their visit after
+ * it started, or `"forever"`: as long as the events, after which it's
+ * blanked and the visit stays.
+ */
+export const KEEP_IP_ADDRESSES_FOR: number | "forever" = KEEP_EVENTS_FOR
 
 /**
  * How long a visit is kept after it started, or `"forever"`: 25 months,
@@ -48,6 +56,32 @@ export async function deleteOldEvents(
 }
 
 /**
+ * Blanks the IP address of up to `limit` visits that started before `keep`
+ * ago, and answers how many.
+ */
+export async function forgetOldAddresses(
+    database: Database,
+    { keep, limit }: { keep: number; limit: number }
+) {
+    const old = database
+        .select({ id: analytics_visits.id })
+        .from(analytics_visits)
+        .where(
+            and(
+                isNotNull(analytics_visits.ip_address),
+                lt(analytics_visits.started_at, fromNow(-keep))
+            )
+        )
+        .limit(limit)
+    const forgotten = await database
+        .update(analytics_visits)
+        .set({ ip_address: null })
+        .where(inArray(analytics_visits.id, old))
+        .returning({ id: analytics_visits.id })
+    return forgotten.length
+}
+
+/**
  * Deletes up to `limit` visits that started before `keep` ago, with any
  * events they still have, and answers how many visits.
  */
@@ -68,16 +102,22 @@ export async function deleteOldVisits(
 }
 
 /**
- * Deletes the events and the visits older than they're kept, a batch at a
- * time, and answers how many of each: by `KEEP_EVENTS_FOR` and
+ * Deletes the events and the visits older than they're kept, and blanks
+ * the IP addresses older than they're kept, a batch at a time, and answers
+ * how many of each: by `KEEP_EVENTS_FOR`, `KEEP_IP_ADDRESSES_FOR` and
  * `KEEP_VISITS_FOR`, or a test's own.
  */
 export async function pruneAnalytics(
     database: Database,
     {
         events = KEEP_EVENTS_FOR,
+        addresses = KEEP_IP_ADDRESSES_FOR,
         visits = KEEP_VISITS_FOR
-    }: { events?: number | "forever"; visits?: number | "forever" } = {}
+    }: {
+        events?: number | "forever"
+        addresses?: number | "forever"
+        visits?: number | "forever"
+    } = {}
 ) {
     return {
         events:
@@ -85,6 +125,12 @@ export async function pruneAnalytics(
                 ? 0
                 : await inBatches((limit) =>
                       deleteOldEvents(database, { keep: events, limit })
+                  ),
+        addresses:
+            addresses === "forever"
+                ? 0
+                : await inBatches((limit) =>
+                      forgetOldAddresses(database, { keep: addresses, limit })
                   ),
         visits:
             visits === "forever"
@@ -95,31 +141,32 @@ export async function pruneAnalytics(
     }
 }
 
-// Runs `deleteBatch` until a batch comes back short, or the turn has run
-// its share, and answers how many rows went
-async function inBatches(deleteBatch: (limit: number) => Promise<number>) {
-    let deleted = 0
+// Runs `pruneBatch` until a batch comes back short, or the turn has run
+// its share, and answers how many rows it deleted or blanked
+async function inBatches(pruneBatch: (limit: number) => Promise<number>) {
+    let pruned = 0
     for (let batch = 0; batch < BATCHES_A_TURN; batch++) {
-        const last = await deleteBatch(BATCH)
-        deleted += last
+        const last = await pruneBatch(BATCH)
+        pruned += last
         if (last < BATCH) {
             break
         }
     }
-    return deleted
+    return pruned
 }
 
 /**
- * Each hour, deletes the analytics older than it's kept
- * (backend/workflows/README.md, "Runners").
+ * Each hour, deletes the analytics older than it's kept, and blanks the IP
+ * addresses older than they're kept (backend/workflows/README.md,
+ * "Runners").
  */
 export const pruneAnalyticsRunner: Runner = {
     name: "prune-analytics",
     every: HOUR,
     run: async ({ database }) => {
-        const deleted = await pruneAnalytics(database)
-        if (deleted.events > 0 || deleted.visits > 0) {
-            console.info("Old analytics deleted", deleted)
+        const pruned = await pruneAnalytics(database)
+        if (pruned.events > 0 || pruned.addresses > 0 || pruned.visits > 0) {
+            console.info("Old analytics deleted", pruned)
         }
     }
 }

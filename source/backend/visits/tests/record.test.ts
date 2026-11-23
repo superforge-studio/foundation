@@ -107,6 +107,7 @@ test("keeps a remembered visitor's events in a visit, with where they were and w
             bounced: true,
             landing_path: "/pricing",
             exit_path: "/pricing",
+            ip_address: "203.0.113.9",
             country: "US",
             region: "Texas",
             city: "Austin",
@@ -126,9 +127,33 @@ test("keeps a remembered visitor's events in a visit, with where they were and w
             properties: { title: "Pricing" }
         })
     ])
-    // The address and the User-Agent are read and never kept
-    expect(JSON.stringify({ visits, events })).not.toContain("203.0.113.9")
+    // The address is kept on the visit alone, and the User-Agent nowhere
+    expect(JSON.stringify(events)).not.toContain("203.0.113.9")
     expect(JSON.stringify({ visits, events })).not.toContain("AppleWebKit")
+})
+
+test("a remembered visitor's address is kept as an address, and only when it is one", async () => {
+    const context = await setup()
+    const visitors = [
+        { id: "visitor-v4-in-v6", ip: "::ffff:203.0.113.20" },
+        { id: "visitor-v6", ip: "2001:db8::1" },
+        { id: "visitor-zoned", ip: "fe80::1%eth0" },
+        { id: "visitor-unknown", ip: "unknown" }
+    ]
+    for (const visitor of visitors) {
+        await recordVisit(context, batch([event("view", MINUTE)], visitor))
+    }
+
+    const { visits } = await kept(context.database)
+    const addresses = Object.fromEntries(
+        visits.map((visit) => [visit.visitor_id, visit.ip_address])
+    )
+    expect(addresses).toEqual({
+        "visitor-v4-in-v6": "203.0.113.20",
+        "visitor-v6": "2001:db8::1",
+        "visitor-zoned": null,
+        "visitor-unknown": null
+    })
 })
 
 test("a visit lasts until 30 minutes pass without an event", async () => {
@@ -285,7 +310,7 @@ test("an event's time is corrected for the browser's clock, and one a week old i
     ).toEqual({ kept: 0, remembered: true, ask: false })
 })
 
-test("a visitor who isn't remembered is kept under the day's hash, with no user", async () => {
+test("a visitor who isn't remembered is kept under the day's hash, with no user or address", async () => {
     const context = await setup()
     const ada = await userNamed(context.database, "ada@example.com")
     const answer = await recordVisit(
@@ -304,9 +329,11 @@ test("a visitor who isn't remembered is kept under the day's hash, with no user"
             visitor_id: expect.stringMatching(/^[\w-]{22}$/),
             anonymous: true,
             user_id: null,
+            ip_address: null,
             views: 2
         })
     ])
+    expect(JSON.stringify({ visits, events })).not.toContain("203.0.113.9")
     expect(events.map((each) => each.user_id)).toEqual([null, null])
     expect(events.map((each) => each.visitor_id)).toEqual([
         visits[0]?.visitor_id,
@@ -331,9 +358,19 @@ test("a visitor who declined is asked nothing more, and one who hasn't answered 
     expect(
         await recordVisit(
             context,
-            batch([event("view", MINUTE)], { consent: "given" }, "ask")
+            batch(
+                [event("view", MINUTE)],
+                { consent: "given", ip: "203.0.113.11" },
+                "ask"
+            )
         )
     ).toEqual({ kept: 1, remembered: true, ask: false })
+
+    // Only the one who gave their consent is kept with their address
+    const { visits } = await kept(context.database)
+    expect(
+        visits.map((visit) => visit.ip_address).filter((ip) => ip !== null)
+    ).toEqual(["203.0.113.11"])
 })
 
 test("a visitor who logs in during a visit is on it from then on", async () => {

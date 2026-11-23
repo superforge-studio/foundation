@@ -47,16 +47,16 @@ Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
     view and click, in the app's own database, and the site can remember
     a visitor's browser between visits, so their visits join up. Say
     plainly: by default the site sets a lasting cookie on every visitor,
-    with no banner, and keeps each visit with the country it came from,
-    never the visitor's IP address; the EU and the UK generally require a
-    visitor's consent for the cookie. A business based in the EU can
-    have a small banner ask everyone first; one based elsewhere can have
-    it ask only visitors where those rules apply, and remember everyone
-    else; and one that wants nothing kept on anyone's browser can turn
-    remembering off. Whoever isn't remembered is still counted, a day at
-    a time. This is how the site behaves, not legal advice: an owner who
-    needs to know what the law asks of them should ask someone qualified
-    to say.
+    with no banner, and keeps each visit with the country it came from
+    and, for 90 days, the visitor's IP address; the EU and the UK
+    generally require a visitor's consent for the cookie. A business
+    based in the EU can have a small banner ask everyone first; one based
+    elsewhere can have it ask only visitors where those rules apply, and
+    remember everyone else; and one that wants nothing kept on anyone's
+    browser can turn remembering off. Whoever isn't remembered is still
+    counted, a day at a time, and their address isn't kept. This is how
+    the site behaves, not legal advice: an owner who needs to know what
+    the law asks of them should ask someone qualified to say.
 
 ## 2. Make it look like the business
 
