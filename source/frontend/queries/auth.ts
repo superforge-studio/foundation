@@ -1,26 +1,32 @@
 import { mutationOptions, queryOptions, useQuery } from "@tanstack/react-query"
 import type { InferResponseType } from "hono/client"
 import { client } from "@/backend/client"
+import type { Permissions } from "@/utilities/permissions"
 import type { LoginProof } from "@/utilities/schemas/auth"
 import { FailedRequest, readFailure } from "./failures"
 
-// Who's logged in, and logging in and out (backend/auth/routes.ts): Infra
-// emails a six-digit code and a link, and the API keeps the session in a
-// cookie the page never sees.
+// Who's logged in, what they may do, and logging in and out
+// (backend/auth/routes.ts): Infra emails a six-digit code and a link, and
+// the API keeps the session in a cookie the page never sees.
 
-/** Who's logged in, as the API answers them. */
+/** Who's logged in, as the API answers them: one of the team. */
 export type SessionUser = NonNullable<
     InferResponseType<typeof client.api.auth.session.$get, 200>["user"]
 >
 
+/** Who's logged in, and what they may do in each area of the app. */
+type LoggedIn = { user: SessionUser; permissions: Permissions }
+
 /** Who's logged in, or null for a visitor: GET /api/auth/session. */
 export const sessionQuery = queryOptions({
     queryKey: ["session"],
-    queryFn: async (): Promise<SessionUser | null> => {
+    queryFn: async (): Promise<LoggedIn | null> => {
         const response = await client.api.auth.session.$get()
         if (response.ok) {
-            const { user } = await response.json()
-            return user
+            const { user, permissions } = await response.json()
+            return user === null || permissions === null
+                ? null
+                : { user, permissions }
         } else {
             throw new FailedRequest(await readFailure(response))
         }
@@ -30,7 +36,7 @@ export const sessionQuery = queryOptions({
 export type Session =
     | { status: "loading" }
     | { status: "logged-out" }
-    | { status: "logged-in"; user: SessionUser }
+    | { status: "logged-in"; user: SessionUser; permissions: Permissions }
 
 /**
  * Who's logged in, for any component. A prerendered page is drawn for a
@@ -44,7 +50,11 @@ export function useSession(): Session {
     } else if (session.isError || session.data === null) {
         return { status: "logged-out" }
     } else {
-        return { status: "logged-in", user: session.data }
+        return {
+            status: "logged-in",
+            user: session.data.user,
+            permissions: session.data.permissions
+        }
     }
 }
 
@@ -74,20 +84,19 @@ export const startLogin = mutationOptions({
 /** Logging in with the code from the email, or its link's token. */
 export const verifyLogin = mutationOptions({
     mutationKey: ["auth", "verify"],
-    mutationFn: async (input: LoginProof): Promise<SessionUser> => {
+    mutationFn: async (input: LoginProof): Promise<LoggedIn> => {
         const response = await client.api.auth.verify.$post({ json: input })
         if (response.status === 200) {
-            const { user } = await response.json()
-            return user
+            return await response.json()
         } else {
             throw new FailedRequest(await readFailure(response))
         }
     },
-    onSuccess: async (user, _input, _result, context) => {
+    onSuccess: async (logged_in, _input, _result, context) => {
         // A session fetched before this login, and answered after it,
         // would put the visitor back
         await context.client.cancelQueries({ queryKey: sessionQuery.queryKey })
-        context.client.setQueryData(sessionQuery.queryKey, user)
+        context.client.setQueryData(sessionQuery.queryKey, logged_in)
     }
 })
 

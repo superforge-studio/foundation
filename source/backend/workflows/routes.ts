@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { z } from "zod"
-import { internalOnly } from "../auth/logged-in"
+import { permitted } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 
@@ -9,20 +9,21 @@ const run_path = z.object({ id: z.string().min(1).max(200) })
 
 /**
  * The workflows' runs, under /api/workflows, for the dashboard's Workflows
- * screen, which asks again every few seconds while it's open: only the
- * business's own people may (`internalOnly`). They're read through
+ * screen, which asks again every few seconds while it's open: whoever's
+ * role may (`permitted("workflows")`), reading them, and retrying one,
+ * which writes. They're read through
  * `context.var.workflows`, so through DBOS's own functions, never its
  * tables (engine.ts).
  */
 export const workflowRoutes = new Hono<ApiEnvironment>()
-    .get("/workflows/runs", internalOnly, async (context) => {
+    .get("/workflows/runs", permitted("workflows"), async (context) => {
         const runs = await context.var.workflows.runs()
         return context.json({ runs }, 200)
     })
 
     .get(
         "/workflows/runs/:id",
-        internalOnly,
+        permitted("workflows"),
         validated("param", run_path),
         async (context) => {
             const run = await context.var.workflows.run(
@@ -39,7 +40,7 @@ export const workflowRoutes = new Hono<ApiEnvironment>()
     // Runs a failed or canceled run again, from the step it stopped at
     .post(
         "/workflows/runs/:id/retry",
-        internalOnly,
+        permitted("workflows"),
         validated("param", run_path),
         async (context) => {
             const { id } = context.req.valid("param")

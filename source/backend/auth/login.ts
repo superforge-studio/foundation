@@ -1,58 +1,26 @@
-import { eq, sql } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import type { Database } from "@/database"
 import { users } from "@/database/schema"
 import { now } from "@/database/time"
-import { queueEvent } from "../workflows/queue"
-import {
-    type Access,
-    listedInternal,
-    listedRole,
-    nameOf,
-    roleFor
-} from "./access"
-import {
-    SESSION_USER_COLUMNS,
-    type SessionUser,
-    startSession
-} from "./sessions"
+import { keepListed } from "../users/sync"
+import { type Access, listedInternal, listing } from "./access"
+import { startSession, TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 
 /**
  * Whether `email` may start logging in, before Infra is asked to email it:
- * anyone may when anyone can log in, and otherwise only someone listed as
- * internal (access.ts), or already on the People screen.
+ * only someone on the team, as access.ts lists them.
  */
-export async function mayLogIn(
-    database: Database,
-    access: Access,
-    email: string
-) {
-    if (
-        access.login === "anyone" ||
-        listedInternal(access, email) !== undefined
-    ) {
-        return true
-    } else {
-        const [found] = await database
-            .select({ id: users.id })
-            .from(users)
-            .where(eq(users.email, email))
-        return found !== undefined
-    }
+export function mayLogIn(access: Access, email: string) {
+    return listedInternal(access, email) !== undefined
 }
 
 /**
- * Logs in the user with this email, once Infra has said it's theirs: makes
- * the user the first time the address logs in, when anyone may, marks
- * them logged in now, and starts a session in place of this browser's
- * (`replacing`), all together. Their role and, for the business's own, their
- * name are set as access.ts lists them every time, so the database follows
- * the list: someone listed is internal with the name they're listed with,
- * and someone taken off it is external again. A login that makes
- * someone new queues `user-signed-up` in the same transaction, named for
- * them, so whatever's on it (the notice to the team) runs once, and only
- * if they're made. Answers the user, the new session's token, for its
- * cookie, and whether this login made them. Refuses someone nobody
- * listed or added when only they may log in.
+ * Logs in the team member with this email, once Infra has said it's
+ * theirs: makes their row follow the list (users/sync.ts), making it if the
+ * server hasn't since they were listed, marks them logged in now, and
+ * starts a session in place of this browser's (`replacing`), all together.
+ * Answers them, with the names and role the list gives them, and the new
+ * session's token, for its cookie. Refuses anyone the list doesn't have.
  */
 export async function logIn(
     database: Database,
@@ -67,88 +35,29 @@ export async function logIn(
         user_agent: string | null
         access: Access
     }
-): AsyncOperationResult<
-    { user: SessionUser; token: string; joined: boolean },
-    "not-listed"
-> {
-    return await database.transaction(async (transaction) => {
-        const listed = listedInternal(access, email)
-        let logged_in: SessionUser
-        let joined: boolean
-        if (listed === undefined) {
-            const [existing] = await transaction
-                .select({ role: users.role })
-                .from(users)
-                .where(eq(users.email, email))
-            if (existing === undefined && access.login === "listed") {
-                return { ok: false, error: "not-listed" }
+): AsyncOperationResult<{ user: TeamMember; token: string }, "not-listed"> {
+    const listed = listedInternal(access, email)
+    if (listed === undefined) {
+        return { ok: false, error: "not-listed" }
+    } else {
+        return await database.transaction(async (transaction) => {
+            const { id } = await keepListed(transaction, listed)
+            const [row] = await transaction
+                .update(users)
+                .set({ logged_in_at: now })
+                .where(eq(users.id, id))
+                .returning(TEAM_ROW_COLUMNS)
+            if (row === undefined) {
+                throw new Error("A team member's row went missing")
             }
-            const role =
-                existing === undefined
-                    ? "external"
-                    : roleFor(access, email, existing.role)
-            const [user] = await transaction
-                .insert(users)
-                .values({ email, role, logged_in_at: now })
-                .onConflictDoUpdate({
-                    target: users.email,
-                    set: { role, logged_in_at: now }
-                })
-                .returning({
-                    ...SESSION_USER_COLUMNS,
-                    // Whether the insert made the row, rather than updating
-                    // it (a comparison, so a boolean)
-                    joined: sql<boolean>`xmax = 0`
-                })
-            if (user === undefined) {
-                // An insert that updates on conflict always answers its row
-                throw new Error("A user's upsert answered no row")
-            }
-            const { joined: made, ...rest } = user
-            logged_in = rest
-            joined = made
-        } else {
-            const values = {
-                email,
-                name: nameOf(listed),
-                role: listedRole(listed),
-                logged_in_at: now
-            }
-            const [user] = await transaction
-                .insert(users)
-                .values(values)
-                .onConflictDoUpdate({
-                    target: users.email,
-                    set: {
-                        name: values.name,
-                        role: values.role,
-                        logged_in_at: now
-                    }
-                })
-                .returning(SESSION_USER_COLUMNS)
-            if (user === undefined) {
-                throw new Error("A user's upsert answered no row")
-            }
-            logged_in = user
-            // One of the business's own is never a sign-up, even the first
-            // time: no notice goes out about them
-            joined = false
-        }
-
-        const token = await startSession(
-            transaction,
-            logged_in.id,
-            replacing,
-            user_agent
-        )
-        if (joined) {
-            await queueEvent(
+            const token = await startSession(
                 transaction,
-                "user-signed-up",
-                { user_id: logged_in.id, email: logged_in.email },
-                { id: logged_in.id }
+                id,
+                replacing,
+                user_agent
             )
-        }
-        return { ok: true, data: { user: logged_in, token, joined } }
-    })
+            const user: TeamMember = { ...row, ...listing(listed) }
+            return { ok: true, data: { user, token } }
+        })
+    }
 }

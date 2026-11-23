@@ -8,9 +8,8 @@ import {
     API_TOKEN_PREFIX,
     type ApiTokenCreation
 } from "@/utilities/schemas/api-tokens"
-import { isInternal } from "@/utilities/schemas/users"
-import { type Access, roleFor } from "./access"
-import { SESSION_USER_COLUMNS } from "./sessions"
+import { type Access, listedBySlug, listing } from "./access"
+import { TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 import { randomCharacters, sha256 } from "./tokens"
 
 // API tokens, in `auth.api_tokens`: what one of the business's own people
@@ -117,10 +116,11 @@ export async function revokeApiToken(
 }
 
 /**
- * Whom a token acts as, and what it may do, or undefined when it isn't a
- * live token, or its person is no longer one of the business's own: they
- * must still be listed in access.ts, as Claude's person must, so a token
- * stops working the moment they're taken off. Notes that it was used.
+ * Whom a token acts as, with the names and role access.ts lists them with,
+ * and what it may do, or undefined when it isn't a live token, or its
+ * person is no longer on the team: they must still be listed in
+ * access.ts, by their slug, as Claude's person must, so a token stops
+ * working the moment they're taken off. Notes that it was used.
  */
 export async function apiTokenUser(
     database: Database,
@@ -135,13 +135,14 @@ export async function apiTokenUser(
         .select({
             id: api_tokens.id,
             scopes: api_tokens.scopes,
-            user: SESSION_USER_COLUMNS
+            user: TEAM_ROW_COLUMNS
         })
         .from(api_tokens)
         .innerJoin(users, eq(api_tokens.user_id, users.id))
         .where(
             and(
                 eq(api_tokens.token_hash, await sha256(token)),
+                isNull(users.deactivated_at),
                 or(
                     isNull(api_tokens.expires_at),
                     gt(api_tokens.expires_at, now)
@@ -151,16 +152,16 @@ export async function apiTokenUser(
     if (found === undefined) {
         return undefined
     }
-    const { user } = found
-    const role = roleFor(access, user.email, user.role)
-    if (!isInternal(role)) {
+    const listed = listedBySlug(access, found.user.slug)
+    if (listed === undefined) {
         console.warn("API token for someone not on the team", {
             api_token_id: found.id
         })
         return undefined
     } else {
         await noteUse(database, found.id)
-        return { user: { ...user, role }, scopes: found.scopes }
+        const user: TeamMember = { ...found.user, ...listing(listed) }
+        return { user, scopes: found.scopes }
     }
 }
 

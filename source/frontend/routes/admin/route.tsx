@@ -1,55 +1,52 @@
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 import {
-    createFileRoute,
-    Navigate,
-    Outlet,
-    useLocation
-} from "@tanstack/react-router"
-import { DashboardBar } from "@/frontend/components/dashboard/shell"
+    AdminNotFound,
+    DashboardBar
+} from "@/frontend/components/dashboard/shell"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
 import { LoginForm } from "@/frontend/components/site/login-form"
 import { useSession } from "@/frontend/queries/auth"
-import { isInternal } from "@/utilities/schemas/users"
 
 /**
- * The dashboard, behind login: a bar across the top, and the screen
- * under it, each with its own address so Back, refresh and a shared link
- * keep it. The business's own people (internal roles) get the workflows,
- * the people and their account; everyone else only their account. It's
- * drawn in the browser, never prerendered (vite.config.ts leaves
- * /dashboard out), since it's different for everyone, and the API decides
- * who may see what whatever the page shows (`internalOnly`).
+ * The admin, behind login, for the team listed in code
+ * (backend/auth/access.ts), the only people who log in: a bar across the
+ * top, with the sections someone's role may read, and the screen under it,
+ * each with its own address so Back, refresh and a shared link keep it. An
+ * address under it that's no page is answered in the same frame
+ * (`AdminNotFound`). It's drawn in the browser, never prerendered
+ * (vite.config.ts leaves /admin out), since it's different for everyone,
+ * and the API decides who may see what whatever the page shows
+ * (`permitted`, backend/auth/logged-in.ts).
  */
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/admin")({
     ssr: false,
     head: () => ({
-        meta: [{ title: "Dashboard" }, { name: "robots", content: "noindex" }]
+        meta: [{ title: "Admin" }, { name: "robots", content: "noindex" }]
     }),
     pendingComponent: Loading,
-    component: Dashboard
+    notFoundComponent: AdminNotFound,
+    component: Admin
 })
 
-function Dashboard() {
+function Admin() {
     const session = useSession()
-    const { pathname } = useLocation()
     if (session.status === "loading") {
         return <Loading />
     } else if (session.status === "logged-out") {
         return <LoggedOut />
+    } else {
+        // `data-private`: the admin shows people's names and the business's
+        // own data, so a click here never sends the text it showed
+        return (
+            <div data-private className="flex h-dvh min-h-[32rem] flex-col">
+                <DashboardBar
+                    user={session.user}
+                    permissions={session.permissions}
+                />
+                <Outlet />
+            </div>
+        )
     }
-
-    const internal = isInternal(session.user.role)
-    if (!internal && pathname !== "/dashboard/account") {
-        // Everyone else's dashboard is their account
-        return <Navigate to="/dashboard/account" replace />
-    }
-    // `data-private`: the dashboard shows people's names and the
-    // business's own data, so a click here never sends the text it showed
-    return (
-        <div data-private className="flex h-dvh min-h-[32rem] flex-col">
-            <DashboardBar user={session.user} internal={internal} />
-            <Outlet />
-        </div>
-    )
 }
 
 function Loading() {
@@ -67,8 +64,8 @@ function Loading() {
     )
 }
 
-// Someone who opens the dashboard without logging in: the way in, here,
-// so they land where they meant to go
+// Someone who opens the admin without logging in: the way in, here, so
+// they land where they meant to go
 function LoggedOut() {
     return (
         <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-10 px-5 py-6 sm:py-10">
@@ -78,7 +75,7 @@ function LoggedOut() {
             <section className="flex flex-col gap-6 sm:mt-10">
                 <div className="flex flex-col gap-2">
                     <h1 className="text-balance font-heading font-semibold text-3xl tracking-tight">
-                        Log in to your dashboard
+                        Log in to the admin
                     </h1>
                     <p className="text-pretty text-muted-foreground leading-relaxed">
                         Enter your email and we'll send you a code and a link.

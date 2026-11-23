@@ -132,7 +132,7 @@ one fails**: for plumbing, like sending a webhook on or keeping an index
 current, a step or two that only needs its retries, which would bury the
 runs worth reading. A quiet run still opens by its id, and is pruned like
 any other. Workflows that do something a person follows, like the
-sign-up notice, aren't quiet.
+notice to the team, aren't quiet.
 
 ### On a schedule
 
@@ -270,9 +270,10 @@ Never delete DBOS's rows by hand, nor write to its tables.
 
 ## Reading runs
 
-The dashboard's Workflows screen shows every run but the quiet ones that
+The admin's Workflows screen shows every run but the quiet ones that
 haven't failed, as it runs, with its steps, what went wrong where one failed, and a way to run it again
-(`routes.ts`, under `/api/workflows`, for internal people only). It reads
+(`routes.ts`, under `/api/workflows`, for a role that may read the
+`workflows` area, and run one again for one that may write it). It reads
 them through `context.var.workflows`, which asks DBOS's own functions,
 never its tables, which are DBOS's to change (`engine.ts`):
 
@@ -312,15 +313,18 @@ tracing").
 
 ## The sample
 
-**`tell-team-of-sign-up`** (`backend/users/workflows.ts`) is the
-template's example: it's `on: ["user-signed-up"]`, which the login that
-makes someone new queues in its own transaction, named for them so it
-runs once (`backend/auth/login.ts`), and its three steps read them,
-find the business's own people, and send the notice, which goes to the
-logs until Superforge Infra can send email. `pnpm database:seed` puts
-real runs of it on the queue, for a dev server to run, rather than writing
-DBOS's rows. A copy keeps it, or deletes it with its line in `index.ts`
-(the login's event then queues nothing).
+**`tell-team-of-new-member`** (`backend/users/workflows.ts`) is the
+template's example: it's `on: ["user-added"]`, which the sync that makes
+someone's row, as the server starts once they're listed or as they first
+log in, queues in its own transaction, named for them so it runs once
+(`backend/users/sync.ts`), and its three steps read them, find the rest
+of the team, and send the notice, which goes to the logs until
+Superforge Infra can send email. `pnpm database:seed` puts real runs of
+it on the queue, for a dev server to run, rather than writing DBOS's
+rows. A copy keeps it, or deletes it with its line in `index.ts` (the
+sync's event then queues nothing). `tell-team-of-sign-up`, the example
+before only the team logged in, is listed beside it until the next
+release, for the runs a copy had in flight, and nothing starts it.
 
 ## When not to use one
 

@@ -60,18 +60,27 @@ wrote it its own way, their checks would drift apart:
 - **`database/` is imported only by `backend/`**, and by its own scripts
   and tests.
 - **Claude is one of the ways in.** It connects to the app's MCP
-  (`backend/mcp/`), logged in as one of the business's own people with a
-  token Infra signs, which `loggedIn` takes in a cookie's place
+  (`backend/mcp/`), logged in as one of the team with a token Infra
+  signs, which the login middleware takes in a cookie's place
   (`backend/auth/agents.ts`), and its tools call the routes under `/api`
-  in this process. So every route is a tool, with its checks, and a
-  route that changes who can log in takes `inBrowser`, so no token can.
+  in this process. So every route is a tool, with its checks, Claude
+  does no more than its person's role lets them, and a route that changes
+  who can log in takes `inBrowser`, so no token can.
 - **So is a script with an API token.** What can't log in through a
   browser as Claude does, like a scheduled job or another platform's
   agent, calls `/api` with `Authorization: Bearer api_…`, a token one of
-  the business's own made on their account page, acting as them with the
-  scopes they gave it (`backend/auth/api-tokens.ts`), until they revoke
-  it. `loggedIn` takes it as it takes Claude's, and `inBrowser` refuses
-  it the same way.
+  the team made on their account page, acting as them with the scopes
+  they gave it (`backend/auth/api-tokens.ts`), until they revoke it. The
+  middleware takes it as it takes Claude's, and `inBrowser` refuses it
+  the same way.
+- **The system is the code.** A workflow, a runner, a job's run or the
+  seed calls operations directly, never a route, so it never passes the
+  login middleware and needs no permission: it's code in the repository,
+  changed only by a commit. There's no token for it, so none can leak.
+  Everyone who reaches the data from outside, a person, Claude or a
+  script, does it through a route, as someone on the team, with what
+  their role allows ([The team and what each role may
+do](#the-team-and-what-each-role-may-do)).
 - **A feature is a route before it's a screen.** Anything a person or an
   agent can do is a route, with its checks, so a script or an agent can do
   through the same route what a person does on the site. A workflow, which
@@ -107,7 +116,7 @@ matters:
     workflows/      DBOS, for background work (its README has the rules)
     infra/          Superforge Infra, the one wrapper for calling it
     auth/           logging in through Infra, the sessions, loggedIn and
-                    internalOnly, and who can log in (access.ts)
+                    permitted, and the team and its roles (access.ts)
     <feature>/      one folder per feature, like health/, account/ and
                     users/
       routes.ts     Hono: check the input, call an operation, answer
@@ -173,27 +182,34 @@ matters:
   by what it's for: `primitives/` for shadcn's (`pnpm dlx shadcn@4 add
   <name>`, which `components.json` sends there), `states/` for what a
   screen shows while it's empty, loading or lost (`not-found.tsx`),
-  `site/` for the public pages' and `dashboard/` for the screens behind
-  login.
+  `site/` for the public pages' and `dashboard/` for the admin's screens.
 - **A screen behind login** → a route under
-  `source/frontend/routes/dashboard/`, drawn in the browser (`ssr: false`
-  on `dashboard/route.tsx`) and left out of the prerender (the `filter` in
+  `source/frontend/routes/admin/`, drawn in the browser (`ssr: false` on
+  `admin/route.tsx`) and left out of the prerender (the `filter` in
   `vite.config.ts`), since it changes per visitor, which knows who's
-  logged in from `useSession()` (`frontend/queries/auth.ts`). It sits in
-  the dashboard's frame (`components/dashboard/shell.tsx`): a list beside
-  the one chosen from it, chosen by an id in the address (`?run=`,
-  `?person=`), so Back and a shared link keep it. A screen for the
-  business's own people gets a place in the bar's switch (`SECTIONS`);
-  everyone else sees only `/dashboard/account` ([Roles](#roles-and-who-can-login)).
-  Public pages stay prerendered, like `/login` itself.
-- **A route that needs the user** → `loggedIn` before its handler
-  (`backend/auth/logged-in.ts`), which answers 401 `logged-out` without a
-  live session and puts the user on `context.var.user` with one;
-  `internalOnly` for a route only the business's own people may call,
-  which answers 403 `not-internal` to anyone else; `maybeLoggedIn` for a
-  route a visitor may call too, with the user or null. Nothing else reads
-  the session's cookie or `auth.sessions`, so who's logged in, and who
-  may see what, is decided in one place, whatever a page shows.
+  logged in, and what their role lets them do, from `useSession()`
+  (`frontend/queries/auth.ts`). It sits in the admin's frame
+  (`components/dashboard/shell.tsx`): a list beside the one chosen from
+  it, chosen by an id in the address (`?run=`, `?person=`), so Back and a
+  shared link keep it. It gets a place in the bar's switch (`SECTIONS`),
+  with the area it shows, so someone whose role can't read that area
+  doesn't see it, and draws `NotPermitted` for them if they open it
+  anyway. An address under `/admin` that's no page is answered in the
+  same frame (`AdminNotFound`), and anywhere else by the site's own
+  (`components/states/not-found.tsx`). Public pages stay prerendered, like
+  `/login` itself.
+- **A route that needs the user** → `permitted("<area>")` before its
+  handler (`backend/auth/logged-in.ts`) for what's the business's, the
+  area it's in, which answers 401 `logged-out` without a live session, 403
+  `not-permitted` to someone whose role doesn't reach it, saying the area
+  and level it needed, and puts the user on `context.var.user` and what
+  they may do on `context.var.permissions`; `loggedIn` for what's anyone
+  on the team's own, like their account; `maybeLoggedIn` for a route a
+  visitor may call too, with the user or null. Nothing else reads the
+  session's cookie or `auth.sessions`, so who's logged in, and who may do
+  what, is decided in one place, whatever a page shows. A test fails any
+  route under `/api` that says none of these and isn't one of the few
+  anyone may call (`backend/tests/routes.test.ts`, `ANYONE`).
 - **Something that runs in the background** → a workflow, in its
   feature's `workflows.ts`, listed in `backend/workflows/index.ts`, and
   queued in the transaction of the write it's for, by name with
@@ -218,49 +234,70 @@ matters:
 - **Content** lives where it's published: a page's copy in its route, and
   copy more than one page shares in `source/utilities/`.
 
-### Roles and who can log in
+### The team and what each role may do
 
-**Everyone who can log in is a row in `users`, with a `role`**: one of
-`ROLES` in `source/utilities/schemas/users.ts`, `internal` for the
-business's own people and `external` for everyone it serves.
-`INTERNAL_ROLES` says which roles see the business's side of the dashboard
-(the people, the workflows) and pass `internalOnly`; `EXTERNAL_ROLES` are
-everyone else's, who see only their own account.
+**Only the team logs in, and the team is listed in code**: `internal_users`
+in `ACCESS`, `source/backend/auth/access.ts`, each with a slug that never
+changes, a first name, a last name, the address they log in with and
+their role, an `owner` or a `member` (`TEAM_ROLES`), a member when it's
+left out. They're the only users there are, and nobody else logs in: an
+address the list doesn't have is refused before Infra is asked to email
+it. It's code, not a Railway variable or a screen, so a dev server logs in
+the way production does, and the team only changes with a commit.
 
-- **The business's own people are listed in code**, never added on a
-  screen: `internal_users` in `ACCESS`, `source/backend/auth/access.ts`,
-  each with a first name, a last name and the address they log in with
-  (and, for a business with more than one internal role, which). They're
-  the only people who are ever internal. The login middleware gives
-  everyone the role the list says, whatever the database does
-  (`logged-in.ts`), so someone taken off the list is external from their
-  next request, and a row made internal by hand changes nothing. Each
-  login, and the server's start (`backend/users/sync.ts`), write the
-  list into `users`, so the People screen and the notices to the team
-  agree with it: a listed person is a user from the deploy that lists
-  them, with the name they're listed with, which their account page then
-  shows and doesn't change. The People screen adds, changes and removes
-  only external people, and the API refuses the listed as `listed`.
-- **A new role**, like `technician` or `lead`, goes in `INTERNAL_ROLES`
-  or `EXTERNAL_ROLES`. The column is text with a check made from both
-  (`schema.ts`), not a Postgres enum, so `pnpm database:generate` writes
-  the migration that changes the check, and a deploy can use the new role
-  in the same transaction. Its name on screen goes in `ROLE_NAMES`
-  (`components/dashboard/people.tsx`). An internal one is given in the
-  list (`role: "technician"`); an external one, on the People screen.
-- **Permissions that don't nest**, like a technician who sees the
-  schedule but not the invoices, are a middleware beside `internalOnly`
-  that checks the role a route needs: still one role per person.
-- **Who can log in** is `login` in the same `ACCESS`, which
-  START-HERE.md sets: `"anyone"` makes someone new at their first
-  login, as `external`, and `"listed"` lets in only the internal users
-  and someone already on the People screen (added by an internal person).
-  It's code, not a Railway variable, so a dev server logs in the way
-  production does. Routes read it from `context.var.access`, and a test
-  hands its own (`testApi({ access })`), or logs someone in as internal
-  with `logInAs(api, email, "internal")`, which lists them first.
-- **No one changes or removes the business's own people but the code**,
-  so it always has someone who can log in to the dashboard.
+- **The database follows the list.** The server's start, and each login,
+  make each listed person's row follow how they're listed
+  (`backend/users/sync.ts`), found by their slug, so a new address
+  changes their row rather than making another, and deactivate anyone
+  taken off it (`deactivated_at`), ending their sessions while their row,
+  and what they did, stays. Listing them again with the same slug brings
+  the same row back. The login middleware counts someone only while the
+  list has them, by their slug, whatever the database says, so taking
+  them off logs them out at their next request.
+- **What each role may do is a level in each area of the app**:
+  `roles` in the same `ACCESS`, and the areas in
+  `source/utilities/permissions.ts` (`AREA_NAMES` and `AREAS`), which
+  both sides read. A level is `none`, `read` or `write`, each including
+  the one before. A role is given `"everything"`, every area there is and
+  every one added later, as the `owner` is, or a level for each area it
+  may use, the rest being `none`, as the `member` is. An area is what a
+  person would grant, roughly a screen of the admin, never a table: one
+  action writes many tables, and a renamed table mustn't change who may
+  do what.
+- **Every route of the business's names its area**, with
+  `permitted("<area>")`: a `GET` needs `read`, and anything else `write`,
+  unless the route says (`permitted("orders", "read")` for a `POST` that
+  only reads). One that's someone's own, like their account, takes
+  `loggedIn`. That's the only check: not Postgres's row-level security,
+  since every read and write already goes through `backend/`'s
+  operations behind a route ([Headless](#headless)), and one app holds
+  one business, so there's no tenant to wall off. A rule about which
+  rows, like a technician who sees only their own appointments, goes in
+  the operation, which takes the person and filters by them.
+- **A token never does more than its person.** Claude's token and an API
+  token act as the person who made them, with what their role allows,
+  narrowed by what they gave the token: `read` reads every area their
+  role reads, and `act` changes what their role may change. A token can't
+  be given more than its person has, and what only a browser may do
+  (`inBrowser`) no token does.
+- **The admin follows the same levels.** `/api/auth/session` answers the
+  person and their `permissions`, which `useSession()` hands every screen,
+  and `allows(permissions, area, level)` (`utilities/permissions.ts`) is
+  the check on both sides: the bar leaves out a section someone can't
+  read, and a button that writes, like a run's Try again, shows only to
+  a role that may write. Hiding it is a courtesy; the route is the guard.
+- **A new area**, like `orders`, goes in `AREA_NAMES` and `AREAS`, its
+  routes name it, and each role in `roles` is given it: the `owner` has it
+  already, and a `member` doesn't until it's given a level there. Its
+  screen's section names it in `SECTIONS`.
+- **A new role**, like `technician`, goes in `TEAM_ROLES`, with its
+  areas in `roles` and its name on screen in `ROLE_NAMES`
+  (`components/dashboard/permissions.tsx`); then someone is listed with it
+  (`role: "technician"`). Nothing in the database changes.
+- **In a test**, routes read the team from `context.var.access`, and a
+  test hands its own (`testApi({ access })`), with its own `roles` when it
+  tests one, or logs someone in with `logInAs(api, email, role)`, which
+  lists them first, an `owner` unless it says.
 
 ### How a route fails
 
@@ -378,9 +415,8 @@ against `now` and `fromNow` from `time.ts`.
   and who sees them, and there's never a fifth, nor one per feature
   (features are folders in code):
   - **`public`**, the business's own data, whatever the app is built to
-    do: `pgTable(...)`. The users are here: they're the business's
-    customers and staff, whom its other tables point at
-    (`references(() => users.id)`).
+    do: `pgTable(...)`. The users are here: they're the business's team,
+    whom its other tables point at (`references(() => users.id)`).
   - **`auth`**, what lets someone in: the sessions and the API tokens:
     `auth.table(...)`. They're the most sensitive rows, since one is as
     good as a password, kept apart so a read-only role can be given
@@ -851,7 +887,7 @@ and most of a trace needs nothing from the code that runs in it:
   Railway's edge started (its `traceparent`), named for its route: a Hono
   app's by `traceRoutes` (`utilities/tracing.ts`), first in each app the
   server hands requests to, so `GET /api/workflows/runs/:id`, a page by its
-  path (`source/node.ts`) and the dashboard as `/dashboard/*`
+  path (`source/node.ts`) and the admin as `/admin/*`
   (`source/server.ts`). A route that answers many addresses with one
   handler, like a `*`, names itself with `nameRequest`. A request the MCP's
   tool makes of the API in-process is a span inside the MCP's.

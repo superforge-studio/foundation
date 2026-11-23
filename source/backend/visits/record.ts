@@ -251,7 +251,7 @@ export type ServerEvent = z.input<typeof server_event>
  * kept. One that isn't an event's shape is a bug where it's recorded, so
  * it throws, as a database that's down does. An event is never worth
  * failing a request over: where a person is waiting, catch what this
- * throws and log it, as `auth/routes.ts` does for `signed-up`.
+ * throws and log it.
  */
 export async function recordEvents(database: Database, events: ServerEvent[]) {
     const now = new Date()

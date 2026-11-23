@@ -10,10 +10,10 @@ without stopping to fix things as they go.
 
 **Only on a computer with a mouse** (`(hover: hover) and (pointer:
 fine)`): picking an element by touch is fiddly, and on a phone the
-toolbar covers too much. Nobody else sees it: a visitor, a customer who
-logs in, a phone or a tablet, and the prerender, which draws every page
-for a visitor, get nothing, and `/api/comments` refuses anyone who isn't
-internal (`internalOnly`).
+toolbar covers too much. Nobody else sees it: a visitor, a phone or a
+tablet, and the prerender, which draws every page for a visitor, get
+nothing, and `/api/comments` refuses anyone who isn't logged in, which
+only the team can be (`loggedIn`).
 
 ## How it works
 

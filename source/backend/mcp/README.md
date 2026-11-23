@@ -73,15 +73,20 @@ never handles a token.
   `GET` requests only (403 `read-only` otherwise), and `act` everything
   else. No token, whatever it allows, changes who can log in or ends
   anyone's session: those routes take `inBrowser` (403 `browser-only`).
-- **Only the business's own people can connect**, and a token stops
-  working the moment its person is taken off the team in
-  `backend/auth/access.ts`, since every request checks.
+- **And never more than their role.** Each route of the business's names
+  its area (`permitted`, `backend/auth/logged-in.ts`), and Claude reaches
+  it only as far as the person's role does (403 `not-permitted`, saying
+  the area and level it needed). `list_routes` leaves out the routes the
+  role can't reach, and says the area and level of each one it lists.
+- **Only the team can connect**, and a token stops working the moment
+  its person is taken off the team in `backend/auth/access.ts`, since
+  every request checks.
 
 ## The tools
 
 | Tool          | What it does                                                                            |
 | ------------- | --------------------------------------------------------------------------------------- |
-| `list_routes` | Every route under `/api`: its method and path                                           |
+| `list_routes` | The routes under `/api` the person's role reaches: method, path, and area and level     |
 | `call_api`    | Calls one, as the person, with a query and a JSON body, and answers its status and JSON |
 
 So every route a feature adds is a tool already. Changing many rows at

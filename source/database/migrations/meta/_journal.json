@@ -57,6 +57,13 @@
             "when": 1795456132960,
             "tag": "0007_analytics-visits-ip-address",
             "breakpoints": true
+        },
+        {
+            "idx": 8,
+            "version": "7",
+            "when": 1795457465082,
+            "tag": "0008_the-team",
+            "breakpoints": true
         }
     ]
 }

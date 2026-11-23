@@ -2,21 +2,29 @@ import { and, desc, eq, gt, sql } from "drizzle-orm"
 import type { Database } from "@/database"
 import { sessions, users } from "@/database/schema"
 import { now } from "@/database/time"
-import { type Access, listedInternal, roleFor } from "../auth/access"
+import {
+    type Access,
+    listedBySlug,
+    permissionsOf,
+    roleOf
+} from "../auth/access"
 
 /**
- * Everyone who can log in, newest first, for the dashboard's People
- * screen: who they are, their role, as access.ts gives it, whether they're
- * listed there as one of the business's own, when they joined and last
- * logged in, and how many browsers they're logged in on now.
+ * The team, for the dashboard's Team screen: everyone access.ts lists,
+ * and everyone it once did, who's deactivated, newest first, with their
+ * slug, address and name, whether the list has them now, with what role
+ * and what it lets them do in each area (both null once they're off it),
+ * when they were deactivated, joined and last logged in, and how many
+ * browsers they're logged in on now.
  */
 export async function listUsers(database: Database, access: Access) {
     const rows = await database
         .select({
             id: users.id,
+            slug: users.slug,
             email: users.email,
             name: users.name,
-            role: users.role,
+            deactivated_at: users.deactivated_at,
             created_at: users.created_at,
             logged_in_at: users.logged_in_at,
             // count() answers a bigint, which pg hands over as a string
@@ -29,12 +37,17 @@ export async function listUsers(database: Database, access: Access) {
         )
         .groupBy(users.id)
         .orderBy(desc(users.created_at))
-    return rows.map((row) => ({
-        ...row,
-        role: roleFor(access, row.email, row.role),
-        listed: listedInternal(access, row.email) !== undefined
-    }))
+    return rows.map((row) => {
+        const listed = listedBySlug(access, row.slug)
+        const role = listed === undefined ? null : roleOf(listed)
+        return {
+            ...row,
+            listed: listed !== undefined,
+            role,
+            permissions: role === null ? null : permissionsOf(access, role)
+        }
+    })
 }
 
-/** Someone on the People screen, as `listUsers` answers them. */
+/** Someone on the Team screen, as `listUsers` answers them. */
 export type ListedUser = Awaited<ReturnType<typeof listUsers>>[number]

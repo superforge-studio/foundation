@@ -132,9 +132,10 @@ most 1,000 characters, a number, a boolean or null. It's a row in
 
 **An event is never worth failing a request over.** `recordEvents` throws
 on an event that isn't one, which is a bug, and when the database is
-down: where a person is waiting, catch it and log it. The template's one,
-`signed-up`, is recorded when a login makes someone new
-(`recordSignUp` in `backend/auth/routes.ts`).
+down: where a person is waiting, catch it and log it. The template records
+none of its own, since only the team logs in: a feature a business adds,
+like booking, records its own (`recordEvents(database, [{ name: "booked",
+user_id }])`).
 
 ## Where a visitor is
 

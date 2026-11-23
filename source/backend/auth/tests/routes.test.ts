@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm"
 import { Hono } from "hono"
 import { expect, onTestFinished, test, vi } from "vitest"
+import { ACCESS, type Access } from "@/backend/auth/access"
 import type { ApiEnvironment } from "@/backend/context"
 import type { Infra } from "@/backend/infra"
 import { standInInfra } from "@/backend/infra"
@@ -18,6 +19,21 @@ import { sha256 } from "../tokens"
 // session, by the code and by the link, and out again
 
 const EMAIL = "ada@example.com"
+
+// The team here: Ada, who logs in, with this app's roles
+const ADA = {
+    slug: "ada",
+    first_name: "Ada",
+    last_name: "Lovelace",
+    email: "Ada@Example.com",
+    role: "owner" as const
+}
+const TEAM: Access = { internal_users: [ADA], roles: ACCESS.roles }
+
+// The whole API with Ada on the team, and anything in `replacing`
+function teamApi(replacing: Parameters<typeof testApi>[0] = {}) {
+    return testApi({ access: TEAM, ...replacing })
+}
 
 // The `session` cookie a response set, as a request sends it back
 function sessionCookie(response: Response) {
@@ -46,7 +62,7 @@ async function emailed(
 
 test("logs in with the emailed code, making the user, and the session says who", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client, database } = await testApi()
+    const { client, database } = await teamApi()
     const { code } = await emailed(client)
 
     const verified = await client.api.auth.verify.$post({
@@ -69,7 +85,7 @@ test("logs in with the emailed code, making the user, and the session says who",
 
 test("the session's cookie is kept from scripts and other sites", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const { code } = await emailed(client)
     const verified = await client.api.auth.verify.$post({
         json: { email: EMAIL, code }
@@ -86,7 +102,7 @@ test("a build never answers the code, whatever Infra says", async () => {
     onTestFinished(() => {
         vi.unstubAllEnvs()
     })
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const response = await client.api.auth.start.$post({
         json: { email: EMAIL }
     })
@@ -98,7 +114,7 @@ test("a build never answers the code, whatever Infra says", async () => {
 
 test("logs in with the email's link", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const { token } = await emailed(client)
     const verified = await client.api.auth.verify.$post({ json: { token } })
     expect(verified.status).toBe(200)
@@ -109,7 +125,7 @@ test("logs in with the email's link", async () => {
 
 test("the address is trimmed and lowercased, so it's one user however it's typed", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client, database } = await testApi()
+    const { client, database } = await teamApi()
     for (const typed of [" Ada@Example.com ", "ada@example.com"]) {
         const { code } = await emailed(client, typed)
         const verified = await client.api.auth.verify.$post({
@@ -122,7 +138,7 @@ test("the address is trimmed and lowercased, so it's one user however it's typed
 
 test("logging in again ends this browser's last session", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client, database } = await testApi()
+    const { client, database } = await teamApi()
     const first = await emailed(client)
     const before = await client.api.auth.verify.$post({
         json: { email: EMAIL, code: first.code }
@@ -143,7 +159,7 @@ test("logging in again ends this browser's last session", async () => {
 
 test("a wrong code says how many tries are left, and the right one still works", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const { code } = await emailed(client)
     const wrong = code === "000000" ? "111111" : "000000"
 
@@ -163,7 +179,7 @@ test("a wrong code says how many tries are left, and the right one still works",
 
 test("a spent link is refused", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const { token } = await emailed(client)
     await client.api.auth.verify.$post({ json: { token } })
     const again = await client.api.auth.verify.$post({ json: { token } })
@@ -172,7 +188,7 @@ test("a spent link is refused", async () => {
 })
 
 test("an address that isn't one is refused before Infra is asked", async () => {
-    const { client } = await testApi()
+    const { client } = await teamApi()
     const response = await client.api.auth.start.$post({
         json: { email: "not an address" }
     })
@@ -202,7 +218,7 @@ function refusing(
 }
 
 test("Infra's limits are answered 429, with when to ask again", async () => {
-    const { client } = await testApi({
+    const { client } = await teamApi({
         infra: refusing({
             ok: false,
             error: {
@@ -229,20 +245,21 @@ test("why Infra failed reaches the business's own people and a dev server, never
     })
     const cause =
         "No one can log in: INFRA_SECRET_KEY isn't set on the app's service in Railway."
-    const { client } = await testApi({
+    const { client } = await teamApi({
         infra: refusing(
             { ok: false, error: { reason: "unavailable", message: cause } },
             { ok: false, error: { reason: "unavailable", message: cause } }
         ),
         access: {
-            login: "anyone",
             internal_users: [
                 {
+                    slug: "grace",
                     first_name: "Grace",
                     last_name: "Hopper",
                     email: "grace@example.com"
                 }
-            ]
+            ],
+            roles: ACCESS.roles
         }
     })
     async function failed(response: Response | { json(): Promise<unknown> }) {
@@ -265,9 +282,9 @@ test("why Infra failed reaches the business's own people and a dev server, never
     })
     expect((await failed(team_code)).cause).toBe(cause)
 
-    // A visitor isn't, nor is a link, which names no one in a build
-    const visitor = await client.api.auth.start.$post({
-        json: { email: EMAIL }
+    // Nor is anyone else, nor a link, which names no one in a build
+    const visitor = await client.api.auth.verify.$post({
+        json: { email: EMAIL, code: "123456" }
     })
     expect((await failed(visitor)).cause).toBeUndefined()
     const link = await client.api.auth.verify.$post({
@@ -277,14 +294,14 @@ test("why Infra failed reaches the business's own people and a dev server, never
 
     // A dev server tells whoever's there
     vi.stubEnv("DEV", true)
-    const developer = await client.api.auth.start.$post({
-        json: { email: EMAIL }
+    const developer = await client.api.auth.verify.$post({
+        json: { email: EMAIL, code: "123456" }
     })
     expect((await failed(developer)).cause).toBe(cause)
 })
 
 test("an email that didn't go out is 502, and an Infra that can't be asked 503", async () => {
-    const not_sent = await testApi({
+    const not_sent = await teamApi({
         infra: refusing({
             ok: false,
             error: { reason: "not-sent", message: "Resend refused it." }
@@ -295,7 +312,7 @@ test("an email that didn't go out is 502, and an Infra that can't be asked 503",
     })
     expect(response.status).toBe(502)
 
-    const down = await testApi({
+    const down = await teamApi({
         infra: refusing({
             ok: false,
             error: { reason: "unavailable", message: "Infra is down." }
@@ -316,7 +333,7 @@ test("an email that didn't go out is 502, and an Infra that can't be asked 503",
 
 test("logging out ends the session and clears the cookie", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const { client, database } = await testApi()
+    const { client, database } = await teamApi()
     const { code } = await emailed(client)
     const verified = await client.api.auth.verify.$post({
         json: { email: EMAIL, code }
@@ -335,7 +352,7 @@ test("logging out ends the session and clears the cookie", async () => {
         {},
         { headers: { cookie } }
     )
-    expect(await session.json()).toEqual({ user: null })
+    expect(await session.json()).toEqual({ user: null, permissions: null })
 })
 
 // A user logged in through the API, with their session's cookie
@@ -358,19 +375,19 @@ async function expiresIn(database: Database, token_hash: string, days: number) {
 
 test("a session that has run out logs no one in", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi()
+    const api = await teamApi()
     const { cookie, token_hash } = await loggedInUser(api)
     await expiresIn(api.database, token_hash, -1)
     const session = await api.client.api.auth.session.$get(
         {},
         { headers: { cookie } }
     )
-    expect(await session.json()).toEqual({ user: null })
+    expect(await session.json()).toEqual({ user: null, permissions: null })
 })
 
 test("a session in use is renewed for its whole lifetime, at most once a day", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi()
+    const api = await teamApi()
     const { cookie, token_hash } = await loggedInUser(api)
 
     // Just started: nothing to renew
@@ -395,23 +412,26 @@ test("a session in use is renewed for its whole lifetime, at most once a day", a
 
 test("loggedIn lets a live session through with its user, and answers 401 without one", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi()
+    const api = await teamApi()
     const { cookie } = await loggedInUser(api)
 
-    // A route of the test's own behind it, on the same database, with who
-    // is internal, which the middleware reads each user's role through
+    // A route of the test's own behind it, on the same database, with the
+    // team, which the middleware reads each user's names and role from
     const app = new Hono<ApiEnvironment>()
         .use(async (context, next) => {
             context.set("database", api.database)
-            context.set("access", { login: "anyone", internal_users: [] })
+            context.set("access", TEAM)
             await next()
         })
         .get("/private", loggedIn, (context) =>
-            context.json({ email: context.var.user.email })
+            context.json({
+                email: context.var.user.email,
+                role: context.var.user.role
+            })
         )
 
     const allowed = await app.request("/private", { headers: { cookie } })
-    expect(await allowed.json()).toEqual({ email: EMAIL })
+    expect(await allowed.json()).toEqual({ email: EMAIL, role: "owner" })
 
     const refused = await app.request("/private")
     expect(refused.status).toBe(401)
@@ -420,114 +440,81 @@ test("loggedIn lets a live session through with its user, and answers 401 withou
     )
 })
 
-test("someone new is external, and their sign-up queues the notice to the team, once", async () => {
+test("someone listed logs in with the names and role the list gives, and their first login tells the rest of the team, once", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi()
+    const api = await teamApi()
     for (let time = 0; time < 2; time++) {
         const { code } = await emailed(api.client)
-        await api.client.api.auth.verify.$post({ json: { email: EMAIL, code } })
+        const verified = await api.client.api.auth.verify.$post(
+            { json: { email: EMAIL, code } },
+            { headers: { "User-Agent": "Test browser" } }
+        )
+        expect(verified.status).toBe(200)
+        if (verified.status === 200) {
+            expect((await verified.json()).user).toMatchObject({
+                slug: "ada",
+                email: EMAIL,
+                name: "Ada Lovelace",
+                first_name: "Ada",
+                last_name: "Lovelace",
+                role: "owner"
+            })
+        }
     }
     const [user] = await api.database.select().from(users)
-    expect(user?.role).toBe("external")
-    // `user-signed-up`, queued in the login's own transaction, named for
-    // them, and the notice is on it
+    const [session] = await api.database.select().from(sessions)
+    expect(session?.user_agent).toBe("Test browser")
+    // `user-added`, queued in the login's own transaction, since no
+    // server's start had made them yet, named for them, so once
     expect(await api.queued()).toEqual([
         {
-            workflow: "tell-team-of-sign-up",
+            workflow: "tell-team-of-new-member",
             input: { user_id: user?.id, email: EMAIL },
-            id: `tell-team-of-sign-up-${user?.id}`,
+            id: `tell-team-of-new-member-${user?.id}`,
             queue: "background"
         }
     ])
     expect(api.started).toEqual([])
 })
 
-test("someone listed as internal is internal from their first login, with their listed name, and no sign-up", async () => {
+test("only the list lets anyone in: taken off it, someone is logged out at their next request, and listed again, back", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi({
-        access: {
-            login: "anyone",
-            internal_users: [
-                {
-                    first_name: "Ada",
-                    last_name: "Lovelace",
-                    email: "Ada@Example.com"
-                }
-            ]
-        }
-    })
-    const { code } = await emailed(api.client)
-    const verified = await api.client.api.auth.verify.$post(
-        { json: { email: EMAIL, code } },
-        { headers: { "User-Agent": "Test browser" } }
-    )
-    expect(verified.status).toBe(200)
-    if (verified.status === 200) {
-        expect((await verified.json()).user).toMatchObject({
-            email: EMAIL,
-            name: "Ada Lovelace",
-            role: "internal"
-        })
-    }
-    const [session] = await api.database.select().from(sessions)
-    expect(session?.user_agent).toBe("Test browser")
-    // One of the business's own isn't a sign-up: no notice about them
-    expect(await api.queued()).toEqual([])
-})
-
-test("only the list makes anyone internal: taken off it, or made internal by hand, someone is external from their next request", async () => {
-    vi.spyOn(console, "info").mockImplementation(() => {})
-    const api = await testApi()
-    api.internal_users.push({
-        first_name: "Ada",
-        last_name: "Lovelace",
-        email: EMAIL
-    })
-    const { code } = await emailed(api.client)
-    const verified = await api.client.api.auth.verify.$post({
-        json: { email: EMAIL, code }
-    })
-    const cookie = sessionCookie(verified) ?? ""
+    const api = await teamApi()
+    const { cookie } = await loggedInUser(api)
     const headers = { headers: { cookie } }
     expect((await api.client.api.users.$get({}, headers)).status).toBe(200)
 
-    // Taken off the list: the same session is external at once
-    api.internal_users.splice(0)
-    const refused = await api.client.api.users.$get({}, headers)
-    expect(refused.status).toBe(403)
+    // Taken off the list: the same session is no one's at once
+    const listed = api.internal_users.splice(0)
+    expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
     const session = await api.client.api.auth.session.$get({}, headers)
-    expect((await session.json()).user).toMatchObject({ role: "external" })
+    expect(await session.json()).toEqual({ user: null, permissions: null })
 
-    // Made internal in the database by hand: still external
-    await api.database
-        .update(users)
-        .set({ role: "internal" })
-        .where(eq(users.email, EMAIL))
-    expect((await api.client.api.users.$get({}, headers)).status).toBe(403)
-
-    // And logging in again writes the role the list gives
-    const again = await emailed(api.client)
-    await api.client.api.auth.verify.$post({
-        json: { email: EMAIL, code: again.code }
-    })
-    const [user] = await api.database
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.email, EMAIL))
-    expect(user?.role).toBe("external")
+    // Listed again, with the same slug: the same session counts again
+    api.internal_users.push(...listed)
+    expect((await api.client.api.users.$get({}, headers)).status).toBe(200)
 })
 
-test("when only listed people may log in, anyone else is refused before Infra is asked", async () => {
+test("a session whose person was deactivated logs no one in, even while they're listed", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await teamApi()
+    const { cookie } = await loggedInUser(api)
+    await api.database
+        .update(users)
+        .set({ deactivated_at: new Date() })
+        .where(eq(users.slug, "ada"))
+    const session = await api.client.api.auth.session.$get(
+        {},
+        { headers: { cookie } }
+    )
+    expect((await session.json()).user).toBeNull()
+})
+
+test("anyone not on the team is refused before Infra is asked, so nothing is emailed to them", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const asked: string[] = []
     const stand_in = standInInfra()
-    const api = await testApi({
-        access: {
-            login: "listed",
-            internal_users: [
-                { first_name: "Ada", last_name: "Lovelace", email: EMAIL }
-            ]
-        },
+    const api = await teamApi({
         infra: {
             ...stand_in,
             startLogin: async (request) => {
@@ -548,23 +535,31 @@ test("when only listed people may log in, anyone else is refused before Infra is
     )
     expect(asked).toEqual([])
 
-    // The owner, listed as internal, logs in and is made
+    // Ada, on the team, logs in
     const { code } = await emailed(api.client)
-    const owner = await api.client.api.auth.verify.$post({
+    const ada = await api.client.api.auth.verify.$post({
         json: { email: EMAIL, code }
     })
-    expect(owner.status).toBe(200)
+    expect(ada.status).toBe(200)
+    expect(asked).toEqual([EMAIL])
+})
 
-    // Someone they add can log in too, as what they were added as
-    await api.database
-        .insert(users)
-        .values({ email: "grace@example.com", role: "external" })
-    const added = await emailed(api.client, "grace@example.com")
-    const verified = await api.client.api.auth.verify.$post({
-        json: { email: "grace@example.com", code: added.code }
+test("the session says what its person may do in each area", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await teamApi({
+        access: {
+            internal_users: [{ ...ADA, role: "member" }],
+            roles: { owner: "everything", member: { workflows: "read" } }
+        }
     })
-    expect(verified.status).toBe(200)
-    expect(asked).toEqual([EMAIL, "grace@example.com"])
-    // Neither joined by logging in, so no notice went out
-    expect(await api.queued()).toHaveLength(0)
+    const { cookie } = await loggedInUser(api)
+    const session = await api.client.api.auth.session.$get(
+        {},
+        { headers: { cookie } }
+    )
+    expect((await session.json()).permissions).toEqual({
+        team: "none",
+        workflows: "read",
+        jobs: "none"
+    })
 })

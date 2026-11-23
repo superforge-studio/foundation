@@ -16,6 +16,11 @@ export const failure_details = z.object({
     // seconds until asking again can work, which its Retry-After header says
     // too
     retry_after: z.number().optional(),
+    // For "not-permitted": the area of the app the route is in, and the
+    // level of it the route needed, which the person's role doesn't reach
+    // (utilities/permissions.ts)
+    area: z.string().optional(),
+    level: z.string().optional(),
     // Why it failed, in plain words, from whatever refused, like Infra's
     // message, with what fixes it: only ever for the business's own people
     // or a dev server, never a visitor, since it can name the app's keys

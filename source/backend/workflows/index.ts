@@ -1,5 +1,8 @@
 import { JOBS } from "@/backend/jobs"
-import { tellTeamOfSignUp } from "@/backend/users/workflows"
+import {
+    tellTeamOfNewMember,
+    tellTeamOfSignUp
+} from "@/backend/users/workflows"
 import { pruneAnalyticsRunner } from "@/backend/visits/prune"
 import { pruneWebhookDeliveries } from "@/backend/webhooks/workflows"
 import type { Workflow } from "./define"
@@ -19,6 +22,9 @@ import type { Runner } from "./runners"
  * "Changing a workflow").
  */
 export const WORKFLOWS: Workflow[] = [
+    tellTeamOfNewMember,
+    // Until the next release: nothing starts it now, but a copy's runs may
+    // still be in flight
     tellTeamOfSignUp,
     // Each hour, the webhooks older than they're kept (backend/webhooks/)
     pruneWebhookDeliveries,

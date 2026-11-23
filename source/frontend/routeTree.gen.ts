@@ -10,22 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAccountRouteImport } from './routes/admin/account'
+import { Route as AdminTeamRouteImport } from './routes/admin/team'
+import { Route as AdminWorkflowsRouteImport } from './routes/admin/workflows'
 import { Route as ConnectRequest_idRouteImport } from './routes/connect.$request_id'
-import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
-import { Route as DashboardPeopleRouteImport } from './routes/dashboard/people'
-import { Route as DashboardWorkflowsRouteImport } from './routes/dashboard/workflows'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRouteRoute = DashboardRouteRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -33,97 +33,97 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAccountRoute = AdminAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminTeamRoute = AdminTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ConnectRequest_idRoute = ConnectRequest_idRouteImport.update({
   id: '/connect/$request_id',
   path: '/connect/$request_id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardIndexRoute = DashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardAccountRoute = DashboardAccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardPeopleRoute = DashboardPeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
-const DashboardWorkflowsRoute = DashboardWorkflowsRouteImport.update({
-  id: '/workflows',
-  path: '/workflows',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/team': typeof AdminTeamRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
-  '/dashboard/account': typeof DashboardAccountRoute
-  '/dashboard/people': typeof DashboardPeopleRoute
-  '/dashboard/workflows': typeof DashboardWorkflowsRoute
-  '/dashboard/': typeof DashboardIndexRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/team': typeof AdminTeamRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
-  '/dashboard/account': typeof DashboardAccountRoute
-  '/dashboard/people': typeof DashboardPeopleRoute
-  '/dashboard/workflows': typeof DashboardWorkflowsRoute
-  '/dashboard': typeof DashboardIndexRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/admin/account': typeof AdminAccountRoute
+  '/admin/team': typeof AdminTeamRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
-  '/dashboard/account': typeof DashboardAccountRoute
-  '/dashboard/people': typeof DashboardPeopleRoute
-  '/dashboard/workflows': typeof DashboardWorkflowsRoute
-  '/dashboard/': typeof DashboardIndexRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/dashboard'
+    | '/admin'
     | '/login'
+    | '/admin/account'
+    | '/admin/team'
+    | '/admin/workflows'
     | '/connect/$request_id'
-    | '/dashboard/account'
-    | '/dashboard/people'
-    | '/dashboard/workflows'
-    | '/dashboard/'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/admin/account'
+    | '/admin/team'
+    | '/admin/workflows'
     | '/connect/$request_id'
-    | '/dashboard/account'
-    | '/dashboard/people'
-    | '/dashboard/workflows'
-    | '/dashboard'
+    | '/admin'
   id:
     | '__root__'
     | '/'
-    | '/dashboard'
+    | '/admin'
     | '/login'
+    | '/admin/account'
+    | '/admin/team'
+    | '/admin/workflows'
     | '/connect/$request_id'
-    | '/dashboard/account'
-    | '/dashboard/people'
-    | '/dashboard/workflows'
-    | '/dashboard/'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   ConnectRequest_idRoute: typeof ConnectRequest_idRoute
 }
@@ -137,11 +137,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -151,6 +151,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/account': {
+      id: '/admin/account'
+      path: '/account'
+      fullPath: '/admin/account'
+      preLoaderRoute: typeof AdminAccountRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/team': {
+      id: '/admin/team'
+      path: '/team'
+      fullPath: '/admin/team'
+      preLoaderRoute: typeof AdminTeamRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/workflows': {
+      id: '/admin/workflows'
+      path: '/workflows'
+      fullPath: '/admin/workflows'
+      preLoaderRoute: typeof AdminWorkflowsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/connect/$request_id': {
       id: '/connect/$request_id'
       path: '/connect/$request_id'
@@ -158,58 +186,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRequest_idRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/': {
-      id: '/dashboard/'
-      path: '/'
-      fullPath: '/dashboard/'
-      preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/account': {
-      id: '/dashboard/account'
-      path: '/account'
-      fullPath: '/dashboard/account'
-      preLoaderRoute: typeof DashboardAccountRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/people': {
-      id: '/dashboard/people'
-      path: '/people'
-      fullPath: '/dashboard/people'
-      preLoaderRoute: typeof DashboardPeopleRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
-    '/dashboard/workflows': {
-      id: '/dashboard/workflows'
-      path: '/workflows'
-      fullPath: '/dashboard/workflows'
-      preLoaderRoute: typeof DashboardWorkflowsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
   }
 }
 
-interface DashboardRouteRouteChildren {
-  DashboardAccountRoute: typeof DashboardAccountRoute
-  DashboardPeopleRoute: typeof DashboardPeopleRoute
-  DashboardWorkflowsRoute: typeof DashboardWorkflowsRoute
-  DashboardIndexRoute: typeof DashboardIndexRoute
+interface AdminRouteRouteChildren {
+  AdminAccountRoute: typeof AdminAccountRoute
+  AdminTeamRoute: typeof AdminTeamRoute
+  AdminWorkflowsRoute: typeof AdminWorkflowsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
-const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
-  DashboardAccountRoute: DashboardAccountRoute,
-  DashboardPeopleRoute: DashboardPeopleRoute,
-  DashboardWorkflowsRoute: DashboardWorkflowsRoute,
-  DashboardIndexRoute: DashboardIndexRoute,
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAccountRoute: AdminAccountRoute,
+  AdminTeamRoute: AdminTeamRoute,
+  AdminWorkflowsRoute: AdminWorkflowsRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
-const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
-  DashboardRouteRouteChildren,
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   ConnectRequest_idRoute: ConnectRequest_idRoute,
 }

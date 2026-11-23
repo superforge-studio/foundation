@@ -32,17 +32,16 @@ export default defineConfig({
                 generatedRouteTree: "frontend/routeTree.gen.ts"
             },
             // Every page is written out as HTML at build time, found by
-            // following links from the home page, but the dashboard and
+            // following links from the home page, but the admin and
             // Claude's Allow page (/connect/…), which are drawn in the
-            // browser for whoever's logged in. Only /api,
-            // the dashboard and anything that isn't a page run on request
-            // (source/server.ts).
+            // browser for whoever's logged in. Only /api, the admin and
+            // anything that isn't a page run on request (source/server.ts).
             prerender: {
                 enabled: true,
                 crawlLinks: true,
                 filter: ({ path }) =>
-                    path !== "/dashboard" &&
-                    !path.startsWith("/dashboard/") &&
+                    path !== "/admin" &&
+                    !path.startsWith("/admin/") &&
                     !path.startsWith("/connect/")
             },
             // And /login, whatever links to it: the email's link lands

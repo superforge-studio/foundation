@@ -81,7 +81,10 @@ async function userNamed(
     database: Awaited<ReturnType<typeof testDatabase>>,
     email: string
 ) {
-    const [user] = await database.insert(users).values({ email }).returning()
+    const [user] = await database
+        .insert(users)
+        .values({ slug: email.split("@")[0] ?? email, email })
+        .returning()
     if (user === undefined) {
         throw new Error("The test's user wasn't made")
     }
@@ -379,7 +382,7 @@ test("a visitor who logs in during a visit is on it from then on", async () => {
     await recordVisit(context, batch([event("view", 5 * MINUTE, "/login")]))
     await recordVisit(
         context,
-        batch([event("view", MINUTE, "/dashboard")], { user_id: ada.id })
+        batch([event("view", MINUTE, "/admin")], { user_id: ada.id })
     )
 
     const { visits, events } = await kept(context.database)

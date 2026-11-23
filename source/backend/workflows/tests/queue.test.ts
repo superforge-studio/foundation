@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test } from "vitest"
 import { z } from "zod"
-import { tellTeamOfSignUp } from "@/backend/users/workflows"
+import { tellTeamOfNewMember } from "@/backend/users/workflows"
 import { users } from "@/database/schema"
 import { Storage } from "@/database/storage"
 import { testDatabase } from "@/database/tests/support/database"
@@ -22,11 +22,11 @@ const welcome = defineWorkflow({
     run: async () => null
 })
 
-// Two more on the sign-up, one of them quiet, beside the template's notice
-const syncSignUp = defineWorkflow({
-    name: "sync-sign-up",
+// Two more on someone new, one of them quiet, beside the template's notice
+const syncNewMember = defineWorkflow({
+    name: "sync-new-member",
     input: z.object({ user_id: z.uuid() }),
-    on: ["user-signed-up"],
+    on: ["user-added"],
     quiet: true,
     run: async () => null
 })
@@ -43,7 +43,7 @@ beforeEach(async () => {
         database: await testDatabase(),
         storage: new Storage(memoryStore().store),
         database_url: "postgres://unused",
-        workflows: [tellTeamOfSignUp, welcome, syncSignUp]
+        workflows: [tellTeamOfNewMember, welcome, syncNewMember]
     }
     workflowsProcess().dependencies = dependencies
 })
@@ -58,7 +58,7 @@ test("a run is queued with its transaction, and not when it rolls back", async (
     await database.transaction(async (transaction) => {
         await transaction
             .insert(users)
-            .values({ id: user_id, email: "ada@example.com" })
+            .values({ id: user_id, slug: "ada", email: "ada@example.com" })
         await queueWorkflow(
             transaction,
             welcome,
@@ -73,7 +73,7 @@ test("a run is queued with its transaction, and not when it rolls back", async (
         database.transaction(async (transaction) => {
             await transaction
                 .insert(users)
-                .values({ email: "grace@example.com" })
+                .values({ slug: "grace", email: "grace@example.com" })
             await queueWorkflow(transaction, welcome, {
                 user_id: crypto.randomUUID()
             })
@@ -117,7 +117,9 @@ test("input that doesn't fit, or a workflow nothing runs, throws and rolls the w
     const database = await testDatabase()
     await expect(
         database.transaction(async (transaction) => {
-            await transaction.insert(users).values({ email: "ada@example.com" })
+            await transaction
+                .insert(users)
+                .values({ slug: "ada", email: "ada@example.com" })
             await queueWorkflow(transaction, welcome, { user_id: "not-a-uuid" })
         })
     ).rejects.toThrow()
@@ -134,21 +136,21 @@ test("an event queues each workflow on it, named for the event, once", async () 
     const user_id = crypto.randomUUID()
     const event = { user_id, email: "ada@example.com" }
 
-    const queued = await queueEvent(database, "user-signed-up", event, {
+    const queued = await queueEvent(database, "user-added", event, {
         id: user_id
     })
     expect(queued).toEqual([
-        `tell-team-of-sign-up-${user_id}`,
-        `sync-sign-up-${user_id}`
+        `tell-team-of-new-member-${user_id}`,
+        `sync-new-member-${user_id}`
     ])
     // The same event again finds the runs already there
-    await queueEvent(database, "user-signed-up", event, { id: user_id })
+    await queueEvent(database, "user-added", event, { id: user_id })
 
     // Each with the event's data, as far as its input takes it
     const runs = await queuedRuns(database)
     expect(runs.map((run) => [run.workflow, run.input])).toEqual([
-        ["tell-team-of-sign-up", event],
-        ["sync-sign-up", { user_id }]
+        ["tell-team-of-new-member", event],
+        ["sync-new-member", { user_id }]
     ])
 })
 
@@ -159,7 +161,7 @@ test("an event no workflow is on writes nothing", async () => {
         workflowsProcess().dependencies = { ...known, workflows: [welcome] }
     }
     expect(
-        await queueEvent(database, "user-signed-up", {
+        await queueEvent(database, "user-added", {
             user_id: crypto.randomUUID(),
             email: "ada@example.com"
         })

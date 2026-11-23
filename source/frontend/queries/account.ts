@@ -3,7 +3,6 @@ import type { InferResponseType } from "hono/client"
 import { client } from "@/backend/client"
 import type { AgentScope } from "@/utilities/schemas/agents"
 import type { ApiTokenLifetime } from "@/utilities/schemas/api-tokens"
-import { sessionQuery } from "./auth"
 import { FailedRequest, readFailure } from "./failures"
 
 // The logged-in person's own account (backend/account/routes.ts): what
@@ -26,24 +25,6 @@ export const accountSessionsQuery = queryOptions({
         } else {
             throw new FailedRequest(await readFailure(response))
         }
-    }
-})
-
-/** Setting or clearing their name, which every page's session then shows. */
-export const renameAccount = mutationOptions({
-    mutationKey: ["account", "rename"],
-    mutationFn: async (input: { name: string | null }) => {
-        const response = await client.api.account.$patch({ json: input })
-        if (response.status === 200) {
-            return await response.json()
-        } else {
-            throw new FailedRequest(await readFailure(response))
-        }
-    },
-    onSuccess: async (_data, _input, _result, context) => {
-        await context.client.invalidateQueries({
-            queryKey: sessionQuery.queryKey
-        })
     }
 })
 

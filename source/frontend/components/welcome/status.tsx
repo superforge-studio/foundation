@@ -152,7 +152,7 @@ export function storageStatus(): Status {
     }
 }
 
-export function dashboardStatus(): Status {
+export function adminStatus(): Status {
     return {
         tone: "fact",
         label: "Behind login",

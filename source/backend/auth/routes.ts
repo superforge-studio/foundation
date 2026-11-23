@@ -1,11 +1,8 @@
 import { type Context, Hono } from "hono"
-import type { Database } from "@/database"
 import { login_start, login_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
-import { keptVisitorId } from "../visits/cookies"
-import { recordEvents } from "../visits/record"
-import { listedInternal } from "./access"
+import { listedInternal, permissionsOf } from "./access"
 import {
     clearSessionCookie,
     maybeLoggedIn,
@@ -21,36 +18,41 @@ import { appOrigin, visitorBrowser, visitorIp } from "./visitor"
 // to the business's own people (`forTheTeam`)
 const UNAVAILABLE = "Login isn't working right now. Try again soon."
 
-// What someone hears when only listed people may log in, and they aren't
-// (access.ts)
+// What someone hears when the team doesn't have them (access.ts)
 const NOT_LISTED =
-    "This address can't log in here. Ask whoever runs this site to add you."
+    "This address can't log in here. Ask whoever runs this app to add you to the team."
 
 /**
  * Logging in, under /api/auth, with no password: Infra emails a six-digit
  * code and a link, and says whose email the code or the link is when the
- * visitor brings one back (backend/infra/). The app keeps the user and the
- * session. Starting and verifying take JSON, which a form on another site
+ * visitor brings one back (backend/infra/). Only the team logs in, as
+ * access.ts lists them, and the app keeps their user and their session. Starting and verifying take JSON, which a form on another site
  * can't send; logging out takes no body, and the API refuses another
  * site's form (`csrf()` in index.ts). The cookie is SameSite=Lax, so
  * another site's page can't act as anyone (logged-in.ts).
  */
 export const authRoutes = new Hono<ApiEnvironment>()
-    // Who's logged in, or null for a visitor: what every page asks
+    // Who's logged in, and what they may do in each area, or null for a
+    // visitor: what every page asks, so the dashboard leaves out what
+    // someone can't use
     .get("/auth/session", maybeLoggedIn, (context) =>
-        context.json({ user: context.var.user }, 200)
+        context.json(
+            {
+                user: context.var.user,
+                permissions: context.var.permissions
+            },
+            200
+        )
     )
 
     // Emails the code, and the link back to /login when this is one of
     // the project's domains. In a dev server, which emails nothing, the
-    // answer holds the code and the link for the page to show. When only
-    // listed people may log in, anyone else is refused before Infra is
-    // asked, so nothing is emailed to them.
+    // answer holds the code and the link for the page to show. Anyone not
+    // on the team is refused before Infra is asked, so nothing is emailed
+    // to them.
     .post("/auth/start", validated("json", login_start), async (context) => {
         const { email } = context.req.valid("json")
-        if (
-            !(await mayLogIn(context.var.database, context.var.access, email))
-        ) {
+        if (!mayLogIn(context.var.access, email)) {
             return failure(context, 403, "not-listed", NOT_LISTED)
         }
         const started = await context.var.infra.startLogin({
@@ -126,16 +128,16 @@ export const authRoutes = new Hono<ApiEnvironment>()
             if (!logged_in.ok) {
                 return failure(context, 403, logged_in.error, NOT_LISTED)
             }
-            const { user, token, joined } = logged_in.data
+            const { user, token } = logged_in.data
             setSessionCookie(context, token)
-            console.info("Logged in", { user_id: user.id, joined })
-            if (joined) {
-                await recordSignUp(context.var.database, {
-                    user_id: user.id,
-                    visitor_id: keptVisitorId(context) ?? undefined
-                })
-            }
-            return context.json({ user }, 200)
+            console.info("Logged in", { user_id: user.id })
+            return context.json(
+                {
+                    user,
+                    permissions: permissionsOf(context.var.access, user.role)
+                },
+                200
+            )
         }
 
         const refused = verified.error
@@ -183,25 +185,6 @@ export const authRoutes = new Hono<ApiEnvironment>()
         clearSessionCookie(context)
         return context.json({ logged_out: true as const }, 200)
     })
-
-// Records that someone new has signed up, as a `signed-up` event with their
-// user's ID, and their browser's when the site remembers it, which joins
-// the sign-up to the visits that led to it (backend/visits/README.md). One
-// that fails is logged and leaves them logged in: an event is never worth
-// failing a request over.
-async function recordSignUp(
-    database: Database,
-    who: { user_id: string; visitor_id: string | undefined }
-) {
-    try {
-        await recordEvents(database, [{ name: "signed-up", ...who }])
-    } catch (error) {
-        console.error("The sign-up's event wasn't recorded", {
-            user_id: who.user_id,
-            error
-        })
-    }
-}
 
 /**
  * Why login failed, in Infra's words or its package's, as `cause`, for

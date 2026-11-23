@@ -1,10 +1,8 @@
 import { Hono } from "hono"
 import { z } from "zod"
 import { api_token_creation } from "@/utilities/schemas/api-tokens"
-import { account_change } from "@/utilities/schemas/users"
-import { listedInternal } from "../auth/access"
 import { listApiTokens, makeApiToken, revokeApiToken } from "../auth/api-tokens"
-import { inBrowser, internalOnly, loggedIn } from "../auth/logged-in"
+import { inBrowser, loggedIn } from "../auth/logged-in"
 import {
     endOtherSessions,
     endSessionById,
@@ -12,7 +10,6 @@ import {
 } from "../auth/sessions"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
-import { renameUser } from "./rename"
 
 // A session's id in a path: the start of its token's hash
 // (auth/sessions.ts's `sessionId`)
@@ -23,37 +20,13 @@ const api_token_path = z.object({ id: z.uuid() })
 
 /**
  * The logged-in person's own account, under /api/account, whatever their
- * role: what they're called, and the browsers they're logged in on, with
- * logging out of the others, and for one of the business's own, their API
- * tokens. Their address is who they are, so it doesn't change here, and
- * neither does the name of one of the business's own, which is the one
- * they're listed with in code (auth/access.ts). Where they're logged in,
- * and their tokens, are a browser's to see and change, never a token's
- * (`inBrowser`), so a token that leaks can't make another.
+ * role: the browsers they're logged in on, with logging out of the others,
+ * and their API tokens. Their name and address are the ones they're listed
+ * with in code (auth/access.ts), so they change there, not here. Where
+ * they're logged in, and their tokens, are a browser's to see and change,
+ * never a token's (`inBrowser`), so a token that leaks can't make another.
  */
 export const accountRoutes = new Hono<ApiEnvironment>()
-    .patch(
-        "/account",
-        loggedIn,
-        validated("json", account_change),
-        async (context) => {
-            if (listedInternal(context.var.access, context.var.user.email)) {
-                return failure(
-                    context,
-                    409,
-                    "listed",
-                    "Your name is the one you're listed with in the app's code, so it changes there"
-                )
-            }
-            const renamed = await renameUser(
-                context.var.database,
-                context.var.user.id,
-                context.req.valid("json").name
-            )
-            return context.json({ name: renamed?.name ?? null }, 200)
-        }
-    )
-
     // Where they're logged in, this browser's session marked as current
     .get("/account/sessions", loggedIn, inBrowser, async (context) => {
         const sessions = await listSessions(
@@ -121,7 +94,7 @@ export const accountRoutes = new Hono<ApiEnvironment>()
     )
 
     // Their API tokens, newest first, never the tokens themselves
-    .get("/account/tokens", internalOnly, inBrowser, async (context) => {
+    .get("/account/tokens", loggedIn, inBrowser, async (context) => {
         const tokens = await listApiTokens(
             context.var.database,
             context.var.user.id
@@ -133,7 +106,7 @@ export const accountRoutes = new Hono<ApiEnvironment>()
     // again
     .post(
         "/account/tokens",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("json", api_token_creation),
         async (context) => {
@@ -154,7 +127,7 @@ export const accountRoutes = new Hono<ApiEnvironment>()
     // Revokes one of their own, so the next request with it is refused
     .delete(
         "/account/tokens/:id",
-        internalOnly,
+        loggedIn,
         inBrowser,
         validated("param", api_token_path),
         async (context) => {

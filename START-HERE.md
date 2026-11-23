@@ -37,11 +37,13 @@ Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
    and what visitors should do next (call, book, email, or just know it's
    coming).
 10. **Its website address**, if it has a domain it wants this on.
-11. **Who will log in**: its customers, who can sign up themselves, or
-    only its own team (an internal tool, or a site only its staff edit).
-12. **Its own people's email addresses**, starting with the owner's: they
-    see the whole dashboard (the people who can log in, and the work
-    running in the background) from the first time they log in.
+11. **Who's on its team**, starting with the owner: each one's name and
+    the email they'll log in with. Only they log in, to the admin, the
+    app's own screens; its customers don't have accounts here.
+12. **Whether anyone on the team should see or change less** than the
+    owner, like a technician who shouldn't run jobs that change many
+    rows at once. As it ships, everyone sees and changes everything the
+    admin has.
 13. **Where is the business based, and do you want visitors asked
     before they're remembered?** The site's pages count what visitors
     view and click, in the app's own database, and the site can remember
@@ -83,9 +85,9 @@ is drawn with ([shadcn's theming](https://ui.shadcn.com/docs/theming)).
   `public/favicon.svg` with the mark (an SVG with a `<title>`), and
   replace the placeholder cube in `source/frontend/routes/index.tsx`'s
   header (the favicon, in an `<img>`) with the logo, and in
-  `source/frontend/components/site/business-mark.tsx`, the login page's
-  and the dashboard's, with the business's name in place of "Your
-  business".
+  `source/frontend/components/site/business-mark.tsx`, the login page's,
+  the admin's and the not-found page's, with the business's name in
+  place of "Your business".
 
 Read `workbench/designing.md` before this step and the next: it lists the
 habits that make a site look generated, and the checks the page has to
@@ -105,30 +107,29 @@ uses, and keep `source/backend/health/`, which Railway's healthcheck
 needs.
 
 Keep the login page, `source/frontend/routes/login.tsx`, where the
-business's customers and staff will log in, and where its emails link,
+business's team will log in, and where its emails link,
 in the business's voice (its name is in `business-mark.tsx`, from step
 2). Link to it from the home page only if visitors should see it yet.
 
-Keep the dashboard too, `source/frontend/routes/dashboard/`, behind
-login: the business's own people see everyone who can log in and the
-work running in the background, and everyone else their own account.
-Then say who logs in, from step 1's answers, in `ACCESS` in
-`source/backend/auth/access.ts`:
+Keep the admin too, `source/frontend/routes/admin/`, behind login: the
+team sees the work running in the background and who's on the team, each
+as their role allows. Then say who's on the team, from step 1's answers,
+in `ACCESS` in `source/backend/auth/access.ts`:
 
-- **`login`**: `"anyone"` when customers sign up themselves, and
-  `"listed"` when only the team logs in, so a stranger can't make an
-  account; the team then adds anyone else on the dashboard's People
-  screen.
-- **`internal_users`**: the business's own people, the owner first, each
-  with their first name, last name and the email they'll log in with,
-  in place of the placeholders (Ada Lovelace and Grace Hopper, at
-  example.com). They're the only people who are ever internal, and the
-  dashboard's People screen can't add or change them: someone joins or
-  leaves the team with a change here. Everyone else is `external`. If
-  the business has more kinds of people than those two, like technicians
-  and customers, add the roles to `INTERNAL_ROLES` or `EXTERNAL_ROLES` in
-  `source/utilities/schemas/users.ts`, and give each internal person
-  theirs (`workbench/writing-code.md`, "Roles and who can log in").
+- **`internal_users`**: the team, the owner first, each with a slug
+  (their first name, lowercase, like `ada`, or with a letter after it
+  when two share one, like `nick-r`), which never changes, their first
+  name, last name and the email they'll log in with, in place of the
+  placeholders (Ada Lovelace and Grace Hopper, at example.com). The
+  owner is `role: "owner"`; anyone listed without a role is a `member`.
+  They're the only people who log in, and nothing on a screen adds or
+  changes them: someone joins or leaves the team with a change here.
+- **`roles`**: what each role may do, area by area. As it ships, a
+  member may do everything the owner may. If someone should see or
+  change less, from step 1's answer, give `member` less, or add a role
+  of their own, like `technician`, to `TEAM_ROLES` with its areas here,
+  and list them with it (`workbench/writing-code.md`, "The team and what
+  each role may do").
 
 Then say whom the site remembers, from step 1's answer, in
 `VISITOR_MODE` in `source/utilities/visitors.ts`:
@@ -196,12 +197,12 @@ pnpm format && pnpm check
 ```
 
 Then `pnpm dev` and look at the home page at http://localhost:3000, the
-login page at http://localhost:3000/login, and the dashboard at
-http://localhost:3000/dashboard, logged in as the owner, on a computer's
+login page at http://localhost:3000/login, and the admin at
+http://localhost:3000/admin, logged in as the owner, on a computer's
 width and a phone's, in light and dark, against the checks in
 `workbench/designing.md`. Logging in works there with nothing set up: a
 dev server emails nothing, and shows the code on the page.
-`pnpm database:seed` fills the dashboard with sample people and runs. When it's
+`pnpm database:seed` fills the admin with a sample team and runs. When it's
 right, delete this file and `CLAUDE.md`'s first section, commit on a
 branch, and follow `workbench/commit-and-deploy.md` to put it on Railway:
 its "Setting up Railway" section is the one-time setup, which needs the

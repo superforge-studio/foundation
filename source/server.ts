@@ -54,12 +54,12 @@ const answer = createServerEntry({
 })
 
 // The route a page drawn on request is traced as (utilities/tracing.ts):
-// the dashboard's, whichever of its screens, since each is drawn in the
+// the admin's, whichever of its screens, since each is drawn in the
 // browser, and Claude's Allow page. Anything else is the not-found page,
 // whose span keeps its path alone.
 function pageRoute(pathname: string) {
-    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
-        return "/dashboard/*"
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+        return "/admin/*"
     } else if (pathname.startsWith("/connect/")) {
         return "/connect/:request_id"
     } else {

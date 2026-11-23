@@ -1,24 +1,27 @@
-import { eq } from "drizzle-orm"
-import { users } from "@/database/schema"
-import { isInternal, type Role } from "@/utilities/schemas/users"
+import type { TeamRole } from "@/backend/auth/access"
 import type { testApi } from "./api"
 
 /**
  * Logs `email` in through the whole API, as a person does, with Infra's
- * stand-in, which answers the code, as `role`: what a route's test calls
- * to act as someone. An internal role lists them first, as access.ts
- * would, named for their address (`ada@example.com` is Ada Example); any
- * other is set on their row. Answers their user's id and the `cookie`
- * header their browser would send.
+ * stand-in, which answers the code, as one of the team in `role`, an
+ * `owner` unless it says: what a route's test calls to act as someone.
+ * They're listed first, unless they already are, as access.ts would list
+ * them, named for their address (`ada@example.com` is Ada Example, slug
+ * `ada`). Answers their
+ * user's id and the `cookie` header their browser would send.
  */
 export async function logInAs(
     api: Awaited<ReturnType<typeof testApi>>,
     email: string,
-    role: Role = "external"
+    role: TeamRole = "owner"
 ) {
-    if (isInternal(role)) {
-        const [local = email, domain = ""] = email.split("@")
+    const [local = email, domain = ""] = email.split("@")
+    const listed = api.internal_users.some(
+        (each) => each.email.toLowerCase() === email.toLowerCase()
+    )
+    if (!listed) {
         api.internal_users.push({
+            slug: local.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
             first_name: capitalized(local),
             last_name: capitalized(domain.split(".")[0] ?? ""),
             email,
@@ -41,12 +44,6 @@ export async function logInAs(
         throw new Error("The test's login didn't verify")
     }
     const { user } = await verified.json()
-    if (!isInternal(role)) {
-        await api.database
-            .update(users)
-            .set({ role })
-            .where(eq(users.id, user.id))
-    }
     return { id: user.id, cookie: sessionCookie(verified) }
 }
 
