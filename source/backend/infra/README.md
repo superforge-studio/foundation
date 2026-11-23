@@ -25,37 +25,43 @@ browser**: the key is a secret, and the pages only ever call the app's
 own `/api`.
 
 1. The visitor enters their email on `/login`. `POST /api/auth/start`
-   calls Infra's `POST /v1/login/start` with it, the visitor's IP
-   (Railway's `X-Real-IP`) and the app's origin.
-2. Infra emails a six-digit code, and a link back to the app's
-   `/login#<token>` when the origin is one of the project's domains (or
-   localhost), from `login@system.superforge.studio` under the project's
-   name. A code and a link each work once, for 15 minutes, and a code for
-   five tries.
+   calls Infra's `POST /v1/login/start` with it as `{ channel: "email",
+   address }`, the visitor's IP (Railway's `X-Real-IP`), and `link_to`,
+   this app's `/login` where the visitor is.
+2. Infra emails a six-digit code, and a link to `link_to#<token>` when its
+   host is one of the project's domains (or localhost), from
+   `login@system.superforge.studio` under the project's name. The code and
+   the link are one login: they work for 15 minutes, the code for five
+   tries, and using either spends both.
 3. The visitor types the code, or opens the link and presses "Finish
    logging in", which posts the token from the fragment: never as the page
    loads, so a mail scanner that opens the link spends nothing. `POST /api/auth/verify` calls Infra's
-   `POST /v1/login/verify` with either, and Infra answers the email.
+   `POST /v1/login/verify` with either (the code with its address, the
+   token alone), and Infra answers whose address it was.
 4. The app finds or makes the user by that email, and starts a session in
    its own Postgres (`backend/auth/login.ts`).
 
 What the wrapper answers, and what the routes under `/api/auth` make of it:
 
-| Infra answers                                     | The wrapper's result               | `/api/auth` answers         |
-| ------------------------------------------------- | ---------------------------------- | --------------------------- |
-| 200, the email went out                           | `ok`, with `expires_at`, `test`    | 200                         |
-| 429 `too-soon`, a minute apart                    | `too-soon`, `retry_after`          | 429, with `Retry-After`     |
-| 429 `too-many`, an hour's limit                   | `too-many`, `limit`, `retry_after` | 429, with `Retry-After`     |
-| 502 `not-sent`, nothing counted                   | `not-sent`                         | 502                         |
-| 200 `{ email }`, verified                         | `ok`, the email                    | 200, the user, and a cookie |
-| 400 `wrong-code`, `attempts_left`                 | `wrong-code`                       | 400                         |
-| 400 `no-code` or `no-link`                        | `no-code`, `no-link`               | 400                         |
-| 401 (a key it refused), anything else, or nothing | `unavailable`, logged              | 503                         |
+| Infra answers                                     | The wrapper's result                   | `/api/auth` answers         |
+| ------------------------------------------------- | -------------------------------------- | --------------------------- |
+| 200, the email went out                           | `ok`, with `expires_at`, `test`        | 200                         |
+| 429 `rate-limited`                                | `rate-limited`, `limit`, `retry_after` | 429, with `Retry-After`     |
+| 502 `not-sent`, nothing counted                   | `not-sent`                             | 502                         |
+| 200 `{ channel, address }`, verified              | `ok`, whose address                    | 200, the user, and a cookie |
+| 400 `wrong-code`, `attempts_left`                 | `wrong-code`                           | 400                         |
+| 400 `no-code` or `no-link`                        | `no-code`, `no-link`                   | 400                         |
+| 401 (a key it refused), anything else, or nothing | `unavailable`, logged                  | 503                         |
+
+A refusal is Infra's own `error`, `{ reason, message, … }`, in the same
+shape as this app's API answers. `/api/auth/start` still answers the
+address as `email`, so the login form reads it as before. A `retry_after`
+of a minute or less is "check your inbox", which the login form says.
 
 **Every refusal says why in words**: Infra's `message`, which says what
 went wrong and what fixes it, or the package's own when Infra couldn't be
-asked (no key in a build, an Infra that didn't answer, an error this
-version of the package doesn't know, like a call Infra retired). The
+asked (no key in a build, an Infra that didn't answer, or an answer outside
+its contract). The
 package logs every refusal with it (`Infra refused a call`). `/api/auth`
 answers the visitor the plain message alone, and adds the why as `cause`
 for one of the business's own people, by the address they typed, and for
@@ -68,7 +74,8 @@ the logs.
 
 Infra's limits, an hour each, per project: five emails to one address, a
 minute apart; 20 from one visitor's network; 300 from the project. They
-hold back abuse, not a busy day, and a refusal says when asking again can
+hold back abuse, not a busy day, and a refusal, `rate-limited`, says which
+(`limit`: `address`, `network` or `project`) and when asking again can
 work. A test key's logins have none.
 
 ## Comments: `fileComment`
@@ -78,7 +85,7 @@ Whoever's logged in gets the toolbar on every page
 should change, and the page posts it to the app's own `POST /api/comments`
 (`backend/comments/routes.ts`), behind `loggedIn`, so a visitor can't file
 one. The server adds who they are and calls
-`context.var.infra.fileComment`, `POST /v1/comments` with the key, and
+`context.var.infra.fileComment`, `POST /v1/board/comments` with the key, and
 Infra keeps it for the owner and their agents to act on:
 
 ```ts
@@ -94,7 +101,8 @@ context.var.infra.fileComment({
         box: { x: 120, y: 1640, width: 180, height: 44 }
     },
     viewport: { width: 1440, height: 900 },
-    user: user.id,
+    user_id: user.id,
+    user_name: user.first_name,
     user_agent: "Mozilla/5.0 (Macintosh; …)"
 })
 ```
@@ -103,13 +111,14 @@ context.var.infra.fileComment({
   checked by `page_comment` (`utilities/schemas/comments.ts`): the
   toolbar's README has how it describes the element, and what it never
   sends.
-- `user` is the logged-in user's ID, never their email, and `user_agent`
-  their `User-Agent`, for what they were on, which Infra doesn't keep.
+- `user_id` is the logged-in user's ID, never their email, `user_name`
+  the first name the board shows beside the note, and `user_agent` their
+  `User-Agent`, for what they were on, which Infra doesn't keep.
 
 | Infra answers                                     | The wrapper's result          | `/api/comments` answers   |
 | ------------------------------------------------- | ----------------------------- | ------------------------- |
 | 201 `{ comment: { id, created_at } }`             | `ok`, with `id`, `created_at` | 201, the same             |
-| 400 `invalid`, the `fields` that failed           | `invalid`, `fields`, logged   | 502 `refused`: a bug here |
+| 400 `invalid`, the `issues` that failed           | `invalid`, `issues`, logged   | 502 `refused`: a bug here |
 | 413 `too-large`                                   | `too-large`, `limit`, logged  | The same                  |
 | 401 (a key it refused), anything else, or nothing | `unavailable`, logged         | 503 `unavailable`         |
 
@@ -125,25 +134,31 @@ Claude connects to the app's own MCP (`backend/mcp/`) as one of the
 business's own people. **Infra is the OAuth server, and the app only
 checks the tokens it signs**: Infra's README, "Claude", has the flow.
 
-- **`passOAuth`** passes Claude's OAuth calls through, as they are, to
-  Infra's `/v1/oauth/…`, with the key and the app's origin
-  (`App-Origin`), and answers Infra's answer as it is: its status, its
-  body, and where it sends the browser. `backend/agents/oauth.ts` calls it
-  for `/.well-known/oauth-authorization-server` and `/oauth/*`. So the
-  app's own domain is the issuer Claude sees, and its key never leaves
-  the server.
+- **`passOAuth`** answers Claude's OAuth calls, which
+  `backend/agents/oauth.ts` hands it from
+  `/.well-known/oauth-authorization-server` and `/oauth/*` (the package's
+  `APP_PATHS`): the server's metadata it builds itself, naming the app's
+  own addresses; the rest go to Infra's `/v1/agents/oauth/…`, with the key
+  and the app's origin (`App-Origin`). Authorize sends the browser to the
+  Allow page, `/connect/<request id>`, or back to Claude; a stranger is
+  answered 400 in plain words, never sent anywhere. So the app's own
+  domain is the issuer Claude sees, and its key never leaves the server.
 - **`checkAgentToken`** checks a token Claude brings with Infra's public
   keys (`/.well-known/jwks.json` on Infra's host, fetched once and again
   for a key it doesn't have), never asking Infra: signed by Infra, for
-  this origin and its `/admin/mcp`, for this project in the key's mode (which
-  `GET /v1/project` says, asked once), and not run out. It answers whose
-  address it is and what they allowed. `backend/auth/agents.ts` then
-  decides whether that person is still one of the business's own.
+  this origin and the address it was brought to, `/admin/mcp` (each token
+  is for the address Claude asked for, so another MCP's tokens never open
+  this one), for this project in the key's mode (which `GET /v1/project`
+  says, asked once), and not run out. It answers whose it is, by the
+  user's ID, which never changes, and what they allowed.
+  `backend/auth/agents.ts` then decides whether that person is still one
+  of the business's own.
 - **`agentRequest`, `allowAgent` and `denyAgent`** are the Allow page's:
-  what Claude asked for, and telling Infra who allowed or declined it,
-  which answers where the browser goes back to Claude.
+  what Claude asked for, and telling Infra who allowed or declined it, by
+  their user's ID, which answers where the browser goes back to Claude.
 - **`agentConnections`, `endAgentConnection` and `endAgentConnections`**
-  are someone's Connected list, and ending one, or all of theirs.
+  are someone's Connected list, by their user's ID, and ending one, or all
+  of theirs.
 
 A token is bound to where it was made: an app's origin, and its project
 in a mode. A test key's tokens are only ever for this computer, so a dev
@@ -182,19 +197,21 @@ Which one the server uses is decided once, as it starts (`appInfra()` in
 - **The tests** always use the stand-in (`backend/tests/support/api.ts`),
   so they never reach Infra.
 
-`INFRA_URL` points the server at another Infra, like a Superforge
-checkout's own dev server (`http://infra.localhost:3002/v1`), to work on
-both at once; without it, the server calls the real one (the package's
-`INFRA_URL`).
+A build always calls Infra at its own address. Only a dev server reads
+`INFRA_URL`, which points it at another Infra, like a superforge
+checkout's own (`http://infra.localhost:3002/v1`), while Infra itself is
+worked on.
 
 ## In this folder
 
 - `index.ts`: `appInfra()`, the server's Infra, and what the rest of the
   app uses of `@superforge/infra`: `Infra` and its results, the stand-in
-  and `standInAgentToken` for the tests, `requestOrigin` for Claude's
-  login, and `infraClient`. Everything else, the client, what Infra
-  answers as zod schemas, the stand-in and choosing between them, is the
-  package's.
+  and `standInAgentToken` for the tests, `requestOrigin`, `APP_PATHS` and
+  `OAUTH_CALLS` for Claude's login, and `infraClient`. Everything else,
+  the client, Infra's contract (every call's request and answer as zod
+  schemas, at `@superforge/infra/contract`, which
+  `utilities/schemas/agents.ts` takes Claude's scopes from), the stand-in
+  and choosing between them, is the package's.
 
 To try a change to the package before it's released, point this checkout
 at the package's own (`pnpm add @superforge/infra@link:<its folder>`), and

@@ -55,7 +55,9 @@ test("an internal person's comment goes to Infra with who filed it", async () =>
         const { comment } = await answer.json()
         expect(comment.id).toEqual(expect.any(String))
     }
-    expect(filed).toEqual([{ ...COMMENT, user: id, user_agent: BROWSER }])
+    expect(filed).toEqual([
+        { ...COMMENT, user_id: id, user_name: "Ada", user_agent: BROWSER }
+    ])
     // Never their email: Infra keeps no app's users
     expect(JSON.stringify(filed)).not.toContain("ada@example.com")
 })
@@ -124,7 +126,7 @@ test("an Infra that's down answers 503, and one that refuses it 502", async () =
         ok: false,
         error: {
             reason: "invalid",
-            fields: ["element.selector"],
+            issues: [{ path: "element.selector", message: "Too small" }],
             message: "element.selector didn't fit what this call takes."
         }
     }))
@@ -141,22 +143,29 @@ test("the stand-in checks a comment as Infra does", async () => {
     const infra = standInInfra()
     const kept = await infra.fileComment({
         ...COMMENT,
-        user: "5f0c1a2b-3d4e-4f60-8a9b-0c1d2e3f4a5b",
+        user_id: "5f0c1a2b-3d4e-4f60-8a9b-0c1d2e3f4a5b",
+        user_name: "Ada",
         user_agent: null
     })
     expect(kept.ok).toBe(true)
 
     const refused = await infra.fileComment({
         ...COMMENT,
-        user: "ada@example.com",
+        user_id: "ada@example.com",
+        user_name: "Ada",
         user_agent: null
     })
     expect(refused).toEqual({
         ok: false,
         error: {
             reason: "invalid",
-            fields: ["user"],
-            message: "user didn't fit what this call takes."
+            issues: [
+                {
+                    path: "user_id",
+                    message: "An ID that never changes, never an email"
+                }
+            ],
+            message: "user_id didn't fit what this call takes."
         }
     })
 })

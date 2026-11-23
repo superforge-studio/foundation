@@ -63,8 +63,9 @@ box keeps clear of whichever edge it's on.
 | `element`  | `selector`, a CSS selector from the body (or from an id someone wrote) that finds the element again; `tag`; `text`, what it shows or its label; `classes`, its `class`, which an agent can search the code for; and `box`, where it was on the page |
 | `viewport` | The window's size                                                                                                                                                                                                                                   |
 
-The server adds the user's ID and their browser's `User-Agent`. Infra
-keeps no app's users, so never their email.
+The server adds the user's ID, their first name, which the board shows
+beside the note, and their browser's `User-Agent`. Infra keeps no app's
+users, so never their email.
 
 The selector skips Tailwind's classes, which say nothing about which
 element it is, and React's and Base UI's own ids, which change between

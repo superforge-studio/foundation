@@ -10,9 +10,10 @@ so a deploy loses nothing.
 business's own people, as the admin is, so it sits under `/admin`. `/mcp`
 is left free on purpose, for an MCP the business may one day give its
 customers, logged in as one of them, with tools of its own and tokens of
-its own. Infra signs each token for one MCP's path, so the two never open
-each other. Until a business builds one, `/mcp` answers nothing, and
-Infra logs Claude in to `/admin/mcp` alone. The path is `MCP_PATH`
+its own. Infra signs each of Claude's tokens for the address Claude asked
+to use, and this MCP takes only those for `/admin/mcp`
+(`backend/auth/agents.ts`), so the two never open each other. Until a
+business builds one, `/mcp` answers nothing. The path is `MCP_PATH`
 (`utilities/schemas/agents.ts`), which everything that names it reads.
 
 ## How Claude connects

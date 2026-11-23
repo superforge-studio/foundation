@@ -45,7 +45,7 @@ export const authRoutes = new Hono<ApiEnvironment>()
         )
     )
 
-    // Emails the code, and the link back to /login when this is one of
+    // Emails the code, and a link to this app's /login when this is one of
     // the project's domains. In a dev server, which emails nothing, the
     // answer holds the code and the link for the page to show. Anyone not
     // on the team is refused before Infra is asked, so nothing is emailed
@@ -56,15 +56,18 @@ export const authRoutes = new Hono<ApiEnvironment>()
             return failure(context, 403, "not-listed", NOT_LISTED)
         }
         const started = await context.var.infra.startLogin({
-            email,
+            channel: "email",
+            address: email,
             ip: visitorIp(context),
-            origin: appOrigin(context)
+            link_to: `${appOrigin(context)}/login`
         })
         if (started.ok) {
-            const { test, ...sent } = started.data
+            const { test, address, with_link, expires_at } = started.data
             return context.json(
                 {
-                    ...sent,
+                    email: address,
+                    with_link,
+                    expires_at,
                     // Never in a build, which takes only a secret key, so
                     // Infra sends the email and answers no test
                     development: import.meta.env.DEV ? test : null
@@ -74,16 +77,7 @@ export const authRoutes = new Hono<ApiEnvironment>()
         }
 
         const refused = started.error
-        if (refused.reason === "too-soon") {
-            context.header("Retry-After", String(refused.retry_after))
-            return failure(
-                context,
-                429,
-                refused.reason,
-                "A code went to this address less than a minute ago",
-                { retry_after: refused.retry_after }
-            )
-        } else if (refused.reason === "too-many") {
+        if (refused.reason === "rate-limited") {
             context.header("Retry-After", String(refused.retry_after))
             return failure(
                 context,
@@ -117,10 +111,14 @@ export const authRoutes = new Hono<ApiEnvironment>()
     // logs, and a mail scanner that opens the link spends nothing
     .post("/auth/verify", validated("json", login_verify), async (context) => {
         const proof = context.req.valid("json")
-        const verified = await context.var.infra.verifyLogin(proof)
+        const verified = await context.var.infra.verifyLogin(
+            "token" in proof
+                ? proof
+                : { channel: "email", address: proof.email, code: proof.code }
+        )
         if (verified.ok) {
             const logged_in = await logIn(context.var.database, {
-                email: verified.data.email,
+                email: verified.data.address,
                 replacing: sessionToken(context),
                 user_agent: visitorBrowser(context),
                 access: context.var.access

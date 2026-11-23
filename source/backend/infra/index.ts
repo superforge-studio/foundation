@@ -7,7 +7,10 @@ import { chooseInfra, type Infra } from "@superforge/infra"
 // from the toolbar; and Claude's login to the app's MCP. Every route and
 // step calls it here, never with a bare `fetch` (workbench/writing-code.md,
 // "A call to an outside service"), and the rest of the app imports what it
-// needs of the package from here, so this is the one seam to it. The app
+// needs of the package from here, so this is the one seam to it. The one
+// exception is what Claude may do, `AGENT_SCOPES`, which the pages check
+// too, so utilities/schemas/agents.ts takes it from the package's contract,
+// `@superforge/infra/contract`, which needs nothing of Node's. The app
 // keeps its own users and sessions (backend/auth/), and its own analytics
 // (backend/visits/). README.md here has the calls.
 
@@ -16,12 +19,15 @@ export {
     type AgentRefused,
     type AgentRequest,
     type AgentToken,
+    APP_PATHS,
     type CommentRefused,
     type FiledComment,
     type Infra,
     type InfraUnavailable,
     infraClient,
     type KeptComment,
+    OAUTH_CALLS,
+    type OAuthCall,
     requestOrigin,
     type StartedLogin,
     type StartRefused,

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto"
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { deleteExpiredSessions } from "@/backend/auth/sessions"
 import { standInAgentToken } from "@/backend/infra"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
-import { sessions } from "@/database/schema"
+import { sessions, users } from "@/database/schema"
 import type { AgentScope } from "@/utilities/schemas/agents"
 import { api_failure } from "@/utilities/schemas/failures"
 
@@ -50,7 +50,15 @@ async function asClaude(
     scopes: AgentScope[],
     body: unknown
 ) {
-    const token = await standInAgentToken({ email: ADA, scopes })
+    const [ada] = await setup.database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, ADA))
+    const token = await standInAgentToken({
+        user_id: ada?.id ?? randomUUID(),
+        resource: "http://localhost/admin/mcp",
+        scopes
+    })
     return await setup.api.request(`http://localhost${path}`, {
         method: "POST",
         headers: {

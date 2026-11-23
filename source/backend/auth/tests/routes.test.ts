@@ -123,6 +123,20 @@ test("logs in with the email's link", async () => {
     }
 })
 
+test("the email's link opens this app's /login, and the answer names the address it went to", async () => {
+    const { client } = await teamApi()
+    const response = await client.api.auth.start.$post({
+        json: { email: EMAIL }
+    })
+    expect(response.status).toBe(200)
+    if (response.status === 200) {
+        const { email, with_link, development } = await response.json()
+        expect(email).toBe(EMAIL)
+        expect(with_link).toBe(true)
+        expect(development?.link?.split("#")[0]).toBe("http://localhost/login")
+    }
+})
+
 test("the address is trimmed and lowercased, so it's one user however it's typed", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const { client, database } = await teamApi()
@@ -222,8 +236,8 @@ test("Infra's limits are answered 429, with when to ask again", async () => {
         infra: refusing({
             ok: false,
             error: {
-                reason: "too-many",
-                limit: "email",
+                reason: "rate-limited",
+                limit: "address",
                 retry_after: 1800,
                 message: "Ask again in about 30 minutes."
             }
@@ -235,7 +249,10 @@ test("Infra's limits are answered 429, with when to ask again", async () => {
     expect(response.status).toBe(429)
     expect(response.headers.get("Retry-After")).toBe("1800")
     const { error } = api_failure.parse(await response.json())
-    expect(error).toMatchObject({ reason: "too-many", retry_after: 1800 })
+    expect(error).toMatchObject({
+        reason: "rate-limited",
+        retry_after: 1800
+    })
 })
 
 test("why Infra failed reaches the business's own people and a dev server, never a visitor", async () => {
@@ -518,7 +535,7 @@ test("anyone not on the team is refused before Infra is asked, so nothing is ema
         infra: {
             ...stand_in,
             startLogin: async (request) => {
-                asked.push(request.email)
+                asked.push(request.address)
                 return await stand_in.startLogin(request)
             },
             verifyLogin: (proof) => stand_in.verifyLogin(proof),
