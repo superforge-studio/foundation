@@ -2,7 +2,10 @@ import { tellTeamOfNewMember } from "@/backend/users/workflows"
 import { enqueueFromScript } from "@/backend/workflows/engine"
 import { connect, type Database } from "@/database"
 import { localDatabaseUrl } from "@/database/local"
+import { LOCAL_STORAGE_DIRECTORY, Storage } from "@/database/storage"
+import { folderStore } from "@/database/storage/folder"
 import { seedAnalyticsEvents, seedAnalyticsVisits } from "./analytics"
+import { keepSampleFiles, seedFiles, seedFolders } from "./files"
 import { seedApiTokens, seedSessions, seedUsers, teamAdded } from "./users"
 
 /**
@@ -42,6 +45,8 @@ const SEEDERS: Seeder[] = [
     seedUsers,
     seedSessions,
     seedApiTokens,
+    seedFolders,
+    seedFiles,
     seedAnalyticsVisits,
     seedAnalyticsEvents
 ]
@@ -53,7 +58,9 @@ const SEEDERS: Seeder[] = [
  */
 export const UNSEEDED: Record<string, string> = {
     "internal.webhook_deliveries":
-        "What other services posted, kept as it came: a log nothing should make up, and the template lists no source to have sent any"
+        "What other services posted, kept as it came: a log nothing should make up, and the template lists no source to have sent any",
+    "internal.rate_limits":
+        "Counts what's limited as networks do it (backend/rate-limits/), deleted a day after each window; made-up rows would only limit a dev server"
 }
 
 /**
@@ -83,6 +90,12 @@ export async function seedLocalDatabase() {
     const database = connect(url, 1)
     try {
         const written = await seed(database)
+        // The sample files' bytes, in this checkout's .storage/, which a dev
+        // server keeps its files in
+        const files_kept = await keepSampleFiles(
+            database,
+            new Storage(folderStore(LOCAL_STORAGE_DIRECTORY))
+        )
         const added = await teamAdded(database)
         await enqueueFromScript(
             url,
@@ -94,6 +107,7 @@ export async function seedLocalDatabase() {
         )
         console.info("Seeded this checkout's database", {
             written,
+            files_kept,
             runs_queued: added.length
         })
     } finally {

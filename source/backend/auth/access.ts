@@ -80,7 +80,12 @@ export const ACCESS: Access = {
         owner: "everything",
         // Everything there is as the template ships, area by area, so an
         // area the business adds is the owner's alone until it's given here
-        member: { team: "read", workflows: "write", jobs: "write" }
+        member: {
+            team: "read",
+            workflows: "write",
+            jobs: "write",
+            files: "write"
+        }
     }
 }
 

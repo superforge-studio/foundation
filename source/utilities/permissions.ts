@@ -11,7 +11,7 @@
 // like `orders`, to AREA_NAMES and AREAS, and gives each route its area.
 
 /** Every area of the app. A route names one: `permitted("workflows")`. */
-export const AREA_NAMES = ["team", "workflows", "jobs"] as const
+export const AREA_NAMES = ["team", "workflows", "jobs", "files"] as const
 
 export type Area = (typeof AREA_NAMES)[number]
 
@@ -19,7 +19,8 @@ export type Area = (typeof AREA_NAMES)[number]
 export const AREAS: Readonly<Record<Area, string>> = {
     team: "The team, as access.ts lists them",
     workflows: "Workflows and their runs",
-    jobs: "Jobs, which change many rows at once"
+    jobs: "Jobs, which change many rows at once",
+    files: "Your files, and the folders the app keeps in the bucket"
 }
 
 /**

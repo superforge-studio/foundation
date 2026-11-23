@@ -210,6 +210,17 @@ matters:
   what, is decided in one place, whatever a page shows. A test fails any
   route under `/api` that says none of these and isn't one of the few
   anyone may call (`backend/tests/routes.test.ts`, `ANYONE`).
+- **A route anyone may call that writes**, like a form's or a booking's
+  → `countAttempt` before anything else (`backend/rate-limits/count.ts`),
+  by what it limits and `networkKey(ip)`, a hash of the caller's network,
+  and 429 `too-many` with a `Retry-After` once it's past the most it
+  allows, so a script can't fill the database with junk. It's counted in
+  `internal.rate_limits`, so every server and every deploy count together.
+- **A file the team uploads, or one the app hands someone** → Your files,
+  under `/api/files` (`backend/files/`), whose rows name it and whose
+  bytes are in the bucket's `files` folder; a file the code itself writes
+  and reads, like an invoice it makes, is a kind of its own instead (the
+  bucket, under [Data](#data)).
 - **Something that runs in the background** → a workflow, in its
   feature's `workflows.ts`, listed in `backend/workflows/index.ts`, and
   queued in the transaction of the write it's for, by name with
@@ -340,24 +351,27 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
 There's **one database, Postgres**, on Railway, queried with Drizzle
 (`drizzle-orm/node-postgres`) from `source/database/`.
 
-|                       | Postgres                                                                               |
-| --------------------- | -------------------------------------------------------------------------------------- |
-| Holds                 | the users, in `public`, with their roles, and their sessions and API tokens, in `auth` |
-| And                   | the site's analytics, `analytics_visits` and `analytics_events`, in `public`           |
-| And                   | DBOS's, the workflows' runs and steps, in `dbos` (`backend/workflows/`)                |
-| Schema                | `source/database/schema.ts`                                                            |
-| New migration         | `pnpm database:generate`, into `source/database/migrations/`                           |
-| Applied in production | `pnpm database:migrate`, Railway's pre-deploy command, before each deploy              |
-| `pnpm dev` uses       | the checkout's own (`source/database/local/`), with the branch's migrations            |
-| The tests use         | a database of each test's own, on the checkout's Postgres, in CI too                   |
-| Checked in CI by      | `pnpm database:check`, the tests from empty, and the PR's upgrade test                 |
-| Read by hand with     | `pnpm database:sql "<query>"`, or the database's Data tab on Railway                   |
-| Restored with         | point-in-time recovery, to any moment in about the last four weeks (below)             |
+|                       | Postgres                                                                       |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Holds                 | the users, the team, in `public`, and their sessions and API tokens, in `auth` |
+| And                   | Your files, `files` and `file_folders`, and the site's analytics, in `public`  |
+| And                   | the webhooks' deliveries and the rate limits, in `internal`                    |
+| And                   | DBOS's, the workflows' runs and steps, in `dbos` (`backend/workflows/`)        |
+| Schema                | `source/database/schema.ts`                                                    |
+| New migration         | `pnpm database:generate`, into `source/database/migrations/`                   |
+| Applied in production | `pnpm database:migrate`, Railway's pre-deploy command, before each deploy      |
+| `pnpm dev` uses       | the checkout's own (`source/database/local/`), with the branch's migrations    |
+| The tests use         | a database of each test's own, on the checkout's Postgres, in CI too           |
+| Checked in CI by      | `pnpm database:check`, the tests from empty, and the PR's upgrade test         |
+| Read by hand with     | `pnpm database:sql "<query>"`, or the database's Data tab on Railway           |
+| Restored with         | point-in-time recovery, to any moment in about the last four weeks (below)     |
 
 The conventions every table follows are in `schema.ts`'s header: named for
-what it hangs off, snake_case columns, uuids for our own rows, every
-timestamp a `timestamptz` to the millisecond (`columns.ts`), compared
-against `now` and `fromNow` from `time.ts`.
+the thing itself (`files`), or for what it's about and then what its rows
+are (`file_folders`), never repeating its Postgres schema (`auth.sessions`),
+snake_case columns, uuids for our own rows, every timestamp a
+`timestamptz` to the millisecond (`columns.ts`), compared against `now` and
+`fromNow` from `time.ts`.
 
 - **A route hands its operations `context.var.database`**, and a
   workflow's step its `context.database`. `source/backend/index.ts` puts it

@@ -560,6 +560,7 @@ test("the session says what its person may do in each area", async () => {
     expect((await session.json()).permissions).toEqual({
         team: "none",
         workflows: "read",
-        jobs: "none"
+        jobs: "none",
+        files: "none"
     })
 })
