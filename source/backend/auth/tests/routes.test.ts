@@ -371,7 +371,10 @@ test("logging out ends the session and clears the cookie", async () => {
         {},
         { headers: { cookie } }
     )
-    expect(await session.json()).toEqual({ user: null, permissions: null })
+    expect(await session.json()).toMatchObject({
+        user: null,
+        permissions: null
+    })
 })
 
 // A user logged in through the API, with their session's cookie
@@ -401,7 +404,10 @@ test("a session that has run out logs no one in", async () => {
         {},
         { headers: { cookie } }
     )
-    expect(await session.json()).toEqual({ user: null, permissions: null })
+    expect(await session.json()).toMatchObject({
+        user: null,
+        permissions: null
+    })
 })
 
 test("a session in use is renewed for its whole lifetime, at most once a day", async () => {
@@ -509,7 +515,10 @@ test("only the list lets anyone in: taken off it, someone is logged out at their
     const listed = api.internal_users.splice(0)
     expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
     const session = await api.client.api.auth.session.$get({}, headers)
-    expect(await session.json()).toEqual({ user: null, permissions: null })
+    expect(await session.json()).toMatchObject({
+        user: null,
+        permissions: null
+    })
 
     // Listed again, with the same slug: the same session counts again
     api.internal_users.push(...listed)
@@ -578,7 +587,8 @@ test("the session says what its person may do in each area", async () => {
         {},
         { headers: { cookie } }
     )
-    expect((await session.json()).permissions).toEqual({
+    // The template's areas, whatever areas the app adds of its own
+    expect((await session.json()).permissions).toMatchObject({
         team: "none",
         workflows: "read",
         jobs: "none",

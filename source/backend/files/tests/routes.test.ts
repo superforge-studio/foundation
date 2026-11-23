@@ -157,13 +157,13 @@ test("the top of the bucket is each kind as its code says, and the folders none 
     expect(top.status).toBe(200)
     if (top.status === 200) {
         const { kinds, unclaimed } = await top.json()
-        expect(kinds.map((kind) => [kind.folder, kind.access])).toEqual([
-            ["files", "open"],
-            // The server's own, which counts visitors the site doesn't
-            // remember (backend/visits/visitors.ts)
-            ["visitor-salt", "locked"]
-        ])
-        expect(kinds[1]).toEqual(
+        // The template's two, whatever kinds the app adds of its own
+        const shown = kinds.map((kind) => [kind.folder, kind.access])
+        expect(shown[0]).toEqual(["files", "open"])
+        // The server's own, which counts visitors the site doesn't
+        // remember (backend/visits/visitors.ts)
+        expect(shown).toContainEqual(["visitor-salt", "locked"])
+        expect(kinds).toContainEqual(
             expect.objectContaining({
                 name: "Visitor salt",
                 why: expect.stringContaining("each day")

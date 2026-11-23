@@ -90,7 +90,8 @@ test("logs out another browser, but not this one, nor anyone else's", async () =
         {},
         { headers: { cookie: elsewhere.cookie } }
     )
-    expect(await gone.json()).toEqual({ user: null, permissions: null })
+    // Whatever else an app says of who's logged in, no one on the team is
+    expect(await gone.json()).toMatchObject({ user: null, permissions: null })
 })
 
 test("logs out everywhere else, keeping this browser", async () => {

@@ -4,9 +4,12 @@ import type { AppVariables } from "@/backend/app"
  * What a test's API gets of this app's own on `context` (backend/app.ts):
  * for each of `AppVariables`, the test's own when it hands one
  * (`replacing`), or else a stand-in that reaches nothing outside the test,
- * as the template's are in ./api.ts. `looks` is whatever a test reads back
- * from those stand-ins, like the messages a sender's was handed, which
- * `testApi()` answers beside its own.
+ * as the template's are in ./api.ts. Each leaves the template as it
+ * ships until a test says otherwise, so the template's own tests hold:
+ * no one but the team logs in, whatever `OTHERS` could let in
+ * (backend/auth/app.ts), unless the test opens the way. `looks` is
+ * whatever a test reads back from those stand-ins, like the messages a
+ * sender's was handed, which `testApi()` answers beside its own.
  */
 export function appTestVariables(_replacing: Partial<AppVariables>): {
     variables: AppVariables
