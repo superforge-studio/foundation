@@ -9,7 +9,8 @@ import type { Seeder } from "./seed"
 // would have recorded them (backend/visits/): a customer who came from an
 // ad, looked around and signed up; a visitor the site didn't remember,
 // who bounced; one whose page ran into an error; and one who came back
-// from a newsletter and booked. Each visit is worked out from its events,
+// from a newsletter and booked. The remembered ones' addresses are set
+// aside for documentation (RFC 5737 and RFC 3849). Each visit is worked out from its events,
 // as a real one is, so the two always agree.
 
 // The sample customer whose visit ends in their sign-up (./users.ts)
@@ -72,6 +73,7 @@ export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
                 user_id: signed_up,
                 started_at: during(FROM_AN_AD, 0),
                 ended_at: during(FROM_AN_AD, 0),
+                ip_address: "203.0.113.42",
                 country: "US",
                 device: "mobile",
                 browser: "Safari",
@@ -94,6 +96,7 @@ export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
                 anonymous: false,
                 started_at: during(HIT_AN_ERROR, 0),
                 ended_at: during(HIT_AN_ERROR, 0),
+                ip_address: "198.51.100.23",
                 country: "GB",
                 device: "tablet",
                 browser: "Safari",
@@ -106,6 +109,7 @@ export const seedAnalyticsVisits: Seeder = async (transaction: Database) => {
                 anonymous: false,
                 started_at: during(CAME_BACK, 0),
                 ended_at: during(CAME_BACK, 0),
+                ip_address: "2001:db8:85a3::8a2e:370:7334",
                 country: null,
                 device: "desktop",
                 browser: "Chrome",

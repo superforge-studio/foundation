@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto"
-import { isIPv4, isIPv6 } from "node:net"
+import { isIP, isIPv4, isIPv6 } from "node:net"
 import type { Storage } from "@/database/storage"
 import type { VisitorConsent } from "@/utilities/schemas/visits"
 import type { VisitorMode } from "@/utilities/visitors"
@@ -109,6 +109,21 @@ async function keptSalt(storage: Storage, day: string) {
 
 function newSalt() {
     return randomBytes(32).toString("base64url")
+}
+
+/**
+ * A remembered visitor's IP address as their visit keeps it: an IPv4 one
+ * written as IPv6 (`::ffff:203.0.113.9`) as the IPv4 one. Null when it
+ * isn't an address Postgres's `inet` takes, like one with a zone
+ * (`fe80::1%eth0`), which is only this computer's.
+ */
+export function addressToKeep(ip: string) {
+    const unmapped = ip.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, "")
+    if (unmapped.includes("%") || isIP(unmapped) === 0) {
+        return null
+    } else {
+        return unmapped
+    }
 }
 
 /**

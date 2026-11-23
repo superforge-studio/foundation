@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.17.0](.superforge/releases/0.17.0.md) (2026-11-23): a remembered visitor's IP address is kept again, on their visit, for 90 days; a visitor the site doesn't remember still has none kept.
 - [0.16.0](.superforge/releases/0.16.0.md) (2026-11-23): every page credits the Superforge template it was built on in its source, a `<meta name="generator">`, never on the page.
 - [0.15.0](.superforge/releases/0.15.0.md) (2026-11-23): API tokens, which one of the business's own makes on their account page, so a script, a scheduled job or another platform's agent calls the app's API, and its MCP, as them.
 - [0.14.0](.superforge/releases/0.14.0.md) (2026-11-23): Infra through `@superforge/infra`, an npm package every app shares; the login page tells the business's own people why login broke, in Infra's words; and `AsyncOperation` is `AsyncOperationResult`.

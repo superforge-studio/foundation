@@ -82,8 +82,10 @@ database is down, comes back as a 5xx and is sent again.
 - **Who's logged in, from the page.** The server adds their user ID to
   every batch from its own session (`backend/visits/routes.ts`), and
   keeps it only of a visitor the site remembers.
-- **The visitor's IP address or `User-Agent`.** The server reads their
-  country and what they're on from them, and keeps neither.
+- **The visitor's `User-Agent`**, or **the IP address of one the site
+  doesn't remember**. The server reads their country and what they're on
+  from them, and keeps neither. A remembered visitor's address is kept on
+  their visit, for 90 days (`backend/visits/README.md`).
 
 ## Remembering a visitor
 
@@ -109,10 +111,11 @@ place, are of an unknown country, so `ask-in-eu` asks them.
 A remembered visitor is a lasting ID, a UUID, in the `visitor` cookie,
 which the server sets and renews with each batch of theirs. Their events
 are kept under it, so their visits join up across days, with whoever
-they're logged in as. A visitor who isn't remembered has no `visitor`
-cookie, and the server clears one they had: they're counted as one
-visitor a day, by a hash that can't be made again once the day is over,
-with no user beside it. Nobody's IP address is kept.
+they're logged in as, and each visit with their IP address, for 90 days.
+A visitor who isn't remembered has no `visitor` cookie, and the server
+clears one they had: they're counted as one visitor a day, by a hash that
+can't be made again once the day is over, with no user or address beside
+it.
 
 | Cookie            | Holds                                             | Set by                                     |
 | ----------------- | ------------------------------------------------- | ------------------------------------------ |

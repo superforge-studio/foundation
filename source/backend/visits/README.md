@@ -51,16 +51,20 @@ Liechtenstein, Norway) and the UK (`GDPR_COUNTRIES` in `location.ts`).
 What's kept of whoever sent a batch:
 
 - **A remembered visitor** is the ID in their `visitor` cookie, so their
-  visits join up across days, with the user they're logged in as.
+  visits join up across days, with the user they're logged in as, and
+  each visit with their IP address as it started, for 90 days ("How long
+  it's kept", below).
 - **A visitor who isn't remembered** is a hash of their network, their
   `User-Agent` and a salt that's replaced each UTC day (`visitors.ts`).
   They count as one visitor that day, and can't be told from anyone after
-  it. No user is kept beside the hash, which would undo it.
+  it. No user and no address is kept beside the hash, which either would
+  undo.
 - **Where they were, and on what**: the country of their address
   ("Where a visitor is", below), and their device (`mobile`, `tablet` or
   `desktop`), browser and OS, from their `User-Agent` (`browsers.ts`).
-- **Never their IP address or their `User-Agent`**, of anyone: both are
-  read as the visit starts and dropped.
+- **Never their `User-Agent`**, of anyone: it's read as the visit starts
+  and dropped, as a visitor's address is when the site doesn't remember
+  them.
 - **Nothing of a bot**, by its `User-Agent` (`isbot`), or of a browser that
   sends none: the batch is answered and dropped.
 
@@ -95,8 +99,9 @@ whatever order they arrived in:
 | `ad_network`                                                          | Whose ad was clicked, by the click ID in the landing's address: `google`, `meta`, `microsoft`, `tiktok` or `linkedin` |
 
 Beside them are who the visitor was (`visitor_id`, `anonymous`,
-`user_id`), where (`country`, `region`, `city`) and on what (`device`,
-`browser`, `os`), set as the visit starts. A visitor who logs in during a
+`user_id`, and a remembered visitor's `ip_address`), where (`country`,
+`region`, `city`) and on what (`device`, `browser`, `os`), set as the
+visit starts. A visitor who logs in during a
 visit is on it from then on. `source/database/schema.ts` has every column.
 
 ## The server's events: `recordEvents`
@@ -164,17 +169,20 @@ app's service (`.railway/railway.ts`):
 
 ## How long it's kept
 
-| Rows   | Kept                         | Set by            |
-| ------ | ---------------------------- | ----------------- |
-| Events | 90 days after they happened  | `KEEP_EVENTS_FOR` |
-| Visits | 25 months after they started | `KEEP_VISITS_FOR` |
+| Rows                 | Kept                                       | Set by                  |
+| -------------------- | ------------------------------------------ | ----------------------- |
+| Events               | 90 days after they happened                | `KEEP_EVENTS_FOR`       |
+| A visit's IP address | 90 days after the visit started, then null | `KEEP_IP_ADDRESSES_FOR` |
+| Visits               | 25 months after they started               | `KEEP_VISITS_FOR`       |
 
-Both are in `prune.ts`, and either can be `"forever"`. The events are
-the bulk of it, and say the most about one visitor, so they go first; a
-visit, with what its events came to, stays for the reports that look back
-a year or two. 25 months is the longest France's regulator (CNIL) says to
-keep what a site measures of its audience. A runner deletes what's older
-each hour, a batch at a time (`pruneAnalyticsRunner`, listed in
+All three are in `prune.ts`, and any can be `"forever"`. The events are
+the bulk of it, and say the most about one visitor, so they go first,
+with the addresses, which are as long as the events unless a copy says
+otherwise; a visit, with what its events came to, stays for the reports
+that look back a year or two, its address blanked. 25 months is the longest France's regulator (CNIL) says to
+keep what a site measures of its audience. A runner deletes what's older,
+and blanks the addresses, each hour, a batch at a time
+(`pruneAnalyticsRunner`, listed in
 `backend/workflows/index.ts`'s `RUNNERS`). A report over events reads 90
 days back at most; one over visits, 25 months.
 
@@ -194,6 +202,6 @@ goes null).
 - `browsers.ts`: a bot, or what a visitor is on, from their `User-Agent`.
 - `location.ts`: a visitor's country from their address, and where GDPR
   applies.
-- `prune.ts`: how long rows are kept, and the runner that deletes the
-  rest.
+- `prune.ts`: how long rows and addresses are kept, and the runner that
+  deletes the rest and blanks the addresses.
 - `tests/`: each of them, and the routes through the whole API.
