@@ -11,6 +11,7 @@ import { ConsentBanner } from "@/frontend/components/site/consent-banner"
 import { Toolbar } from "@/frontend/components/toolbar/toolbar"
 import appCss from "@/frontend/styles.css?url"
 import { startVisitors } from "@/frontend/visitors"
+import { GENERATOR } from "@/utilities/template"
 
 export const Route = createRootRouteWithContext<{
     queryClient: QueryClient
@@ -18,6 +19,10 @@ export const Route = createRootRouteWithContext<{
     head: () => ({
         meta: [
             { charSet: "utf-8" },
+            // The Superforge template this site was built on, in its
+            // source only, never on the page. Keep it: it's what Superforge
+            // asks in return for the template (utilities/template.ts)
+            { name: "generator", content: GENERATOR },
             {
                 name: "viewport",
                 content: "width=device-width, initial-scale=1"
