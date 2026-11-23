@@ -87,11 +87,13 @@ the latest before it applies any of them. Each release says:
   output that shows the change is there, for a copy that took some of it
   by hand.
 
-A version is `major.minor.patch`. A patch release (`0.1.1`) only fixes
-something that didn't work as it says; a minor release (`0.2.0`) adds or
+A version is `major.minor.patch`. A patch release (`0.1.1`) fixes a bug or
+makes a small improvement; a minor release (`0.2.0`) adds a feature or
 changes something, and its notes flag a change to how something already
-there works. The major stays `0` until `1.0.0`; after it, a release that
-breaks what a copy relies on is a major (`2.0.0`).
+there works. The major moves only when Superforge says so: it stays `0`
+until `1.0.0`, and after it, a release that breaks what a copy relies on
+is a major (`2.0.0`). Every PR to the template is a release, so each tag
+is one PR's change.
 
 ## What an update leaves out
 

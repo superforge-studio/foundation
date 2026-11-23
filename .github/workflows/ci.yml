@@ -6,7 +6,8 @@
 #
 # `check` is the gate: it passes once `code` and every shard of `tests`
 # have, which between them run `pnpm check` (workbench/scripts/check.sh), so
-# a branch that passes it on a laptop passes it here. `code` is biome, the
+# a branch that passes it on a laptop passes it here, and `release-version`
+# has where it runs. `code` is biome, the
 # migration check (the journal and squawk), typecheck, the production build
 # (which runs the prerender) and the smoke test (the build migrated, started
 # and probed as Railway runs it); `tests` is the tests in two shards, on a
@@ -15,6 +16,16 @@
 # over the base branch's, on a database with rows in it). They run side by
 # side. A failure shows on the PR and the commit, and an agent can read the
 # full log with `gh run view <id> --log-failed`.
+#
+# `release-version`, on a PR to the template, checks that the PR is a
+# release: its version in .superforge/superforge.json is the one right after
+# its base's, a patch, a minor or a major, with its notes in
+# .superforge/releases/ and its line in CHANGELOG.md (README.md, "Releases").
+# Two PRs made side by side can't both go out as one version: the second's
+# version line, release file and CHANGELOG.md line conflict once the first
+# merges, and after its rebase this checks it took the version after the
+# first's. `check` waits for it. A copy skips it, and so do Dependabot's PRs,
+# whose changes go out with the next release.
 #
 # `railway-apply` applies .railway/railway.ts on each push, after `check`,
 # with one repository secret, RAILWAY_TOKEN: a project token for the
@@ -90,24 +101,65 @@ jobs:
                   # The upgrade test's base: the PR's, or main on a push
                   UPGRADE_FROM: origin/${{ github.base_ref || 'main' }}
 
+    # In the template, every PR is a release: its version is the one right
+    # after its base's, with its notes (README.md, "Releases")
+    release-version:
+        if: ${{ github.event_name == 'pull_request' && github.event.repository.is_template && github.event.pull_request.user.login != 'dependabot[bot]' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  # The base branch too, for the version it's on
+                  fetch-depth: 0
+            - name: The version after the base's, with its notes
+              run: |
+                  base=$(git show "origin/$BASE:.superforge/superforge.json" | jq -r .version)
+                  version=$(jq -r .version .superforge/superforge.json)
+                  IFS=. read -r major minor patch <<< "$base"
+                  next_patch="$major.$minor.$((patch + 1))"
+                  next_minor="$major.$((minor + 1)).0"
+                  next_major="$((major + 1)).0.0"
+                  case "$version" in
+                      "$next_patch" | "$next_minor" | "$next_major") ;;
+                      *)
+                          echo "::error::.superforge/superforge.json says $version, but $BASE is on $base, so this PR's release is $next_patch (a bug fix or a small improvement) or $next_minor (a feature). Every PR is a release (README.md, \"Releases\"): if $BASE has moved, rebase on it and take the version after its."
+                          exit 1
+                          ;;
+                  esac
+                  notes=".superforge/releases/$version.md"
+                  if [ ! -f "$notes" ] || ! head -n 1 "$notes" | grep -qF -- "# $version ("; then
+                      echo "::error::$notes doesn't start with \"# $version (day)\": give the release its notes."
+                      exit 1
+                  fi
+                  if ! grep -qF -- "- [$version]($notes)" CHANGELOG.md; then
+                      echo "::error::CHANGELOG.md has no line for $version (\"- [$version]($notes) (day): …\")."
+                      exit 1
+                  fi
+                  echo "This PR is $version, the release after $BASE's $base"
+              env:
+                  BASE: ${{ github.base_ref }}
+
     check:
-        needs: [code, tests]
+        needs: [code, tests, release-version]
         if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 5
         permissions: {}
         steps:
-            - name: Whether the code and the tests passed
+            - name: Whether the code, the tests and the release passed
               run: |
-                  if [ "$CODE" = success ] && [ "$TESTS" = success ]; then
-                      echo "The code and every shard of the tests passed"
+                  if [ "$CODE" = success ] && [ "$TESTS" = success ] &&
+                      { [ "$RELEASE" = success ] || [ "$RELEASE" = skipped ]; }; then
+                      echo "The code, every shard of the tests and the release passed"
                   else
-                      echo "::error::code: $CODE, tests: $TESTS"
+                      echo "::error::code: $CODE, tests: $TESTS, release-version: $RELEASE"
                       exit 1
                   fi
               env:
                   CODE: ${{ needs.code.result }}
                   TESTS: ${{ needs.tests.result }}
+                  RELEASE: ${{ needs.release-version.result }}
 
     # Applies .railway/railway.ts on each push, once `check` passes, against
     # the live project as it stands then. Without --confirm-destructive it
