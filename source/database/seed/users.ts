@@ -2,16 +2,17 @@ import { createHash } from "node:crypto"
 import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { ACCESS, listedRole, nameOf } from "@/backend/auth/access"
 import type { Database } from "@/database"
-import { sessions, users } from "@/database/schema"
+import { api_tokens, sessions, users } from "@/database/schema"
 import { fromNow } from "@/database/time"
-import { DAY, HOUR } from "@/utilities/primitives/durations"
+import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 import type { Seeder } from "./seed"
 
-// Sample users and their sessions: the business's own people, as
-// backend/auth/access.ts lists them, the first logged in now and the second
-// with a session that has run out, and customers who've signed up over the
-// last few days, one with no name and one added by hand who's never logged
-// in. The customers' addresses are example.com's, which reach nobody.
+// Sample users, their sessions and their API tokens: the business's own
+// people, as backend/auth/access.ts lists them, the first logged in now,
+// with three tokens, and the second with a session that has run out, and
+// customers who've signed up over the last few days, one with no name and
+// one added by hand who's never logged in. The customers' addresses are
+// example.com's, which reach nobody.
 
 // The business's own, made from the list, so the seed's internal people
 // are the ones the code says, and the server's start changes none of them
@@ -160,4 +161,62 @@ export const seedSessions: Seeder = async (transaction: Database) => {
         .values(values)
         .returning({ token_hash: sessions.token_hash })
     return { table: "auth.sessions", rows: rows.length }
+}
+
+// The first internal person's API tokens, one in each state the account
+// page shows: in use, never used and running out, and run out. Each is kept
+// by its SHA-256, as a real one is, of a token too short to be one, so no
+// script logs in with them (backend/auth/api-tokens.ts)
+const SAMPLE_API_TOKENS = [
+    {
+        name: "Nightly export",
+        token: "sample-api-token-nightly-export-Q7x2",
+        scopes: ["read" as const],
+        expires_at: null,
+        last_used_at: fromNow(-3 * HOUR - 12 * MINUTE),
+        created_at: fromNow(-41 * DAY)
+    },
+    {
+        name: "Zapier",
+        token: "sample-api-token-zapier-mR4k",
+        scopes: ["read" as const, "act" as const],
+        expires_at: fromNow(83 * DAY),
+        last_used_at: null,
+        created_at: fromNow(-7 * DAY)
+    },
+    {
+        name: "Old import script",
+        token: "sample-api-token-old-import-b9Td",
+        scopes: ["read" as const, "act" as const],
+        expires_at: fromNow(-5 * DAY),
+        last_used_at: fromNow(-36 * DAY),
+        created_at: fromNow(-95 * DAY)
+    }
+]
+
+/** The first internal person's API tokens, in place of every token there was. */
+export const seedApiTokens: Seeder = async (transaction: Database) => {
+    await transaction.delete(api_tokens)
+    if (FIRST_INTERNAL === undefined) {
+        return { table: "auth.api_tokens", rows: 0 }
+    }
+    const [owner] = await transaction
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, FIRST_INTERNAL.email))
+    if (owner === undefined) {
+        throw new Error("The sample tokens' user wasn't seeded")
+    }
+    const rows = await transaction
+        .insert(api_tokens)
+        .values(
+            SAMPLE_API_TOKENS.map(({ token, ...sample }) => ({
+                ...sample,
+                user_id: owner.id,
+                token_hash: createHash("sha256").update(token).digest("hex"),
+                preview: token.slice(-4)
+            }))
+        )
+        .returning({ id: api_tokens.id })
+    return { table: "auth.api_tokens", rows: rows.length }
 }

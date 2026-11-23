@@ -31,6 +31,19 @@ export function since(when: Date | string, now: Date = new Date()) {
     }
 }
 
+/**
+ * A day, past or to come, for when the time of day doesn't matter: "Feb 14",
+ * with the year when it isn't this one, "Feb 14, 2027".
+ */
+export function day(when: Date | string, now: Date = new Date()) {
+    const at = new Date(when)
+    return at.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: at.getFullYear() === now.getFullYear() ? undefined : "numeric"
+    })
+}
+
 /** The moment in full: "Nov 15, 11:28 AM". */
 export function moment(when: Date | string) {
     return new Date(when).toLocaleString("en-US", {

@@ -3,7 +3,7 @@ import { enqueueFromScript } from "@/backend/workflows/engine"
 import { connect, type Database } from "@/database"
 import { localDatabaseUrl } from "@/database/local"
 import { seedAnalyticsEvents, seedAnalyticsVisits } from "./analytics"
-import { seedSessions, seedUsers, signedUp } from "./users"
+import { seedApiTokens, seedSessions, seedUsers, signedUp } from "./users"
 
 /**
  * Sample rows for this checkout's database, so a dev server has something
@@ -41,6 +41,7 @@ export type Seeder = (
 const SEEDERS: Seeder[] = [
     seedUsers,
     seedSessions,
+    seedApiTokens,
     seedAnalyticsVisits,
     seedAnalyticsEvents
 ]

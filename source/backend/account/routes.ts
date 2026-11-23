@@ -1,8 +1,10 @@
 import { Hono } from "hono"
 import { z } from "zod"
+import { api_token_creation } from "@/utilities/schemas/api-tokens"
 import { account_change } from "@/utilities/schemas/users"
 import { listedInternal } from "../auth/access"
-import { inBrowser, loggedIn } from "../auth/logged-in"
+import { listApiTokens, makeApiToken, revokeApiToken } from "../auth/api-tokens"
+import { inBrowser, internalOnly, loggedIn } from "../auth/logged-in"
 import {
     endOtherSessions,
     endSessionById,
@@ -16,14 +18,18 @@ import { renameUser } from "./rename"
 // (auth/sessions.ts's `sessionId`)
 const session_path = z.object({ id: z.string().regex(/^[0-9a-f]{16}$/) })
 
+// An API token's id in a path
+const api_token_path = z.object({ id: z.uuid() })
+
 /**
  * The logged-in person's own account, under /api/account, whatever their
  * role: what they're called, and the browsers they're logged in on, with
- * logging out of the others. Their address is who they are, so it doesn't
- * change here, and neither does the name of one of the business's own,
- * which is the one they're listed with in code (auth/access.ts). Where
- * they're logged in is a browser's to see and end, never Claude's
- * (`inBrowser`).
+ * logging out of the others, and for one of the business's own, their API
+ * tokens. Their address is who they are, so it doesn't change here, and
+ * neither does the name of one of the business's own, which is the one
+ * they're listed with in code (auth/access.ts). Where they're logged in,
+ * and their tokens, are a browser's to see and change, never a token's
+ * (`inBrowser`), so a token that leaks can't make another.
  */
 export const accountRoutes = new Hono<ApiEnvironment>()
     .patch(
@@ -111,5 +117,66 @@ export const accountRoutes = new Hono<ApiEnvironment>()
                 ended
             })
             return context.json({ ended }, 200)
+        }
+    )
+
+    // Their API tokens, newest first, never the tokens themselves
+    .get("/account/tokens", internalOnly, inBrowser, async (context) => {
+        const tokens = await listApiTokens(
+            context.var.database,
+            context.var.user.id
+        )
+        return context.json({ tokens }, 200)
+    })
+
+    // Makes one, as them, answering the token itself, which nothing shows
+    // again
+    .post(
+        "/account/tokens",
+        internalOnly,
+        inBrowser,
+        validated("json", api_token_creation),
+        async (context) => {
+            const made = await makeApiToken(
+                context.var.database,
+                context.var.user.id,
+                context.req.valid("json")
+            )
+            console.info("API token made", {
+                user_id: context.var.user.id,
+                api_token_id: made.api_token.id,
+                scopes: made.api_token.scopes
+            })
+            return context.json(made, 200)
+        }
+    )
+
+    // Revokes one of their own, so the next request with it is refused
+    .delete(
+        "/account/tokens/:id",
+        internalOnly,
+        inBrowser,
+        validated("param", api_token_path),
+        async (context) => {
+            const { id } = context.req.valid("param")
+            const revoked = await revokeApiToken(
+                context.var.database,
+                context.var.user.id,
+                id
+            )
+            if (revoked.ok) {
+                console.info("API token revoked", {
+                    user_id: context.var.user.id,
+                    api_token_id: id
+                })
+                return context.json({ revoked: true as const }, 200)
+            } else {
+                return failure(
+                    context,
+                    404,
+                    revoked.error,
+                    "No token of yours has that ID"
+                )
+            }
         }
     )
