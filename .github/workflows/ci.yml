@@ -168,18 +168,24 @@ jobs:
                   # Every commit, to find the one that set the version
                   fetch-depth: 0
             # The agent that updates a copy reads a release's notes before it
-            # takes it, so a version with no heading in CHANGELOG.md fails
-            # here rather than going out without them.
+            # takes it, so a version without its notes file, headed with it,
+            # and its line in CHANGELOG.md fails here rather than going out
+            # without them.
             - name: Tag the release, if it isn't yet
               run: |
                   version=$(jq -r .version .superforge/superforge.json)
                   tag="v$version"
+                  notes=".superforge/releases/$version.md"
                   if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
                       echo "$tag is already tagged"
                       exit 0
                   fi
-                  if ! grep -q "^## $version (" CHANGELOG.md; then
-                      echo "::error::.superforge/superforge.json says $version, but CHANGELOG.md has no \"## $version (day)\" heading, so $tag isn't tagged. Give the release its notes, and the next push to main tags it."
+                  if [ ! -f "$notes" ] || ! head -n 1 "$notes" | grep -qF -- "# $version ("; then
+                      echo "::error::.superforge/superforge.json says $version, but $notes doesn't start with \"# $version (day)\", so $tag isn't tagged. Give the release its notes, and the next push to main tags it."
+                      exit 1
+                  fi
+                  if ! grep -qF -- "- [$version]($notes)" CHANGELOG.md; then
+                      echo "::error::CHANGELOG.md has no line for $version (\"- [$version]($notes) (day): …\"), so $tag isn't tagged. Add it, and the next push to main tags it."
                       exit 1
                   fi
                   release=$(git log --first-parent -n 1 --format=%H HEAD -- .superforge/superforge.json)
