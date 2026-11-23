@@ -111,6 +111,18 @@ export default defineRailway(() => {
         // kept. `html` is Railway's default, written out so it can't change
         // under us.
         cdn: { enabled: true, purgeOnDeploy: "html" },
+        // Railway's tracing (a preview, behind the account's Tracing beta):
+        // its edge traces each request to the app's domains, and its next
+        // deploy sets the `OTEL_*` variables that point the app's own spans
+        // at the collector on its host, which turns source/tracing.ts on.
+        // Its traces are on the project's Traces page, and the Railway
+        // MCP's `list-traces` and `get-trace` (workbench/writing-code.md,
+        // "Logging and tracing"). The app makes its own spans, so not
+        // `autoInstrumentation`, which would make each request's twice. A
+        // project token, CI's, can't change it, so a change here is made
+        // with a login first (workbench/commit-and-deploy.md, "CI and
+        // deploys").
+        tracing: { enabled: true },
         env: {
             DATABASE_URL: ref(database, "DATABASE_URL"),
             // The Storage bucket's S3 credentials. `BUCKET` is its name for

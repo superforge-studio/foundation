@@ -163,6 +163,18 @@ new workflow a title, since it's what the screen lists.
 words (`queued`, `running`, `succeeded`, `failed`, `canceled`), times as
 ISO strings, and inputs and outputs as JSON text.
 
+**On Railway, each run is a trace too**, while the server traces
+(`source/tracing.ts`): DBOS's own spans, `tracingEnabled` in `engine.ts`,
+one named for the workflow, with one for each step inside it, named for
+the step, and each step's queries and calls out inside that, beside the
+queries DBOS checkpoints the step with. Each carries the run's id as
+`dbos.operation.workflow_id`, so `list-traces` on the Railway MCP finds a
+run's trace with `@dbos.operation.workflow_id:<id>`, and what a step logs
+is on its span. A run is a trace of its own, not part of the request that
+started it, since a queue runs it later; that request's span has the log
+of the start, with the id (workbench/writing-code.md, "Logging and
+tracing").
+
 ## The sample
 
 **`tell-team-of-sign-up`** (`backend/users/workflows.ts`) is the
@@ -190,7 +202,10 @@ this process runs the workflows, behind the gate, so one process at a time
 does, and stops before DBOS shuts down. A turn never overlaps the one
 before it, and one that throws is logged and the runner goes on. Its turn
 is short: it finds what's due and does it, or starts a run for each,
-named for what it's for so a turn that finds it again starts it once.
+named for what it's for so a turn that finds it again starts it once. A
+runner a minute or more apart traces each turn, as `runner <name>`; one
+every few seconds doesn't, since most of its turns find nothing, and what
+it starts is traced as its run.
 
 ## Testing
 

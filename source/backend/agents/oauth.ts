@@ -1,5 +1,6 @@
 import { Hono } from "hono"
 import { AGENT_SCOPES, MCP_PATH } from "@/utilities/schemas/agents"
+import { traceRoutes } from "@/utilities/tracing"
 import { appInfra, type Infra } from "../infra"
 import { requestOrigin } from "../infra/agents"
 
@@ -30,36 +31,42 @@ export function oauthWith(infra: () => Infra) {
             bearer_methods_supported: ["header"]
         }
     }
-    return new Hono()
-        .get("/.well-known/oauth-protected-resource", (context) =>
-            context.json(resource(context.req.url), 200, {
-                "Cache-Control": "no-store"
-            })
-        )
-        .get(`/.well-known/oauth-protected-resource${MCP_PATH}`, (context) =>
-            context.json(resource(context.req.url), 200, {
-                "Cache-Control": "no-store"
-            })
-        )
-        .get("/.well-known/oauth-authorization-server", (context) =>
-            infra().passOAuth(
-                context.req.raw,
-                "/metadata",
-                requestOrigin(context.req.url)
+    return (
+        new Hono()
+            // Each request's span named for its route (utilities/tracing.ts)
+            .use(traceRoutes)
+            .get("/.well-known/oauth-protected-resource", (context) =>
+                context.json(resource(context.req.url), 200, {
+                    "Cache-Control": "no-store"
+                })
             )
-        )
-        .all("/oauth/:call", (context) => {
-            const call = context.req.param("call")
-            if (!OAUTH_CALLS.includes(call)) {
-                return context.json({ error: "not-found" }, 404)
-            } else {
-                return infra().passOAuth(
+            .get(
+                `/.well-known/oauth-protected-resource${MCP_PATH}`,
+                (context) =>
+                    context.json(resource(context.req.url), 200, {
+                        "Cache-Control": "no-store"
+                    })
+            )
+            .get("/.well-known/oauth-authorization-server", (context) =>
+                infra().passOAuth(
                     context.req.raw,
-                    `/${call}`,
+                    "/metadata",
                     requestOrigin(context.req.url)
                 )
-            }
-        })
+            )
+            .all("/oauth/:call", (context) => {
+                const call = context.req.param("call")
+                if (!OAUTH_CALLS.includes(call)) {
+                    return context.json({ error: "not-found" }, 404)
+                } else {
+                    return infra().passOAuth(
+                        context.req.raw,
+                        `/${call}`,
+                        requestOrigin(context.req.url)
+                    )
+                }
+            })
+    )
 }
 
 /** The server's, on its Infra */

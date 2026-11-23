@@ -16,14 +16,18 @@
 //      tables once it has (source/backend/workflows/engine.ts)
 //   6. with no INFRA_SECRET_KEY, sign-in answers 503, never the stand-in a
 //      dev server signs in with (source/backend/infra/choose.ts)
+//   7. its traces reach a collector, as they reach Railway's once tracing
+//      is on (source/tracing.ts): its requests named for their routes,
+//      with their queries inside them, sent as it stops on SIGTERM
 //
 // So a start script that crashes, a migration that won't apply from empty,
 // a page the server can't find, a broken cache header, workflows that
-// never start or a build that would show sign-in codes on the page fails
-// here, not in the deploy. It drops its database
+// never start, a build that would show sign-in codes on the page or
+// tracing that sees nothing fails here, not in the deploy. It drops its database
 // whatever happens.
 import { execFileSync, spawn } from "node:child_process"
 import { readdirSync } from "node:fs"
+import { createServer as createHttpServer } from "node:http"
 import { createServer } from "node:net"
 import { join, relative } from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
@@ -47,6 +51,27 @@ database_url.pathname = `/${name}`
 
 const problems = []
 let server
+let server_exited = null
+
+// Railway's collector, as the server finds it once tracing is on: an OTLP
+// receiver at the address and with the header Railway's variables give
+// (source/tracing.ts), keeping what each export sends
+const COLLECTOR_HEADER = "x-smoke-test-collector"
+const exports = []
+const collector = createHttpServer((request, response) => {
+    const chunks = []
+    request.on("data", (chunk) => chunks.push(chunk))
+    request.on("end", () => {
+        exports.push({
+            path: request.url,
+            type: request.headers["content-type"],
+            header: request.headers[COLLECTOR_HEADER],
+            body: Buffer.concat(chunks)
+        })
+        response.writeHead(200, { "Content-Type": "application/x-protobuf" })
+        response.end()
+    })
+})
 
 try {
     await onServer(`create database "${name}"`)
@@ -57,19 +82,30 @@ try {
         stdio: "inherit"
     })
 
-    // 2. The server, as Railway starts it
+    // 2. The server, as Railway starts it, traced, as Railway sets it up
     const port = await freePort()
+    const collector_port = await freePort()
+    await new Promise((resolve) =>
+        collector.listen(collector_port, "127.0.0.1", resolve)
+    )
     server = spawn("pnpm", ["--silent", "start"], {
         env: {
             ...process.env,
             DATABASE_URL: database_url.href,
             PORT: String(port),
             // None, whatever the shell has, for step 6
-            INFRA_SECRET_KEY: ""
+            INFRA_SECRET_KEY: "",
+            // Railway's tracing variables, for step 7
+            OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${collector_port}`,
+            OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf",
+            OTEL_EXPORTER_OTLP_HEADERS: `${COLLECTOR_HEADER}=1`,
+            OTEL_SERVICE_NAME: "smoke-test",
+            OTEL_TRACES_EXPORTER: "otlp"
         },
         stdio: ["ignore", "inherit", "inherit"],
         detached: true
     })
+    server_exited = new Promise((resolve) => server.once("exit", resolve))
     const base = `http://127.0.0.1:${port}`
 
     // 3. The healthcheck, which Railway waits on before sending traffic
@@ -103,17 +139,16 @@ try {
     //    than falling back to the dev server's stand-in, which shows the
     //    code on the page (source/backend/infra/choose.ts)
     await expectSignInDown(base)
+
+    // 7. The traces, which the server sends its collector in batches, and
+    //    the last of as it stops: stopped here as Railway stops it
+    await stopServer()
+    expectTraces()
 } catch (error) {
     problems.push(error instanceof Error ? error.message : String(error))
 } finally {
-    if (server?.pid !== undefined) {
-        // The whole group: pnpm and the Node server it started
-        try {
-            process.kill(-server.pid, "SIGTERM")
-        } catch (error) {
-            console.error("The server had already stopped", { error })
-        }
-    }
+    await stopServer()
+    collector.close()
     await onServer(`drop database if exists "${name}" with (force)`)
 }
 
@@ -127,6 +162,64 @@ if (problems.length > 0) {
     console.info(
         "\nThe production server migrated, started, passed its healthcheck and served every page"
     )
+}
+
+// Stops the server as Railway stops a deployment it replaces, with SIGTERM
+// to the whole group, pnpm and the Node server it started, and waits for
+// it to exit, after it has sent its last spans
+async function stopServer() {
+    if (server?.pid === undefined || server.exitCode !== null) {
+        return
+    }
+    try {
+        process.kill(-server.pid, "SIGTERM")
+    } catch (error) {
+        console.error("The server had already stopped", { error })
+        return
+    }
+    const exited = await Promise.race([
+        server_exited.then(() => true),
+        sleep(20_000).then(() => false)
+    ])
+    if (!exited) {
+        problems.push("The server didn't stop within 20 seconds of SIGTERM")
+        process.kill(-server.pid, "SIGKILL")
+    }
+}
+
+// What the collector was sent: OTLP over HTTP, as protobuf, with Railway's
+// header, holding a request named for its route by its app
+// (utilities/tracing.ts), with a query of the database inside a request,
+// which only an instrumentation that hooked `pg` as the build imports it
+// makes. Protobuf keeps each string as its bytes, so the names are found
+// in what was sent as they are.
+function expectTraces() {
+    const sent = exports.filter((each) => each.path === "/v1/traces")
+    const body = Buffer.concat(sent.map((each) => each.body))
+    if (sent.length === 0) {
+        problems.push("The server sent its collector no traces")
+        return
+    }
+    const wrong = sent.find(
+        (each) => each.type !== "application/x-protobuf" || each.header !== "1"
+    )
+    if (wrong !== undefined) {
+        problems.push(
+            `The server sent traces as ${wrong.type}, with ${COLLECTOR_HEADER} ${wrong.header}, not as protobuf with Railway's header`
+        )
+    }
+    const missing = ["smoke-test", "GET /api/health", "pg.query"].filter(
+        (expected) => !body.includes(expected)
+    )
+    if (missing.length > 0) {
+        for (const expected of missing) {
+            problems.push(`The server's traces have no "${expected}"`)
+        }
+    } else {
+        console.info(
+            `  ✓ the server's traces reached the collector (${sent.length} exports, ${body.length} bytes)`
+        )
+    }
 }
 
 // Runs one statement on the server's own database, for what can't run

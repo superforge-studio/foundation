@@ -4,6 +4,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { Hono } from "hono"
 import { z } from "zod"
 import { MCP_PATH } from "@/utilities/schemas/agents"
+import { traceRoutes } from "@/utilities/tracing"
 import { api, type apiWith } from "../index"
 import { requestOrigin } from "../infra/agents"
 
@@ -34,7 +35,9 @@ const METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const
  * test's
  */
 export function mcpWith(api: Api) {
-    return new Hono().all(MCP_PATH, async (context) => {
+    // Its request's span named for its route, and the API's calls its tools
+    // make in it each a span inside it (utilities/tracing.ts)
+    return new Hono().use(traceRoutes).all(MCP_PATH, async (context) => {
         const authorization = context.req.header("Authorization")
         const origin = requestOrigin(context.req.url)
         const base = new URL(context.req.url).origin

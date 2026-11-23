@@ -21,7 +21,7 @@ A page is only ever fetched: anything but a `GET` or a `HEAD` sent where a
 page would be, like a webhook given the site's address, is refused with a
 405 before it reaches Start, which would draw the page and answer 200.
 Every request nothing answers, and every one that fails, is logged
-(`source/backend/misses/`; "Logging", below).
+(`source/backend/misses/`; "Logging and tracing", below).
 
 Static files, the prerendered pages among them, are served **before**
 `source/server.ts` runs. A page never reaches it, so don't put
@@ -807,18 +807,69 @@ const post = found.data
 Reserve `throw` for genuinely unexpected failures — things no caller could
 meaningfully handle.
 
-### Logging
+### Logging and tracing
 
-There is no telemetry package. Log with `console.*`; Railway keeps each
-deployment's logs (`railway logs`, in a checkout linked with `railway link`,
-or the Railway MCP server). Two rules regardless of where logs go:
+Log with `console.*`; Railway keeps each deployment's logs (`railway logs`,
+in a checkout linked with `railway link`, or the Railway MCP's `get-logs`).
+Two rules regardless of where logs go:
 
 - **Every `catch` logs**, including errors you handle, retry, or deliberately
   ignore. So does every external call's outcome, with its status.
 - **Keep the message a static string** and put the variables in an object
   beside it: `console.error("Feed fetch failed", { url, error })`. An
   interpolated message can't be grepped back to its call site and splits one
-  failure into many signatures.
+  failure into many signatures, on the log and on the trace (below).
+
+**Traces go to Railway's Traces page** while tracing is on for the service
+(`tracing` in `.railway/railway.ts`, a preview behind the account's Tracing
+beta), from OpenTelemetry in the server, which `source/tracing.ts` starts
+before anything it instruments is imported: `pnpm start` loads it with
+`--import`. It's traces only, since Railway keeps logs and metrics itself,
+and most of a trace needs nothing from the code that runs in it:
+
+- **Every request** the server answers is a span, inside the trace
+  Railway's edge started (its `traceparent`), named for its route: a Hono
+  app's by `traceRoutes` (`utilities/tracing.ts`), first in each app the
+  server hands requests to, so `GET /api/workflows/runs/:id`, a page by its
+  path (`source/node.ts`) and the dashboard as `/dashboard/*`
+  (`source/server.ts`). A route that answers many addresses with one
+  handler, like a `*`, names itself with `nameRequest`. A request the MCP's
+  tool makes of the API in-process is a span inside the MCP's.
+- **Every query** (`pg`, the app's and DBOS's) and **every call out**
+  (`fetch`, `http`) is a span inside whatever's running. One outside any
+  span isn't traced, so DBOS's polling of its queues isn't.
+- **Every workflow run** is a trace of its own, named for its workflow,
+  with a span for each step inside it, named for the step: DBOS's own spans
+  (`tracingEnabled` in `backend/workflows/engine.ts`), each with its run's
+  ID as `dbos.operation.workflow_id`. A route's log of the run it started
+  has that ID. A runner a minute or more apart traces each turn, as
+  `runner <name>` (`backend/workflows/runners.ts`).
+- **What's logged while a span runs is kept on it**, as an event named for
+  the message with the rest beside it, and the log line ends with
+  `{ trace_id }`, so a log line leads to its trace and a trace has its own
+  logs. An error logged marks the span `app.error_logged`.
+- **A route that throws** marks its span failed, with the error and its
+  stack (`recordError`, which `backend/failures.ts` calls).
+
+For work worth a span of its own inside those, wrap it:
+`await traced("import contacts", () => importContacts(database))`
+(`utilities/tracing.ts`). Never put a secret, or a person's details, in a
+span's name or its attributes: a trace is kept as long as the logs, and
+everyone on the Railway project reads it. A query's span keeps its SQL,
+never its values, and the query parameters that carry a credential or a
+person's details, like OAuth's `code`, are redacted from every URL a span
+keeps (`REDACTED_QUERY`, `source/tracing.ts`): a new one goes on that list.
+
+**Reading production's**, as an agent: the Railway MCP's `list-traces`,
+which filters with Railway's log syntax (`@status:error`,
+`@http.route:/api/workflows/runs/:id`, `@duration:>500`, `@app.error_logged:true`,
+`@dbos.operation.workflow_id:<id>`), then `get-trace` with a trace's ID, for
+its spans as a tree; `get-tracing-coverage` shows what the app's own spans
+cover; `railway trace list --json` does the same from a shell. A response
+Railway traced carries its trace's ID in `x-railway-trace-id`. **Locally**,
+`OTEL_TRACES_EXPORTER=console pnpm preview` prints each span as it ends; a
+dev server and the tests trace nothing, and the smoke test checks the build
+sends its spans to a collector of its own.
 
 **What's trying to reach the app and can't is in the logs**, so look there
 first when a webhook "never arrives", a link is said to be broken, or a

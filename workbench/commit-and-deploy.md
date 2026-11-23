@@ -121,13 +121,15 @@ deploy with the current version still serving. Then it starts `pnpm start`
 never serves. Meanwhile its workflows wait at the gate the old one holds
 (`source/backend/workflows/README.md`). The old one gets SIGTERM, stops its
 workflows, which lets the new one's launch and carry on whatever runs were
-left, finishes its requests and exits. Read a deployment's logs with `railway
-logs`, in a checkout linked with `railway link`, or with the Railway MCP
-server.
+left, finishes its requests, sends its last spans and exits. Read a
+deployment's logs with `railway logs`, in a checkout linked with `railway
+link`, or with the Railway MCP server, and its traces on the project's
+Traces page or with the MCP's `list-traces` and `get-trace`
+(`workbench/writing-code.md`, "Logging and tracing").
 
 **The project's configuration is `.railway/railway.ts`**, Railway's
 infrastructure as code: the app service, its build, pre-deploy migrations,
-start, healthcheck, CDN and variables, the Postgres database with its
+start, healthcheck, CDN, tracing and variables, the Postgres database with its
 point-in-time recovery bucket, and the `Storage` bucket for the app's
 files. Railway doesn't read it as it deploys. `railway config plan` shows
 what applying it would change, and `railway config apply` changes it; CI
@@ -143,6 +145,13 @@ variable), since CI runs it without `--confirm-destructive`. When a PR means
 one, the human applies it by hand once the PR merges, with `railway config
 apply --confirm-destructive` in a checkout linked with `railway link`, then
 re-runs the failed job so the push deploys.
+
+**A project token can't turn tracing on or off** (Railway's `railway
+trace` docs), so a change to the service's `tracing` in the file is made
+with a login before the PR merges, `railway trace enable --service app`
+(or `disable`), in a checkout logged in with `railway login`, and CI's
+apply then finds nothing to change. The first apply, run by hand ("Setting
+up Railway", step 3), turns it on with the rest.
 
 **There is no manual deploy.** Production's code only changes by merging a
 PR, so every deploy has passed `check` first. The one other way a version
@@ -323,7 +332,11 @@ database's), the `Storage` bucket's S3 credentials as `STORAGE_*`
 databases places a visitor by their IP address,
 `source/backend/visits/README.md`), and any secret as `preserve()`, whose
 value the human sets in Railway's dashboard, like `INFRA_SECRET_KEY`,
-sign-in's key ("Setting up Railway", step 6). A new one goes in the file first,
+sign-in's key ("Setting up Railway", step 6). Railway provides its own
+beside them, which the file doesn't name: the `RAILWAY_*` ones, and, while
+the service is traced (`tracing` in the file), the `OTEL_*` ones that say
+where its collector is, which turn the server's tracing on
+(`source/tracing.ts`). A new one goes in the file first,
 since the file owns every variable on the service (above), and a new
 secret is named in the PR so the human sets it before the merge. Never put a secret's value in the
 file, and never commit one: `.env*` is ignored for that reason.
