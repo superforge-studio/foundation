@@ -73,7 +73,7 @@ const NAMED = createContextKey("app.request-named")
 
 // The route that answered a request, as its app wrote it, with its
 // parameters (`/api/workflows/runs/:id`): its handler's, or a middleware's on it
-// that answered first, like `signedIn`'s. A request no route matched has
+// that answered first, like `loggedIn`'s. A request no route matched has
 // its app's own middleware's, like `/api/*`.
 function answeredBy(hono: Context) {
     return routePath(hono)

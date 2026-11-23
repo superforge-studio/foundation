@@ -85,7 +85,7 @@ await database.transaction(async (transaction) => {
 
 A workflow's step calls the operation it needs directly, never one of
 the app's own routes over HTTP: it runs in this process, so a route would
-only add a token for the server to sign in as itself and a hop through a
+only add a token for the server to log in as itself and a hop through a
 server that may be deploying, and lose the types. The routes' checks are
 for people and agents coming in from outside.
 
@@ -313,14 +313,14 @@ tracing").
 ## The sample
 
 **`tell-team-of-sign-up`** (`backend/users/workflows.ts`) is the
-template's example: it's `on: ["user-signed-up"]`, which the sign-in that
+template's example: it's `on: ["user-signed-up"]`, which the login that
 makes someone new queues in its own transaction, named for them so it
-runs once (`backend/auth/sign-in.ts`), and its three steps read them,
+runs once (`backend/auth/login.ts`), and its three steps read them,
 find the business's own people, and send the notice, which goes to the
 logs until Superforge Infra can send email. `pnpm database:seed` puts
 real runs of it on the queue, for a dev server to run, rather than writing
 DBOS's rows. A copy keeps it, or deletes it with its line in `index.ts`
-(the sign-in's event then queues nothing).
+(the login's event then queues nothing).
 
 ## When not to use one
 
@@ -352,7 +352,7 @@ it starts is traced as its run.
 - **A write that queues one** is tested on its database: `testApi()`'s
   `queued()`, or `queuedRuns(database)` (`tests/support/queued.ts`),
   reads back the runs on its queues through DBOS's client, each with its
-  workflow, id and input, as `tests/queue.test.ts` and the sign-in's tests
+  workflow, id and input, as `tests/queue.test.ts` and the login's tests
   do. Nothing runs them.
 - **A route that starts one** is tested with `testApi()`
   (`backend/tests/support/api.ts`), whose `started` lists each run the

@@ -40,7 +40,7 @@ the work:
 It's answered 200 once it's taken, whatever it queued. A sender's retry
 is a new row, with the same `delivery_id`.
 
-**No one signs in for a webhook**: its signature says who sent it. The
+**No one logs in for a webhook**: its signature says who sent it. The
 route is mounted ahead of the API's check for another site's forms
 (`backend/index.ts`), since some senders, like Twilio, post forms, and
 none sends an Origin. A body is at most 2 MB (413 `too-large`).

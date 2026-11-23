@@ -170,9 +170,9 @@ export const seedAnalyticsEvents: Seeder = async (transaction: Database) => {
                 name: "click",
                 path: "/",
                 properties: {
-                    target: "sign-in",
-                    text: "Sign in",
-                    href: "/sign-in"
+                    target: "login",
+                    text: "Log in",
+                    href: "/login"
                 },
                 occurred_at: during(FROM_AN_AD, 40_000)
             },
@@ -186,8 +186,8 @@ export const seedAnalyticsEvents: Seeder = async (transaction: Database) => {
             {
                 ...maria,
                 name: "view",
-                path: "/sign-in",
-                properties: { title: "Sign in" },
+                path: "/login",
+                properties: { title: "Log in" },
                 occurred_at: during(FROM_AN_AD, 41_000)
             },
             {

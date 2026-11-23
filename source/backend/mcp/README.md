@@ -9,10 +9,10 @@ so a deploy loses nothing.
 **Why `/admin/mcp`, not `/mcp`.** This MCP is the admin's: it's for the
 business's own people, as the admin is, so it sits under `/admin`. `/mcp`
 is left free on purpose, for an MCP the business may one day give its
-customers, signed in as one of them, with tools of its own and tokens of
+customers, logged in as one of them, with tools of its own and tokens of
 its own. Infra signs each token for one MCP's path, so the two never open
 each other. Until a business builds one, `/mcp` answers nothing, and
-Infra signs Claude in to `/admin/mcp` alone. The path is `MCP_PATH`
+Infra logs Claude in to `/admin/mcp` alone. The path is `MCP_PATH`
 (`utilities/schemas/agents.ts`), which everything that names it reads.
 
 ## How Claude connects
@@ -22,33 +22,33 @@ Infra signs Claude in to `/admin/mcp` alone. The path is `MCP_PATH`
 (Settings, Connectors), which reaches claude.ai, the desktop app, cloud
 sessions and scheduled tasks, or in Claude Code. Then:
 
-1. Claude calls `/admin/mcp` and is told to sign in: a 401 with
+1. Claude calls `/admin/mcp` and is told to log in: a 401 with
    `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/admin/mcp"`.
-2. Claude reads where to sign in, the app itself
+2. Claude reads where to log in, the app itself
    (`backend/agents/oauth.ts`), and opens the browser at the app's
    `/oauth/authorize`, which Superforge Infra answers through the app.
 3. The browser lands on the app's own Allow page, `/connect/<id>`. Someone
-   on the team signs in there if they aren't already, and allows Claude
+   on the team logs in there if they aren't already, and allows Claude
    to read, or to read and act.
 4. Claude gets a token Infra signed, and refreshes it on its own, so they
-   sign in once. Their account page lists the connection, and Disconnect
+   log in once. Their account page lists the connection, and Disconnect
    ends it within ten minutes.
 
 A dev server connects the same way with an Infra test key
 (`INFRA_TEST_KEY`), at `http://localhost:3000/admin/mcp`. Without one, the
-stand-in can't sign Claude in.
+stand-in can't log Claude in.
 
 ## How it works
 
 - **It's a client of the API, not of the database.** Each tool calls the
   routes under `/api` in this process, with the token Claude brought,
-  which `signedIn` takes in a cookie's place (`backend/auth/agents.ts`).
+  which `loggedIn` takes in a cookie's place (`backend/auth/agents.ts`).
   So Claude can do what its person can through the API, with the same
   checks, and the MCP holds no logic of its own
   (`workbench/writing-code.md`, "Headless").
 - **What the person allowed is enforced on every call.** `read` makes
   `GET` requests only (403 `read-only` otherwise), and `act` everything
-  else. No token, whatever it allows, changes who can sign in or ends
+  else. No token, whatever it allows, changes who can log in or ends
   anyone's session: those routes take `inBrowser` (403 `browser-only`).
 - **Only the business's own people can connect**, and a token stops
   working the moment its person is taken off the team in

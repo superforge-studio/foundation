@@ -51,7 +51,7 @@ Liechtenstein, Norway) and the UK (`GDPR_COUNTRIES` in `location.ts`).
 What's kept of whoever sent a batch:
 
 - **A remembered visitor** is the ID in their `visitor` cookie, so their
-  visits join up across days, with the user they're signed in as.
+  visits join up across days, with the user they're logged in as.
 - **A visitor who isn't remembered** is a hash of their network, their
   `User-Agent` and a salt that's replaced each UTC day (`visitors.ts`).
   They count as one visitor that day, and can't be told from anyone after
@@ -96,7 +96,7 @@ whatever order they arrived in:
 
 Beside them are who the visitor was (`visitor_id`, `anonymous`,
 `user_id`), where (`country`, `region`, `city`) and on what (`device`,
-`browser`, `os`), set as the visit starts. A visitor who signs in during a
+`browser`, `os`), set as the visit starts. A visitor who logs in during a
 visit is on it from then on. `source/database/schema.ts` has every column.
 
 ## The server's events: `recordEvents`
@@ -128,7 +128,7 @@ most 1,000 characters, a number, a boolean or null. It's a row in
 **An event is never worth failing a request over.** `recordEvents` throws
 on an event that isn't one, which is a bug, and when the database is
 down: where a person is waiting, catch it and log it. The template's one,
-`signed-up`, is recorded when a sign-in makes someone new
+`signed-up`, is recorded when a login makes someone new
 (`recordSignUp` in `backend/auth/routes.ts`).
 
 ## Where a visitor is

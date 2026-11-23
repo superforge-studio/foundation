@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { Button } from "@/frontend/components/primitives/button"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
-import { SignInForm } from "@/frontend/components/site/sign-in-form"
+import { LoginForm } from "@/frontend/components/site/login-form"
 import {
     allowAgent,
     connectRequestQuery,
@@ -19,8 +19,8 @@ import { isInternal } from "@/utilities/schemas/users"
  * on the business's team to let it in (backend/agents/). It shows what
  * Claude asked for, and sends the browser back to Claude once they allow
  * or decline it. Drawn in the browser, never prerendered (vite.config.ts
- * leaves /connect out), since it's someone's own request. Signed out, it
- * signs them in here, by the code the email holds, so they never leave
+ * leaves /connect out), since it's someone's own request. Logged out, it
+ * logs them in here, by the code the email holds, so they never leave
  * the window Claude opened.
  */
 export const Route = createFileRoute("/connect/$request_id")({
@@ -39,14 +39,14 @@ function Connect() {
     const session = useSession()
     if (session.status === "loading") {
         return <Frame>{null}</Frame>
-    } else if (session.status === "signed-out") {
+    } else if (session.status === "logged-out") {
         return (
             <Frame>
                 <Heading
-                    title="Sign in to connect Claude"
+                    title="Log in to connect Claude"
                     lead="Enter your email, then type the code we send you here. Stay on this page: Claude is waiting on it."
                 />
-                <SignInForm />
+                <LoginForm />
             </Frame>
         )
     } else if (!isInternal(session.user.role)) {
@@ -54,7 +54,7 @@ function Connect() {
             <Frame>
                 <Heading
                     title="Only the team can connect Claude"
-                    lead={`You're signed in as ${session.user.email}, who isn't on the business's team. Sign in as someone who is.`}
+                    lead={`You're logged in as ${session.user.email}, who isn't on the business's team. Log in as someone who is.`}
                 />
             </Frame>
         )
@@ -103,7 +103,7 @@ function Request({ request_id, email }: { request_id: string; email: string }) {
         <>
             <Heading
                 title={`Let ${client_name} in?`}
-                lead={`${client_name} will act as you, ${email}: it can see what you see here${scopes.includes("act") ? ", and if you let it, change what you can change" : ""}. It can't sign anyone in or out. You can disconnect it from your account page whenever you like.`}
+                lead={`${client_name} will act as you, ${email}: it can see what you see here${scopes.includes("act") ? ", and if you let it, change what you can change" : ""}. It can't log anyone in or out. You can disconnect it from your account page whenever you like.`}
             />
             <div className="flex flex-col gap-3 sm:flex-row">
                 {scopes.includes("act") && (

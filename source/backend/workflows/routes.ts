@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { z } from "zod"
-import { internalOnly } from "../auth/signed-in"
+import { internalOnly } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 

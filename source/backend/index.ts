@@ -41,7 +41,7 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // The database on `context.var.database` for every route, the
             // Storage bucket on `context.var.storage`, the workflows on
             // `context.var.workflows`, Infra on `context.var.infra`, who
-            // can sign in on `context.var.access`, whom the site remembers
+            // can log in on `context.var.access`, whom the site remembers
             // on `context.var.visitor_mode`, what places a visitor on
             // `context.var.locate`, and the services that post the app
             // webhooks on `context.var.webhook_sources`. Nothing under /api
@@ -96,22 +96,22 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // Whether the server can reach its database
             .route("/", healthRoutes)
 
-            // Signing in, through Infra, and out, under /auth
+            // Logging in, through Infra, and out, under /auth
             .route("/", authRoutes)
 
-            // The signed-in person's own account, under /account
+            // The logged-in person's own account, under /account
             .route("/", accountRoutes)
 
             // What visitors do on the pages, which the pages' script posts
             // under /visits, kept in the app's own database
             .route("/", visitRoutes)
 
-            // What the signed-in say about the app, from the toolbar on
+            // What the logged-in say about the app, from the toolbar on
             // every page, under /comments, sent on to Infra
             .route("/", commentRoutes)
 
             // The business's side of the dashboard, for its own people:
-            // everyone who can sign in, under /users, and the workflows'
+            // everyone who can log in, under /users, and the workflows'
             // runs, under /workflows
             .route("/", userRoutes)
             .route("/", workflowRoutes)
@@ -141,7 +141,7 @@ function fromThisHost(origin: string, context: Context) {
 
 /**
  * The server's API, on its database, bucket, workflows and Infra, with who
- * can sign in as auth/access.ts says, whom the site remembers as
+ * can log in as auth/access.ts says, whom the site remembers as
  * utilities/visitors.ts says, visitors placed by the database Railway
  * names (visits/location.ts), and the webhook sources webhooks/sources.ts
  * lists.

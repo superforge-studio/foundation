@@ -76,7 +76,7 @@ async function kept(database: Awaited<ReturnType<typeof testDatabase>>) {
     }
 }
 
-// A user to be signed in as
+// A user to be logged in as
 async function userNamed(
     database: Awaited<ReturnType<typeof testDatabase>>,
     email: string
@@ -336,10 +336,10 @@ test("a visitor who declined is asked nothing more, and one who hasn't answered 
     ).toEqual({ kept: 1, remembered: true, ask: false })
 })
 
-test("a visitor who signs in during a visit is on it from then on", async () => {
+test("a visitor who logs in during a visit is on it from then on", async () => {
     const context = await setup()
     const ada = await userNamed(context.database, "ada@example.com")
-    await recordVisit(context, batch([event("view", 5 * MINUTE, "/sign-in")]))
+    await recordVisit(context, batch([event("view", 5 * MINUTE, "/login")]))
     await recordVisit(
         context,
         batch([event("view", MINUTE, "/dashboard")], { user_id: ada.id })

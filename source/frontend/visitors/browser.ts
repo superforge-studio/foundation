@@ -205,7 +205,7 @@ function clicked(visitors: Recorder, event: Event) {
     if (!(event.target instanceof Element)) {
         return
     }
-    // Not the visitor's, like the toolbar the signed-in see
+    // Not the visitor's, like the toolbar the logged-in see
     if (event.target.closest("[data-untracked]") !== null) {
         return
     }

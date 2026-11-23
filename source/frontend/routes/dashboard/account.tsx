@@ -15,7 +15,7 @@ export const Route = createFileRoute("/dashboard/account")({
 
 function Account() {
     const session = useSession()
-    if (session.status !== "signed-in") {
+    if (session.status !== "logged-in") {
         // route.tsx draws the way in until someone is
         return null
     }
@@ -29,7 +29,7 @@ function Account() {
                 <p className="text-pretty text-muted-foreground">
                     {isInternal(user.role)
                         ? "You're one of the business's own, so you see its workflows and its people too."
-                        : `Signed in as ${user.email}.`}
+                        : `Logged in as ${user.email}.`}
                 </p>
             </header>
             <AccountPanel key={user.id} user={user} />

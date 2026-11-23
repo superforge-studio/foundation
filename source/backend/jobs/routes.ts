@@ -1,13 +1,13 @@
 import { Hono } from "hono"
 import { z } from "zod"
-import { internalOnly } from "../auth/signed-in"
+import { internalOnly } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { JOBS } from "./index"
 
 // The jobs, under /api/jobs, for the business's own people: what there is,
 // and starting one, a dry run first. Claude reaches them through the MCP's
-// call_api as the person who let it in, and needs `act` to (signed-in.ts),
+// call_api as the person who let it in, and needs `act` to (logged-in.ts),
 // since starting one, or planning it, is a POST. The run itself is a
 // workflow's, which /api/workflows/runs/:id shows as it goes.
 
@@ -70,7 +70,7 @@ export const jobRoutes = new Hono<ApiEnvironment>()
                     400
                 )
             }
-            const { user, signed_in_with } = context.var
+            const { user, logged_in_with } = context.var
             if (dry_run) {
                 const plan = await prepared.data.plan(context.var.database)
                 return context.json({ dry_run: true as const, plan }, 200)
@@ -80,7 +80,7 @@ export const jobRoutes = new Hono<ApiEnvironment>()
                     job: name,
                     run_id,
                     user_id: user.id,
-                    by: signed_in_with
+                    by: logged_in_with
                 })
                 return context.json({ dry_run: false as const, run_id }, 202)
             }

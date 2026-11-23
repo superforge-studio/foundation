@@ -15,10 +15,10 @@ import {
     type SessionUser
 } from "./sessions"
 
-// Who's signed in: the `session` cookie, or the token Claude brings in its
+// Who's logged in: the `session` cookie, or the token Claude brings in its
 // place (agents.ts), and the middleware that reads them. This is the one
-// place that decides who's signed in, so a route that needs the user takes
-// `signedIn` (or `maybeSignedIn`, or `internalOnly`) and reads
+// place that decides who's logged in, so a route that needs the user takes
+// `loggedIn` (or `maybeLoggedIn`, or `internalOnly`) and reads
 // `context.var.user`; nothing else reads the cookie or the token. Their
 // role is the one access.ts gives them, whatever the database says, so
 // only the people listed there are ever internal.
@@ -47,7 +47,7 @@ export function setSessionCookie(context: Context, token: string) {
     })
 }
 
-/** Clears the session's cookie, as signing out does. */
+/** Clears the session's cookie, as logging out does. */
 export function clearSessionCookie(context: Context) {
     deleteCookie(context, COOKIE, {
         path: "/",
@@ -70,7 +70,7 @@ export function secureCookie(request_url: string) {
 }
 
 /**
- * The session a request came with, as a route behind `signedIn` sees it.
+ * The session a request came with, as a route behind `loggedIn` sees it.
  * Claude's requests have none, and get `AGENT_SESSION`, which no session's
  * id ever is.
  */
@@ -80,39 +80,39 @@ export type RequestSession = { id: string }
 export const AGENT_SESSION: RequestSession = { id: "agent" }
 
 /**
- * How a request signed in: a browser, by its `session` cookie, or Claude,
+ * How a request logged in: a browser, by its `session` cookie, or Claude,
  * by an access token Infra signed (`Authorization: Bearer`), acting as one
  * of the business's own people (agents.ts)
  */
-export type SignedInWith = "session" | "agent"
+export type LoggedInWith = "session" | "agent"
 
-type SignedIn = {
+type LoggedIn = {
     Variables: ApiEnvironment["Variables"] & {
         user: SessionUser
         session: RequestSession
-        signed_in_with: SignedInWith
+        logged_in_with: LoggedInWith
         /** What the request may do: everything for a browser */
         scopes: readonly AgentScope[]
     }
 }
 
 /**
- * Lets a request through only when someone is signed in, and puts their
+ * Lets a request through only when someone is logged in, and puts their
  * user on `context.var.user`, the session's id on `context.var.session`,
- * and how they signed in on `context.var.signed_in_with`; without one,
- * it's answered 401 `signed-out`. A browser's session is renewed, keeping
- * the same token, so coming back keeps someone signed in, and one that has
+ * and how they logged in on `context.var.logged_in_with`; without one,
+ * it's answered 401 `logged-out`. A browser's session is renewed, keeping
+ * the same token, so coming back keeps someone logged in, and one that has
  * ended stays ended. Claude, with a token, gets through as the person who
  * allowed it, while they're one of the business's own, and with only
  * `read`, makes `GET` requests alone (403 `read-only`).
  */
-export const signedIn = createFactory<SignedIn>().createMiddleware(
+export const loggedIn = createFactory<LoggedIn>().createMiddleware(
     // From a factory rather than plain `createMiddleware`, so the 401 below
     // is inferred into each route's type and the typed client knows it
     async (context, next) => {
         const asking = await whoIsAsking(context)
         if (asking === undefined) {
-            return failure(context, 401, "signed-out", "Sign in first")
+            return failure(context, 401, "logged-out", "Log in first")
         } else if (!mayDo(context, asking)) {
             return readOnly(context)
         } else {
@@ -122,15 +122,15 @@ export const signedIn = createFactory<SignedIn>().createMiddleware(
 )
 
 /**
- * `signedIn` for the business's side of the dashboard: only someone whose
+ * `loggedIn` for the business's side of the dashboard: only someone whose
  * role is one of its own (`isInternal`, utilities/schemas/users.ts) gets
- * through, and anyone else signed in is answered 403 `not-internal`.
+ * through, and anyone else logged in is answered 403 `not-internal`.
  */
-export const internalOnly = createFactory<SignedIn>().createMiddleware(
+export const internalOnly = createFactory<LoggedIn>().createMiddleware(
     async (context, next) => {
         const asking = await whoIsAsking(context)
         if (asking === undefined) {
-            return failure(context, 401, "signed-out", "Sign in first")
+            return failure(context, 401, "logged-out", "Log in first")
         } else if (!isInternal(asking.user.role)) {
             return failure(
                 context,
@@ -147,20 +147,20 @@ export const internalOnly = createFactory<SignedIn>().createMiddleware(
 )
 
 /**
- * After `signedIn` or `internalOnly`, for what only a person in a browser
- * may do, never Claude with a token: who can sign in and where someone's
- * signed in, Claude's own connections, and allowing Claude in. So a token
+ * After `loggedIn` or `internalOnly`, for what only a person in a browser
+ * may do, never Claude with a token: who can log in and where someone's
+ * logged in, Claude's own connections, and allowing Claude in. So a token
  * that leaks can't make itself more, or lock anyone out. Answers 403
  * `browser-only`.
  */
-export const inBrowser = createFactory<SignedIn>().createMiddleware(
+export const inBrowser = createFactory<LoggedIn>().createMiddleware(
     async (context, next) => {
-        if (context.var.signed_in_with !== "session") {
+        if (context.var.logged_in_with !== "session") {
             return failure(
                 context,
                 403,
                 "browser-only",
-                "Only a person signed in on the dashboard can do this"
+                "Only a person logged in on the dashboard can do this"
             )
         } else {
             await next()
@@ -169,12 +169,12 @@ export const inBrowser = createFactory<SignedIn>().createMiddleware(
 )
 
 /**
- * `signedIn` for a route anyone may call, like the one every page asks who's
- * signed in: `context.var.user` is null for a visitor, rather than the
+ * `loggedIn` for a route anyone may call, like the one every page asks who's
+ * logged in: `context.var.user` is null for a visitor, rather than the
  * request being refused, so a visitor's browser logs no failed request. A
  * user's session is renewed the same way.
  */
-export const maybeSignedIn = createFactory<{
+export const maybeLoggedIn = createFactory<{
     Variables: ApiEnvironment["Variables"] & { user: SessionUser | null }
 }>().createMiddleware(async (context, next) => {
     const asking = await whoIsAsking(context)
@@ -256,19 +256,19 @@ function readOnly(context: Context) {
 // Puts who's asking on `context` and runs the route, renewing a browser's
 // session as it goes
 async function letThrough(
-    context: Context<SignedIn>,
+    context: Context<LoggedIn>,
     asking: Asking,
     next: () => Promise<void>
 ) {
     context.set("user", asking.user)
     if (asking.by === "agent") {
         context.set("session", AGENT_SESSION)
-        context.set("signed_in_with", "agent")
+        context.set("logged_in_with", "agent")
         context.set("scopes", asking.scopes)
         await next()
     } else {
         context.set("session", { id: asking.id })
-        context.set("signed_in_with", "session")
+        context.set("logged_in_with", "session")
         context.set("scopes", AGENT_SCOPES)
         await renewed(
             context,

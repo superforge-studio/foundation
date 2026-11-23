@@ -1,7 +1,7 @@
 import { asc } from "drizzle-orm"
 import { expect, test, vi } from "vitest"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import { connect } from "@/database"
 import { analytics_events, analytics_visits } from "@/database/schema"
 import { api_failure } from "@/utilities/schemas/failures"
@@ -257,10 +257,10 @@ test("in never mode, no one is remembered or asked, and an old ID is cleared", a
     ])
 })
 
-test("the signed-in person is on their visit and its events, by their user's ID", async () => {
+test("the logged-in person is on their visit and its events, by their user's ID", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const api = await setup("remember")
-    const ada = await signInAs(api, "ada@example.com")
+    const ada = await logInAs(api, "ada@example.com")
     await post(api, `${ada.cookie}; visitor=${KEPT_ID}`)
     await post(api, "visitor=9d0c2c1e-55a1-4c1a-8f0e-0a7d5f1b2c3d")
 

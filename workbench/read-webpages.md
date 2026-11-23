@@ -109,7 +109,7 @@ anything absent from it.
 
 ## Browser fallback
 
-For interactive flows (clicking, forms, sign-in), authenticated pages, or
+For interactive flows (clicking, forms, login), authenticated pages, or
 sites that block Jina:
 
 - **Claude desktop app** — the built-in browser pane, or Claude in Chrome

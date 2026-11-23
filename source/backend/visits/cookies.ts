@@ -7,7 +7,7 @@ import {
     type VisitorConsent,
     visitor_consent
 } from "@/utilities/schemas/visits"
-import { secureCookie } from "../auth/signed-in"
+import { secureCookie } from "../auth/logged-in"
 
 // What the app keeps on a visitor's browser, as two first-party cookies
 // its server sets, never a script: Safari deletes what a page's script

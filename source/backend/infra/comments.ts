@@ -3,7 +3,7 @@ import { page_comment } from "@/utilities/schemas/comments"
 import { app_user_id } from "@/utilities/schemas/events"
 
 // What the app's server sends Infra for the toolbar, through `fileComment`
-// (index.ts): a comment someone signed in wrote about an element of a page,
+// (index.ts): a comment someone logged in wrote about an element of a page,
 // which the toolbar posted to the app's own /api/comments
 // (backend/comments/), with who they are. README.md, "Comments", has the
 // call.

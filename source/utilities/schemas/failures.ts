@@ -3,7 +3,7 @@ import { z } from "zod"
 /** What went wrong, in a failure the API answers. */
 export const failure_details = z.object({
     // For a program to branch on: a kebab-case word or two, like "invalid",
-    // "not-found" or "signed-out", that never changes once a route answers
+    // "not-found" or "logged-out", that never changes once a route answers
     // with it
     reason: z.string(),
     // The same for a person, in a sentence

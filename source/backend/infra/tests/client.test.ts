@@ -28,7 +28,7 @@ function fakeInfra(answer: { status: number; body: unknown }) {
     return { infra: infraClient({ key: KEY, url: ADDRESS, send }), received }
 }
 
-test("starting a sign-in sends the key, the visitor and the app's origin", async () => {
+test("starting a login sends the key, the visitor and the app's origin", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const { infra, received } = fakeInfra({
         status: 200,
@@ -36,10 +36,10 @@ test("starting a sign-in sends the key, the visitor and the app's origin", async
             email: "ada@example.com",
             with_link: true,
             expires_at: "2026-11-15T18:15:00.000Z",
-            test: { code: "123456", link: "http://localhost:3000/sign-in#x" }
+            test: { code: "123456", link: "http://localhost:3000/login#x" }
         }
     })
-    const started = await infra.startSignIn({
+    const started = await infra.startLogin({
         email: "ada@example.com",
         ip: "203.0.113.7",
         origin: "http://localhost:3000"
@@ -50,12 +50,12 @@ test("starting a sign-in sends the key, the visitor and the app's origin", async
             email: "ada@example.com",
             with_link: true,
             expires_at: new Date("2026-11-15T18:15:00.000Z"),
-            test: { code: "123456", link: "http://localhost:3000/sign-in#x" }
+            test: { code: "123456", link: "http://localhost:3000/login#x" }
         }
     })
     expect(received).toEqual([
         {
-            path: "/v1/sign-in/start",
+            path: "/v1/login/start",
             key: `Bearer ${KEY}`,
             body: {
                 email: "ada@example.com",
@@ -77,7 +77,7 @@ test("with no origin, none is sent", async () => {
             test: null
         }
     })
-    await infra.startSignIn({
+    await infra.startLogin({
         email: "ada@example.com",
         ip: "::1",
         origin: null
@@ -110,7 +110,7 @@ test("Infra's limits come back as the app's refusals", async () => {
     for (const { answer, refused } of cases) {
         const { infra } = fakeInfra(answer)
         expect(
-            await infra.startSignIn({
+            await infra.startLogin({
                 email: "ada@example.com",
                 ip: "::1",
                 origin: null
@@ -127,9 +127,9 @@ test("verifying sends the code or the token, and answers the email", async () =>
     })
     const token = "a".repeat(43)
     expect(
-        await infra.verifySignIn({ email: "ada@example.com", code: "123456" })
+        await infra.verifyLogin({ email: "ada@example.com", code: "123456" })
     ).toEqual({ ok: true, data: { email: "ada@example.com" } })
-    expect(await infra.verifySignIn({ token })).toEqual({
+    expect(await infra.verifyLogin({ token })).toEqual({
         ok: true,
         data: { email: "ada@example.com" }
     })
@@ -152,7 +152,7 @@ test("a code Infra refuses says why", async () => {
     for (const { body, refused } of cases) {
         const { infra } = fakeInfra({ status: 400, body })
         expect(
-            await infra.verifySignIn({
+            await infra.verifyLogin({
                 email: "ada@example.com",
                 code: "123456"
             })
@@ -165,7 +165,7 @@ test("a key Infra refuses is unavailable, and logged for the owner", async () =>
     const logged = vi.spyOn(console, "error").mockImplementation(() => {})
     const { infra } = fakeInfra({ status: 401, body: { error: "revoked-key" } })
     expect(
-        await infra.startSignIn({
+        await infra.startLogin({
             email: "ada@example.com",
             ip: "::1",
             origin: null
@@ -182,7 +182,7 @@ test("an answer that isn't Infra's shape is unavailable, and logged", async () =
     const logged = vi.spyOn(console, "error").mockImplementation(() => {})
     const { infra } = fakeInfra({ status: 200, body: { email: 42 } })
     expect(
-        await infra.verifySignIn({ email: "ada@example.com", code: "123456" })
+        await infra.verifyLogin({ email: "ada@example.com", code: "123456" })
     ).toEqual({ ok: false, error: { reason: "unavailable" } })
     expect(logged).toHaveBeenCalledWith(
         "Infra answered what the app doesn't expect",
@@ -200,7 +200,7 @@ test("an Infra that doesn't answer, or answers without JSON, is unavailable", as
         }
     })
     expect(
-        await down.startSignIn({
+        await down.startLogin({
             email: "ada@example.com",
             ip: "::1",
             origin: null
@@ -208,7 +208,7 @@ test("an Infra that doesn't answer, or answers without JSON, is unavailable", as
     ).toEqual({ ok: false, error: { reason: "unavailable" } })
     expect(logged).toHaveBeenCalledWith(
         "Infra didn't answer",
-        expect.objectContaining({ call: "/sign-in/start" })
+        expect.objectContaining({ call: "/login/start" })
     )
 
     const proxy_page = infraClient({
@@ -217,7 +217,7 @@ test("an Infra that doesn't answer, or answers without JSON, is unavailable", as
         send: async () =>
             new Response("<html>Bad gateway</html>", { status: 502 })
     })
-    expect(await proxy_page.verifySignIn({ token: "a".repeat(43) })).toEqual({
+    expect(await proxy_page.verifyLogin({ token: "a".repeat(43) })).toEqual({
         ok: false,
         error: { reason: "unavailable" }
     })

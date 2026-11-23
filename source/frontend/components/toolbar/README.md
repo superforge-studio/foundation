@@ -11,7 +11,7 @@ without stopping to fix things as they go.
 **Only on a computer with a mouse** (`(hover: hover) and (pointer:
 fine)`): picking an element by touch is fiddly, and on a phone the
 toolbar covers too much. Nobody else sees it: a visitor, a customer who
-signs in, a phone or a tablet, and the prerender, which draws every page
+logs in, a phone or a tablet, and the prerender, which draws every page
 for a visitor, get nothing, and `/api/comments` refuses anyone who isn't
 internal (`internalOnly`).
 
@@ -29,7 +29,7 @@ internal (`internalOnly`).
    another element moves the comment there, keeping what's written.
    **Save**, or **⌘↵**, posts it to the app's own `POST /api/comments`
    (`backend/comments/routes.ts`), which sends it on to Infra with the
-   key and who's signed in (`backend/infra/README.md`, "Comments").
+   key and who's logged in (`backend/infra/README.md`, "Comments").
    The toolbar says **Saved**, and comment mode ends.
 4. **Escape**, which the Comment button shows while comment mode is
    on, closes the box and goes back to picking; again, it ends comment
@@ -39,7 +39,7 @@ Clicking the **ⓘ** opens a note on what the toolbar is for and where
 comments go, toward the middle of the window; a click elsewhere, or
 Escape, closes it.
 
-A comment that didn't save keeps what was written, and says why: signed
+A comment that didn't save keeps what was written, and says why: logged
 out, or Infra not answering.
 
 ## Moving it

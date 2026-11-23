@@ -16,7 +16,7 @@ import { useSession } from "@/frontend/queries/auth"
 import { usersQuery } from "@/frontend/queries/users"
 
 /**
- * Everyone who can sign in: the list on the left, and the chosen person on
+ * Everyone who can log in: the list on the left, and the chosen person on
  * the right, by their id in the address (`?person=`), or the form that adds
  * someone (`?person=new`).
  */
@@ -38,7 +38,7 @@ function People() {
         person === "new"
             ? undefined
             : (list.find((each) => each.id === person) ?? list[0])
-    const you = session.status === "signed-in" ? session.user.id : null
+    const you = session.status === "logged-in" ? session.user.id : null
 
     return (
         <Panes

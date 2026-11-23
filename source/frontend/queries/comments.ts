@@ -5,7 +5,7 @@ import type { PageComment } from "@/utilities/schemas/comments"
 import { FailedRequest, readFailure } from "./failures"
 
 // Filing a comment from the toolbar (backend/comments/routes.ts), which the
-// server sends on to Superforge Infra with who's signed in
+// server sends on to Superforge Infra with who's logged in
 
 /** A comment Infra kept: its ID, and when. */
 export type FiledComment = InferResponseType<

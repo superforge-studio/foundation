@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { bodyLimit } from "hono/body-limit"
 import { COMMENT_BODY_LIMIT, page_comment } from "@/utilities/schemas/comments"
-import { internalOnly } from "../auth/signed-in"
+import { internalOnly } from "../auth/logged-in"
 import { visitorUserAgent } from "../auth/visitor"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
@@ -13,7 +13,7 @@ import { failure, validated } from "../failures"
  * filed it, for Superforge Infra to keep (backend/infra/README.md,
  * "Comments"). Only the business's own people, listed in code
  * (auth/access.ts), can file one, so neither a visitor nor a customer who
- * signs in can reach the owner's list.
+ * logs in can reach the owner's list.
  */
 export const commentRoutes = new Hono<ApiEnvironment>()
     // A comment, `{ body, path, title, element, viewport }`. Answers 201

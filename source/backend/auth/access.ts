@@ -5,27 +5,27 @@ import {
 } from "@/utilities/schemas/users"
 
 /**
- * Who can sign in, and who the business's own people are: the two
+ * Who can log in, and who the business's own people are: the two
  * questions START-HERE.md asks the owner, whose answers go in ACCESS below.
  * They're code rather than Railway variables or rows someone adds on a
- * screen, so a dev server signs in the way production does, and the team
+ * screen, so a dev server logs in the way production does, and the team
  * only changes with a commit. Every route sees them on
  * `context.var.access`, and a test can hand its own
  * (backend/tests/support/api.ts).
  */
 export type Access = {
     /**
-     * `anyone`: signing in for the first time makes the person, as
-     * `external`, for a business whose customers sign in. `listed`: only
+     * `anyone`: logging in for the first time makes the person, as
+     * `external`, for a business whose customers log in. `listed`: only
      * someone in `internal_users`, or added on the dashboard's People
-     * screen, can sign in, for an app only the business's own people use.
+     * screen, can log in, for an app only the business's own people use.
      */
-    sign_in: "anyone" | "listed"
+    login: "anyone" | "listed"
     /**
      * The business's own people, the owner first: the only people who are
      * ever internal. Someone listed here is internal whatever the database
-     * says, and someone who isn't never is: no screen, route or sign-in can
-     * make anyone else internal. Adding someone here lets them sign in, as
+     * says, and someone who isn't never is: no screen, route or login can
+     * make anyone else internal. Adding someone here lets them log in, as
      * internal, from the next deploy; taking them off makes them
      * `external` from their next request.
      */
@@ -36,7 +36,7 @@ export type Access = {
 export type InternalUser = {
     first_name: string
     last_name: string
-    /** The address they sign in with, in any case: it's compared lowercased. */
+    /** The address they log in with, in any case: it's compared lowercased. */
     email: string
     /**
      * Which of the internal roles they have (`INTERNAL_ROLES`), for a
@@ -48,11 +48,11 @@ export type InternalUser = {
 
 /**
  * This app's. START-HERE.md sets them: the people below are placeholders,
- * at example.com, which reaches nobody, so no one can sign in as them until
+ * at example.com, which reaches nobody, so no one can log in as them until
  * they're replaced, and the seed's internal users are made from them.
  */
 export const ACCESS: Access = {
-    sign_in: "anyone",
+    login: "anyone",
     internal_users: [
         {
             first_name: "Ada",
@@ -90,8 +90,8 @@ export function listedRole(listed: InternalUser): InternalRole {
  * (`stored`): the one they're listed with when they're in
  * `internal_users`, `external` when they aren't but the database says
  * they're internal (taken off the list, or made so by hand), and what's
- * stored otherwise. The sign-in middleware reads every user through this,
- * so only the list makes anyone internal (signed-in.ts).
+ * stored otherwise. The login middleware reads every user through this,
+ * so only the list makes anyone internal (logged-in.ts).
  */
 export function roleFor(access: Access, email: string, stored: Role): Role {
     const listed = listedInternal(access, email)

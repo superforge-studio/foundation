@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import { api_failure } from "@/utilities/schemas/failures"
 
 // The workflows' runs, through the whole API, on workflows recorded rather
@@ -14,8 +14,8 @@ beforeEach(() => {
 
 test("the runs are listed to internal people only", async () => {
     const api = await testApi()
-    const customer = await signInAs(api, "maria@example.com")
-    const owner = await signInAs(api, "ada@example.com", "internal")
+    const customer = await logInAs(api, "maria@example.com")
+    const owner = await logInAs(api, "ada@example.com", "internal")
     api.runs.set("queued-run", {
         id: "queued-run",
         workflow: "tell-team-of-sign-up",
@@ -50,7 +50,7 @@ test("the runs are listed to internal people only", async () => {
 
 test("a failed run runs again; one that didn't fail, or isn't there, doesn't", async () => {
     const api = await testApi()
-    const owner = await signInAs(api, "ada@example.com", "internal")
+    const owner = await logInAs(api, "ada@example.com", "internal")
     const headers = { headers: { cookie: owner.cookie } }
     api.runs.set("failed-run", {
         id: "failed-run",

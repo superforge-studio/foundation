@@ -11,7 +11,7 @@ const BATCH = 500
 const deleted_count = z.number().int()
 
 /**
- * Deletes the sessions that have run out, which no browser can sign in
+ * Deletes the sessions that have run out, which no browser can log in
  * with any more, a batch at a time: the template's example of a job, which
  * someone on the team, or Claude through the MCP, starts after its dry run.
  * A new session already clears its own user's (sessions.ts), so these are
@@ -20,7 +20,7 @@ const deleted_count = z.number().int()
 export const pruneSessions = defineJob({
     name: "prune-sessions",
     description:
-        "Deletes the sessions that have run out, which no browser can sign in with any more, 500 at a time. Takes nothing: {}.",
+        "Deletes the sessions that have run out, which no browser can log in with any more, 500 at a time. Takes nothing: {}.",
     input: z.object({}),
     plan: async (database) => {
         const expired = await countExpiredSessions(database)

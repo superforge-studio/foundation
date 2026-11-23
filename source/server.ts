@@ -26,7 +26,7 @@ if (import.meta.env.DEV) {
 // The client build's files, every prerendered page among them, never reach
 // this: the Node server answers them first (source/node.ts), and so does
 // Vite's dev server. So this sees /api, the app's own MCP (/admin/mcp,
-// backend/mcp/) and where Claude signs in to it (/.well-known/oauth-* and
+// backend/mcp/) and where Claude logs in to it (/.well-known/oauth-* and
 // /oauth/*, backend/agents/oauth.ts), and anything that isn't a page (a
 // 404).
 const answer = createServerEntry({

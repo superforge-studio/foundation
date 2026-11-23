@@ -7,11 +7,11 @@ import { infraClient } from "@/backend/infra/client"
 import { standInAgentToken, standInInfra } from "@/backend/infra/stand-in"
 import { mcpWith } from "@/backend/mcp"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import type { AgentScope } from "@/utilities/schemas/agents"
 
 // Claude in the app: its token in a cookie's place, what it may and may not
-// do, the Allow page's routes and the Connected list, where it signs in,
+// do, the Allow page's routes and the Connected list, where it logs in,
 // and the MCP, all on Infra's stand-in, which checks the tokens a test
 // mints as Infra signs them
 
@@ -60,29 +60,29 @@ async function asClaude(
     })
 }
 
-// What the API says a request is signed in as
-async function signedInAs(response: Response) {
+// What the API says a request is logged in as
+async function loggedInAs(response: Response) {
     const { user }: { user: { email: string } | null } = await response.json()
     return user?.email ?? null
 }
 
 describe("Claude's token", () => {
-    test("signs in as the person on the team who allowed it", async () => {
+    test("logs in as the person on the team who allowed it", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         expect(
-            await signedInAs(await asClaude(setup, "/api/auth/session"))
+            await loggedInAs(await asClaude(setup, "/api/auth/session"))
         ).toBe(ADA)
         expect((await asClaude(setup, "/api/users")).status).toBe(200)
     })
 
     test("is refused for someone not on the team", async () => {
         const setup = await testApi()
-        await signInAs(setup, "bob@example.com")
+        await logInAs(setup, "bob@example.com")
         const session = await asClaude(setup, "/api/auth/session", {
             email: "bob@example.com"
         })
-        expect(await signedInAs(session)).toBeNull()
+        expect(await loggedInAs(session)).toBeNull()
         const account = await asClaude(setup, "/api/account", {
             email: "bob@example.com",
             method: "PATCH",
@@ -93,7 +93,7 @@ describe("Claude's token", () => {
 
     test("stops working the moment its person leaves the team", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         expect((await asClaude(setup, "/api/users")).status).toBe(200)
         setup.internal_users.length = 0
         expect((await asClaude(setup, "/api/users")).status).toBe(401)
@@ -101,7 +101,7 @@ describe("Claude's token", () => {
 
     test("is refused on any app but the one it was made for", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const elsewhere = await asClaude(setup, "/api/users", {
             origin: "https://someone-else.example"
         })
@@ -110,7 +110,7 @@ describe("Claude's token", () => {
 
     test("is refused once it has run out", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const token = await standInAgentToken({ email: ADA, expires_in: "0s" })
         const response = await setup.api.request("http://localhost/api/users", {
             headers: { Authorization: `Bearer ${token}` }
@@ -120,7 +120,7 @@ describe("Claude's token", () => {
 
     test("allowed to read, it reads and changes nothing", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const read = { scopes: ["read"] satisfies AgentScope[] }
         expect((await asClaude(setup, "/api/users", read)).status).toBe(200)
         const change = await asClaude(setup, "/api/account", {
@@ -132,9 +132,9 @@ describe("Claude's token", () => {
         expect((await change.json()).error.reason).toBe("read-only")
     })
 
-    test("can't touch who signs in, or where", async () => {
+    test("can't touch who logs in, or where", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const sessions = await asClaude(setup, "/api/account/sessions")
         expect(sessions.status).toBe(403)
         expect((await sessions.json()).error.reason).toBe("browser-only")
@@ -187,7 +187,7 @@ describe("the Allow page and the Connected list", () => {
     test("someone on the team allows it, as themselves", async () => {
         const { infra, allowed } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await signInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA, "internal")
         const response = await setup.client.api.connect[
             ":request_id"
         ].allow.$post(
@@ -201,7 +201,7 @@ describe("the Allow page and the Connected list", () => {
     test("nobody off the team, and no token, may allow it", async () => {
         const { infra, allowed } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await signInAs(setup, "bob@example.com")
+        const { cookie } = await logInAs(setup, "bob@example.com")
         const outsider = await setup.client.api.connect[
             ":request_id"
         ].allow.$post(
@@ -209,7 +209,7 @@ describe("the Allow page and the Connected list", () => {
             { headers: { Cookie: cookie } }
         )
         expect(outsider.status).toBe(403)
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const token = await asClaude(setup, `/api/connect/${REQUEST}/allow`, {
             method: "POST",
             body: { scopes: ["read"] }
@@ -221,7 +221,7 @@ describe("the Allow page and the Connected list", () => {
     test("someone disconnects only their own", async () => {
         const { infra, ended } = recordingInfra()
         const setup = await testApi({ infra })
-        const { cookie } = await signInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA, "internal")
         const end = (connection_id: string) =>
             setup.client.api.account.connections[":connection_id"].$delete(
                 { param: { connection_id } },
@@ -237,7 +237,7 @@ describe("the Allow page and the Connected list", () => {
     })
 })
 
-describe("where Claude signs in", () => {
+describe("where Claude logs in", () => {
     test("the MCP's metadata names the app itself", async () => {
         const oauth = oauthWith(() => standInInfra())
         const local = await oauth.request(
@@ -291,7 +291,7 @@ describe("where Claude signs in", () => {
 })
 
 describe("the MCP", () => {
-    test("without a token, it says where to sign in", async () => {
+    test("without a token, it says where to log in", async () => {
         const setup = await testApi()
         const mcp = mcpWith(setup.api)
         const response = await mcp.request("http://localhost/admin/mcp", {
@@ -321,7 +321,7 @@ describe("the MCP", () => {
 
     test("lists the API's routes, and calls one as the person", async () => {
         const setup = await testApi()
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const token = await standInAgentToken({ email: ADA })
         const mcp = mcpWith(setup.api)
         const client = new Client({ name: "test", version: "1.0.0" })

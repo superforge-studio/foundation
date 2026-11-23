@@ -18,7 +18,7 @@ import { requestOrigin } from "../infra/agents"
 // README.md here has how Claude connects, and the tools.
 
 /** What Claude reads before it uses the tools, at the start of each session */
-const INSTRUCTIONS = `This is the business's own app. You're signed in to it as the person on its team who allowed you in, and you can do through its API what they can, with what they allowed: "read" makes GET requests only, and "act" everything else, except changing who can sign in, which only a person on the dashboard can.
+const INSTRUCTIONS = `This is the business's own app. You're logged in to it as the person on its team who allowed you in, and you can do through its API what they can, with what they allowed: "read" makes GET requests only, and "act" everything else, except changing who can log in, which only a person on the dashboard can.
 
 - Start with list_routes, which lists every route of the app's API, then call one with call_api.
 - Every route answers JSON. A failure is { error: { reason, message } }: read the reason, and tell the person what it says.
@@ -42,7 +42,7 @@ export function mcpWith(api: Api) {
         const origin = requestOrigin(context.req.url)
         const base = new URL(context.req.url).origin
 
-        // Who the token signs in, as the API says: nobody, without one, or
+        // Who the token logs in, as the API says: nobody, without one, or
         // with one Infra didn't sign for this app
         const session =
             authorization === undefined
@@ -50,12 +50,12 @@ export function mcpWith(api: Api) {
                 : await api.request(`${base}/api/auth/session`, {
                       headers: { Authorization: authorization }
                   })
-        const signed_in =
+        const logged_in =
             session?.status === 200 &&
             z
                 .object({ user: z.object({ id: z.string() }).nullable() })
                 .parse(await session.json()).user !== null
-        if (!signed_in) {
+        if (!logged_in) {
             const challenge = [
                 `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
                 authorization === undefined ? null : 'error="invalid_token"'
@@ -64,9 +64,9 @@ export function mcpWith(api: Api) {
                 .join(", ")
             return context.json(
                 {
-                    error: "signed-out" as const,
+                    error: "logged-out" as const,
                     message:
-                        "Connect Claude to this app: it signs in through the app's own sign-in, with one click to allow it."
+                        "Connect Claude to this app: it logs in through the app's own login, with one click to allow it."
                 },
                 401,
                 { "Cache-Control": "no-store", "WWW-Authenticate": challenge }

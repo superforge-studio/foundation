@@ -57,18 +57,18 @@ const SAVED_FOR = 2500
  * The toolbar, for the business's own people, drawn by the root route on
  * every page, on a computer with a mouse: picking an element by touch is
  * fiddly, and on a phone the toolbar covers too much. Nothing for a
- * visitor or a customer who signs in, nor in the prerender, which draws
+ * visitor or a customer who logs in, nor in the prerender, which draws
  * every page for a visitor.
  */
 export function Toolbar() {
     const session = useSession()
     const mouse = useMouse()
     if (
-        session.status === "signed-in" &&
+        session.status === "logged-in" &&
         isInternal(session.user.role) &&
         mouse
     ) {
-        return <SignedInToolbar />
+        return <LoggedInToolbar />
     } else {
         return null
     }
@@ -92,7 +92,7 @@ function useMouse() {
     )
 }
 
-function SignedInToolbar() {
+function LoggedInToolbar() {
     const [mode, setMode] = useState<Mode>({ kind: "idle" })
     const [draft, setDraft] = useState("")
     const [saved, setSaved] = useState(false)

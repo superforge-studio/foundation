@@ -49,7 +49,7 @@ export type PageVisit = {
         id: string | null
         /** What they answered the banner */
         consent: Consent
-        /** Whoever is signed in */
+        /** Whoever is logged in */
         user_id: string | null
         /** For their country, and to count them when they aren't remembered */
         ip: string
@@ -68,7 +68,7 @@ export type PageVisit = {
  * site's mode, their answer and their country.
  *
  * A remembered visitor's events are kept under their ID, with whoever is
- * signed in. One who isn't is kept under the day's hash, with no user.
+ * logged in. One who isn't is kept under the day's hash, with no user.
  * Neither's IP address or User-Agent is kept: their country, and what
  * they're on, are read from them as the visit starts. A bot's events are
  * answered and dropped, and so are events more than a week old.
@@ -196,7 +196,7 @@ export async function recordVisit(
                 }))
             )
         }
-        // A visit they began signed out, and have signed in during
+        // A visit they began logged out, and have logged in during
         if (latest !== undefined && joins_latest && user_id !== null) {
             await transaction
                 .update(analytics_visits)

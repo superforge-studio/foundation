@@ -11,8 +11,8 @@ import { z } from "zod"
 // here when the first workflow needs it, in the same change.
 
 export const EVENTS = {
-    // Someone new signed in for the first time, which made their user
-    // (backend/auth/sign-in.ts). Not one of the business's own, who are
+    // Someone new logged in for the first time, which made their user
+    // (backend/auth/login.ts). Not one of the business's own, who are
     // never a sign-up. With their address, for the run's title.
     "user-signed-up": z.object({ user_id: z.uuid(), email: z.string() })
 } satisfies Record<string, z.ZodType>

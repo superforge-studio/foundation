@@ -79,7 +79,7 @@ database is down, comes back as a 5xx and is sent again.
   `href`.
 - **A click inside `data-untracked`**, which isn't the visitor's own,
   like the toolbar the business's own people see (`components/toolbar/`).
-- **Who's signed in, from the page.** The server adds their user ID to
+- **Who's logged in, from the page.** The server adds their user ID to
   every batch from its own session (`backend/visits/routes.ts`), and
   keeps it only of a visitor the site remembers.
 - **The visitor's IP address or `User-Agent`.** The server reads their
@@ -109,7 +109,7 @@ place, are of an unknown country, so `ask-in-eu` asks them.
 A remembered visitor is a lasting ID, a UUID, in the `visitor` cookie,
 which the server sets and renews with each batch of theirs. Their events
 are kept under it, so their visits join up across days, with whoever
-they're signed in as. A visitor who isn't remembered has no `visitor`
+they're logged in as. A visitor who isn't remembered has no `visitor`
 cookie, and the server clears one they had: they're counted as one
 visitor a day, by a hash that can't be made again once the day is over,
 with no user beside it. Nobody's IP address is kept.

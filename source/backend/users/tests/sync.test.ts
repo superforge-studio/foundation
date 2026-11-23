@@ -8,7 +8,7 @@ import { syncInternalUsers } from "../sync"
 // makes the database's internal users the listed ones, and no one else
 
 const ACCESS = {
-    sign_in: "anyone" as const,
+    login: "anyone" as const,
     internal_users: [
         { first_name: "Ada", last_name: "Lovelace", email: "Ada@Example.com" },
         {
@@ -31,7 +31,7 @@ async function everyone(database: Awaited<ReturnType<typeof testDatabase>>) {
 test("makes each listed person, names them as listed, and makes anyone else external", async () => {
     const database = await testDatabase()
     await database.insert(users).values([
-        // Signed in before, as a customer, then listed
+        // Logged in before, as a customer, then listed
         { email: "grace@example.com", name: "G", role: "external" },
         // Internal, but not listed
         { email: "linus@example.com", name: "Linus", role: "internal" },
@@ -65,7 +65,7 @@ test("with no one listed, no one is internal", async () => {
         .values([{ email: "ada@example.com", role: "internal" }])
     expect(
         await syncInternalUsers(database, {
-            sign_in: "anyone",
+            login: "anyone",
             internal_users: []
         })
     ).toEqual({ listed: 0, made: 0, made_external: 1 })

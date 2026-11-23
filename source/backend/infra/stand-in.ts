@@ -19,8 +19,8 @@ import type { Infra } from "./index"
 const LIFETIME = 15 * MINUTE
 const ATTEMPTS = 5
 
-/** A sign-in the stand-in sent, waiting to be verified. */
-export type WaitingSignIn = {
+/** A login the stand-in sent, waiting to be verified. */
+export type WaitingLogin = {
     email: string
     code: string
     token: string
@@ -30,14 +30,14 @@ export type WaitingSignIn = {
 
 /**
  * Infra's test mode, in memory: what a test key gets from the real one,
- * with no key and no network. Starting a sign-in sends nothing and answers
+ * with no key and no network. Starting a login sends nothing and answers
  * the code and the link, and verifying checks them as Infra does: each
  * works once, for 15 minutes, and a code for five tries. No limits apply,
  * as none do to a test key. A comment is checked as Infra checks it, and
  * answered an ID, though nothing keeps it, where Infra keeps a test key's.
  * The tests always use it, so they never reach Infra, and so does a dev
  * server with no test key (choose.ts). A build never does: anyone could
- * sign in as anyone, since the page shows the code.
+ * log in as anyone, since the page shows the code.
  *
  * `waiting` is where it keeps what it sent, by address: its own, or one
  * that outlives a dev server's reloads. With `logs`, as a dev server has
@@ -47,12 +47,12 @@ export function standInInfra({
     waiting = new Map(),
     logs = false
 }: {
-    waiting?: Map<string, WaitingSignIn>
+    waiting?: Map<string, WaitingLogin>
     logs?: boolean
 } = {}): Infra {
     return {
-        async startSignIn({ email, origin }) {
-            const sent: WaitingSignIn = {
+        async startLogin({ email, origin }) {
+            const sent: WaitingLogin = {
                 email,
                 code: randomCode(),
                 token: randomToken(),
@@ -71,13 +71,13 @@ export function standInInfra({
                         link:
                             origin === null
                                 ? null
-                                : `${origin}/sign-in#${sent.token}`
+                                : `${origin}/login#${sent.token}`
                     }
                 }
             }
         },
 
-        async verifySignIn(proof) {
+        async verifyLogin(proof) {
             if ("token" in proof) {
                 const sent = [...waiting.values()].find(
                     (each) => each.token === proof.token
@@ -146,19 +146,19 @@ export function standInInfra({
             }
         },
 
-        // Claude's sign-in needs Infra: the stand-in signs nobody in, and
+        // Claude's login needs Infra: the stand-in logs nobody in, and
         // only checks the tokens a test mints with `standInAgentToken`
         async passOAuth() {
             if (logs) {
                 console.info(
-                    "Infra's stand-in can't sign Claude in. Set INFRA_TEST_KEY to connect Claude to a dev server."
+                    "Infra's stand-in can't log Claude in. Set INFRA_TEST_KEY to connect Claude to a dev server."
                 )
             }
             return Response.json(
                 {
                     error: "temporarily_unavailable",
                     error_description:
-                        "This dev server has no Infra test key, so Claude can't sign in to it"
+                        "This dev server has no Infra test key, so Claude can't log in to it"
                 },
                 { status: 503, headers: { "Cache-Control": "no-store" } }
             )

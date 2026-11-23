@@ -49,8 +49,8 @@ test("a path is the page's path alone", () => {
 })
 
 test("free text loses email addresses, queries and extra space", () => {
-    expect(scrub("  Signed in as\n ada@example.com  ", 80)).toBe(
-        "Signed in as [email]"
+    expect(scrub("  Logged in as\n ada@example.com  ", 80)).toBe(
+        "Logged in as [email]"
     )
     expect(
         scrub("Failed to load https://api.example.com/reset?token=abc", 80)
@@ -204,8 +204,8 @@ test("a click's text is its label, short, and never private", () => {
 
 test("a link's href is a path here, an address elsewhere, and never a query", () => {
     expect(
-        clickProperties(link({ href: "/sign-in?next=/dashboard#x" }), PAGE).href
-    ).toBe("/sign-in")
+        clickProperties(link({ href: "/login?next=/dashboard#x" }), PAGE).href
+    ).toBe("/login")
     expect(
         clickProperties(link({ href: "https://example.com/about" }), PAGE).href
     ).toBe("/about")

@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { z } from "zod"
 import { user_addition, user_change } from "@/utilities/schemas/users"
 import { listedInternal } from "../auth/access"
-import { inBrowser, internalOnly } from "../auth/signed-in"
+import { inBrowser, internalOnly } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { addUser } from "./add"
@@ -20,7 +20,7 @@ const LISTED =
     "They're listed as internal in the app's code (backend/auth/access.ts), so only a change there changes them"
 
 /**
- * Everyone who can sign in, under /api/users, for the dashboard's People
+ * Everyone who can log in, under /api/users, for the dashboard's People
  * screen: only the business's own people may (`internalOnly`), and no one
  * changes or removes themselves, so there's always someone who can. Only
  * external people are added, changed and removed here: the internal ones
@@ -32,7 +32,7 @@ export const userRoutes = new Hono<ApiEnvironment>()
         return context.json({ users }, 200)
     })
 
-    // Someone added before they sign in, with their role, one of the
+    // Someone added before they log in, with their role, one of the
     // external ones
     .post(
         "/users",

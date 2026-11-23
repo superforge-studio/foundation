@@ -8,9 +8,9 @@ import { DAY, HOUR } from "@/utilities/primitives/durations"
 import type { Seeder } from "./seed"
 
 // Sample users and their sessions: the business's own people, as
-// backend/auth/access.ts lists them, the first signed in now and the second
+// backend/auth/access.ts lists them, the first logged in now and the second
 // with a session that has run out, and customers who've signed up over the
-// last few days, one with no name and one added by hand who's never signed
+// last few days, one with no name and one added by hand who's never logged
 // in. The customers' addresses are example.com's, which reach nobody.
 
 // The business's own, made from the list, so the seed's internal people
@@ -19,7 +19,7 @@ const INTERNAL = ACCESS.internal_users.map((person, index) => ({
     email: person.email.trim().toLowerCase(),
     name: nameOf(person),
     role: listedRole(person),
-    signed_in_at: fromNow(-(2 + 43 * index) * DAY),
+    logged_in_at: fromNow(-(2 + 43 * index) * DAY),
     created_at: fromNow(-(94 - 3 * index) * DAY)
 }))
 
@@ -32,28 +32,28 @@ const SAMPLE_USERS = [
         email: "maria.santos@example.com",
         name: "Maria Santos",
         role: "external" as const,
-        signed_in_at: fromNow(-2 * HOUR),
+        logged_in_at: fromNow(-2 * HOUR),
         created_at: fromNow(-2 * HOUR)
     },
     {
         email: "jun.park@example.com",
         name: "Jun Park",
         role: "external" as const,
-        signed_in_at: fromNow(-5 * HOUR),
+        logged_in_at: fromNow(-5 * HOUR),
         created_at: fromNow(-19 * HOUR)
     },
     {
         email: "olu.adeyemi@example.com",
         name: null,
         role: "external" as const,
-        signed_in_at: fromNow(-26 * HOUR),
+        logged_in_at: fromNow(-26 * HOUR),
         created_at: fromNow(-26 * HOUR)
     },
     {
         email: "linus@example.com",
         name: null,
         role: "external" as const,
-        signed_in_at: null,
+        logged_in_at: null,
         created_at: fromNow(-40 * DAY)
     }
 ]
@@ -124,7 +124,7 @@ export async function signedUp(database: Database) {
     const rows = await database
         .select({ id: users.id, email: users.email })
         .from(users)
-        .where(and(eq(users.role, "external"), isNotNull(users.signed_in_at)))
+        .where(and(eq(users.role, "external"), isNotNull(users.logged_in_at)))
     return rows
 }
 

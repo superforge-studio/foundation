@@ -1,7 +1,7 @@
 import type { Context } from "hono"
 import { z } from "zod"
 
-// What the server reads of a visitor from their request: who's signing in,
+// What the server reads of a visitor from their request: who's logging in,
 // for Infra (auth/routes.ts), and who sent a page's events, for the app's
 // own analytics (visits/routes.ts)
 
@@ -9,7 +9,7 @@ import { z } from "zod"
 export const ip_address = z.union([z.ipv4(), z.ipv6()])
 
 /**
- * The visitor's IP address, which Infra's sign-in limits count by, and
+ * The visitor's IP address, which Infra's login limits count by, and
  * the server places a visitor's country by (visits/location.ts): the
  * `X-Real-IP` header Railway's proxy sets, since the connection's own
  * address is the proxy's. A request
@@ -55,7 +55,7 @@ const LONGEST_BROWSER = 512
 
 /**
  * The browser, as it describes itself (`User-Agent`), kept with its
- * session so the account page can say where someone is signed in. Only
+ * session so the account page can say where someone is logged in. Only
  * ever shown back to its own user, so it's kept as it came, shortened.
  */
 export function visitorBrowser(context: Context) {
@@ -68,7 +68,7 @@ export function visitorBrowser(context: Context) {
 }
 
 /**
- * Where the app is, for the link in the sign-in email: the request's own
+ * Where the app is, for the link in the login email: the request's own
  * origin. Infra builds the link only for a domain the project lists, or
  * localhost, so a forged Host header can't send anyone elsewhere; behind
  * Railway's proxy the origin says http, which Infra makes https.

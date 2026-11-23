@@ -6,12 +6,12 @@ import { Button } from "@/frontend/components/primitives/button"
 import { Input } from "@/frontend/components/primitives/input"
 import { Label } from "@/frontend/components/primitives/label"
 import {
-    type SentSignIn,
-    startSignIn,
-    verifySignIn
+    type SentLogin,
+    startLogin,
+    verifyLogin
 } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
-import { email_address, sign_in_code } from "@/utilities/schemas/auth"
+import { email_address, login_code } from "@/utilities/schemas/auth"
 import type { ApiFailure } from "@/utilities/schemas/failures"
 
 // Secondary actions are text buttons with a thin underline
@@ -19,18 +19,18 @@ const textButton =
     "font-medium text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50"
 
 /**
- * Signing in, in two steps: an email address, which Infra sends a six-digit
- * code and a link to, then the code. The link signs in on its own, on
- * /sign-in (routes/sign-in.tsx). `onSignedIn` runs once the code has.
+ * Logging in, in two steps: an email address, which Infra sends a six-digit
+ * code and a link to, then the code. The link logs in on its own, on
+ * /login (routes/login.tsx). `onLoggedIn` runs once the code has.
  */
-export function SignInForm({
-    onSignedIn,
+export function LoginForm({
+    onLoggedIn,
     className
 }: {
-    onSignedIn?: () => void
+    onLoggedIn?: () => void
     className?: string
 }) {
-    const [sent, setSent] = useState<SentSignIn | null>(null)
+    const [sent, setSent] = useState<SentLogin | null>(null)
     if (sent === null) {
         return <EmailStep className={className} onSent={setSent} />
     } else {
@@ -40,7 +40,7 @@ export function SignInForm({
                 className={className}
                 onSentAgain={setSent}
                 onRestart={() => setSent(null)}
-                onSignedIn={onSignedIn}
+                onLoggedIn={onLoggedIn}
             />
         )
     }
@@ -51,10 +51,10 @@ function EmailStep({
     onSent
 }: {
     className?: string
-    onSent: (sent: SentSignIn) => void
+    onSent: (sent: SentLogin) => void
 }) {
     const ids = useId()
-    const start = useMutation(startSignIn)
+    const start = useMutation(startLogin)
     const [invalid, setInvalid] = useState(false)
     const problem = invalid
         ? "Enter your email address, like you@example.com."
@@ -110,20 +110,20 @@ function CodeStep({
     className,
     onSentAgain,
     onRestart,
-    onSignedIn
+    onLoggedIn
 }: {
-    sent: SentSignIn
+    sent: SentLogin
     className?: string
-    onSentAgain: (sent: SentSignIn) => void
+    onSentAgain: (sent: SentLogin) => void
     onRestart: () => void
-    onSignedIn?: () => void
+    onLoggedIn?: () => void
 }) {
     const ids = useId()
     const [code, setCode] = useState("")
     const [invalid, setInvalid] = useState(false)
     const [resent, setResent] = useState(false)
-    const verify = useMutation(verifySignIn)
-    const again = useMutation(startSignIn)
+    const verify = useMutation(verifyLogin)
+    const again = useMutation(startLogin)
     const failed = verify.error ?? again.error
     const problem = invalid
         ? "Enter the six digits from the email."
@@ -133,12 +133,12 @@ function CodeStep({
 
     function submit(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault()
-        const checked = sign_in_code.safeParse(code)
+        const checked = login_code.safeParse(code)
         setInvalid(!checked.success)
         if (checked.success) {
             verify.mutate(
                 { email: sent.email, code: checked.data },
-                { onSuccess: () => onSignedIn?.() }
+                { onSuccess: () => onLoggedIn?.() }
             )
         }
     }
@@ -192,7 +192,7 @@ function CodeStep({
                     disabled={verify.isPending}
                     className="h-10 px-4"
                 >
-                    {verify.isPending ? "Checking…" : "Sign in"}
+                    {verify.isPending ? "Checking…" : "Log in"}
                 </Button>
             </div>
             <Problem id={`${ids}-problem`} text={problem} />
@@ -255,7 +255,7 @@ function DevelopmentNote({
     )
 }
 
-/** What to tell the visitor when signing in failed, by the API's reason. */
+/** What to tell the visitor when logging in failed, by the API's reason. */
 export function whatWentWrong(failure: ApiFailure) {
     switch (failure.reason) {
         case "invalid":
@@ -278,7 +278,7 @@ export function whatWentWrong(failure: ApiFailure) {
         case "no-link":
             return "That link has expired or was already used. Enter your email and we'll send a new one."
         default:
-            return "Sign-in isn't working right now. Try again in a few minutes."
+            return "Login isn't working right now. Try again in a few minutes."
     }
 }
 

@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
-import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConnectRequest_idRouteImport } from './routes/connect.$request_id'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
@@ -28,9 +28,9 @@ const DashboardRouteRoute = DashboardRouteRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignInRoute = SignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnectRequest_idRoute = ConnectRequest_idRouteImport.update({
@@ -62,7 +62,7 @@ const DashboardWorkflowsRoute = DashboardWorkflowsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
-  '/sign-in': typeof SignInRoute
+  '/login': typeof LoginRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/people': typeof DashboardPeopleRoute
@@ -71,7 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/sign-in': typeof SignInRoute
+  '/login': typeof LoginRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/people': typeof DashboardPeopleRoute
@@ -82,7 +82,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
-  '/sign-in': typeof SignInRoute
+  '/login': typeof LoginRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/people': typeof DashboardPeopleRoute
@@ -94,7 +94,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
-    | '/sign-in'
+    | '/login'
     | '/connect/$request_id'
     | '/dashboard/account'
     | '/dashboard/people'
@@ -103,7 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/sign-in'
+    | '/login'
     | '/connect/$request_id'
     | '/dashboard/account'
     | '/dashboard/people'
@@ -113,7 +113,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
-    | '/sign-in'
+    | '/login'
     | '/connect/$request_id'
     | '/dashboard/account'
     | '/dashboard/people'
@@ -124,7 +124,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
-  SignInRoute: typeof SignInRoute
+  LoginRoute: typeof LoginRoute
   ConnectRequest_idRoute: typeof ConnectRequest_idRoute
 }
 
@@ -144,11 +144,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignInRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connect/$request_id': {
@@ -210,7 +210,7 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
-  SignInRoute: SignInRoute,
+  LoginRoute: LoginRoute,
   ConnectRequest_idRoute: ConnectRequest_idRoute,
 }
 export const routeTree = rootRouteImport

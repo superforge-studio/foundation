@@ -4,14 +4,14 @@ import { isInternal, type Role } from "@/utilities/schemas/users"
 import type { testApi } from "./api"
 
 /**
- * Signs `email` in through the whole API, as a person does, with Infra's
+ * Logs `email` in through the whole API, as a person does, with Infra's
  * stand-in, which answers the code, as `role`: what a route's test calls
  * to act as someone. An internal role lists them first, as access.ts
  * would, named for their address (`ada@example.com` is Ada Example); any
  * other is set on their row. Answers their user's id and the `cookie`
  * header their browser would send.
  */
-export async function signInAs(
+export async function logInAs(
     api: Awaited<ReturnType<typeof testApi>>,
     email: string,
     role: Role = "external"
@@ -27,7 +27,7 @@ export async function signInAs(
     }
     const started = await api.client.api.auth.start.$post({ json: { email } })
     if (started.status !== 200) {
-        throw new Error("The test's sign-in didn't start")
+        throw new Error("The test's login didn't start")
     }
     const { development } = await started.json()
     if (development === null) {
@@ -38,7 +38,7 @@ export async function signInAs(
         { headers: { "User-Agent": "Test browser" } }
     )
     if (verified.status !== 200) {
-        throw new Error("The test's sign-in didn't verify")
+        throw new Error("The test's login didn't verify")
     }
     const { user } = await verified.json()
     if (!isInternal(role)) {
