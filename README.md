@@ -85,27 +85,30 @@ its own copy runs on Railway, in the `superforge-starter` project, at
 <https://superforge-starter.up.railway.app>. A copy made from it replaces
 this section, and the names above, in `START-HERE.md`'s step 5.
 
-**Releases: every PR that changes what a copy gets is a release of its
-own.** It puts its notes in a file of their own,
-`.superforge/releases/<version>.md`, headed with the next version and the
-day (`# 0.3.0 (2026-12-01)`) and written as `workbench/updating.md`'s "How
-a release is written" says, adds a line for it at the top of
+**Releases: every PR to this template is a release of its own, and
+bumps the version in that same PR.** It puts its notes in a file of their
+own, `.superforge/releases/<version>.md`, headed with the next version and
+the day (`# 0.3.0 (2026-12-01)`) and written as `workbench/updating.md`'s
+"How a release is written" says, adds a line for it at the top of
 `CHANGELOG.md`'s list, and sets `version` in
 `.superforge/superforge.json` to match. A version is
 `major.minor.patch`, and which number moves follows from what the PR does:
-a **patch** (`0.2.1`) only fixes something that didn't work as it says; a
-**minor** (`0.3.0`) adds anything, or changes how something works, even a
-little; and the **major** stays `0` until the owner calls `1.0.0`, after
-which a change that breaks what a copy relies on moves it (`2.0.0`). A PR
-that does more than one takes the larger, and when in doubt it's a minor.
-Asked for a version the rule doesn't give, say which it gives, and why,
-before the PR opens. A PR
-a copy wouldn't take, like a change to this section or a typo in the
-notes, changes neither and adds no notes. Once a release merges and passes
+a **patch** (`0.2.1`) fixes a bug or makes a small improvement, changing
+nothing a copy relies on; a **minor** (`0.3.0`) adds a feature, or changes
+how something works; and the **major** moves only when Superforge says
+so, never on an agent's own judgment: it stays `0` until Superforge calls
+`1.0.0`, after which a change that breaks what a copy relies on moves it
+(`2.0.0`). A PR that does more than one takes the larger, and when in
+doubt it's a minor. Asked for a version the rule doesn't give, say which
+it gives, and why, before the PR opens. Even a PR a copy has nothing to
+take from, like a change to this section or a typo in the notes, is a
+patch, its notes saying so. CI's `release-version` checks each PR's
+version is the one right after its base's, with its notes and its line,
+so of two PRs open side by side, the second to merge rebases on `main`
+and takes the version after the first's. Once a release merges and passes
 `check`, CI tags the merge, `v` and the version (`release-tag` in
-`.github/workflows/ci.yml`), and copies update from the tags. Two PRs open
-side by side: the second to merge rebases on `main` and takes the version
-after the first's. A change a copy has to deploy before another, like a
+`.github/workflows/ci.yml`), and copies update from the tags. A change a
+copy has to deploy before another, like a
 table its code stops reading before the table is dropped, goes in two PRs,
 so two releases, each deployed before the next. A version without its
 notes file, headed with it, and its line in `CHANGELOG.md` isn't tagged:

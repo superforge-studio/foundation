@@ -73,6 +73,14 @@ merging" (0 approvals) and "Require status checks to pass" with `check`.
   repository has the `RAILWAY_TOKEN` secret ("Setting up Railway", below),
   it skips with a notice, so a new copy's pushes pass before it has a
   Railway project.
+- **`release-version`**, on a PR to the template, checks the PR is a
+  release (`README.md`, "Releases"): its version in
+  `.superforge/superforge.json` is the one right after its base's, with
+  its notes in `.superforge/releases/` and its line in `CHANGELOG.md`.
+  `check` waits for it. Of two PRs made side by side, the second to merge
+  conflicts on the version once the first has, and after its rebase this
+  checks it took the version after the first's. A copy skips it, and so
+  do Dependabot's PRs.
 - **`release-tag`**, on a push, in the template only, tags a release once
   `check` passes. When the version in `.superforge/superforge.json` has no
   tag yet, it tags the commit on `main` that set that version, `v` and the
