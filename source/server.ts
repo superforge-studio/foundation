@@ -2,6 +2,7 @@ import start, { createServerEntry } from "@tanstack/react-start/server-entry"
 import { api } from "./backend"
 import { oauth } from "./backend/agents/oauth"
 import { mcp } from "./backend/mcp"
+import { logFailure, logMiss } from "./backend/misses/log"
 import { syncAppInternalUsers } from "./backend/users/sync"
 import { startWorkflows } from "./backend/workflows/engine"
 import { MCP_PATH } from "./utilities/schemas/agents"
@@ -27,7 +28,7 @@ if (import.meta.env.DEV) {
 // backend/mcp/) and where Claude signs in to it (/.well-known/oauth-* and
 // /oauth/*, backend/agents/oauth.ts), and anything that isn't a page (a
 // 404).
-export default createServerEntry({
+const answer = createServerEntry({
     fetch(request) {
         const { pathname } = new URL(request.url)
         if (pathname.startsWith("/api/")) {
@@ -39,8 +40,47 @@ export default createServerEntry({
             pathname.startsWith("/.well-known/oauth-")
         ) {
             return oauth.fetch(request)
+        } else if (request.method !== "GET" && request.method !== "HEAD") {
+            return refuseForPage(request)
         } else {
             return start.fetch(request)
         }
+    }
+})
+
+// A page is only ever fetched: Start would draw it for a POST too, and
+// answer 200, so a webhook sent to a page's address would look delivered
+// to whatever sent it, and nothing would know. It's refused and logged
+// instead (backend/misses/), which the sender sees too. The app has no
+// server functions, which would take a POST (it's headless,
+// workbench/writing-code.md), so nothing of Start's needs another method.
+function refuseForPage(request: Request) {
+    logMiss(request, 405)
+    return new Response("This address takes only GET and HEAD\n", {
+        status: 405,
+        headers: {
+            Allow: "GET, HEAD",
+            "Content-Type": "text/plain; charset=utf-8"
+        }
+    })
+}
+
+// What answers, with each request it misses and each one that fails logged
+// (backend/misses/): a webhook sent to the wrong address, a link to a page
+// that isn't there, a page or a route that broke. Under /api the API logs
+// its own misses (backend/failures.ts), since its routes answer 404 too,
+// for what isn't there.
+export default createServerEntry({
+    async fetch(request, options) {
+        const response = await answer.fetch(request, options)
+        if (response.status >= 500) {
+            logFailure(request, response.status)
+        } else if (
+            response.status === 404 &&
+            !new URL(request.url).pathname.startsWith("/api/")
+        ) {
+            logMiss(request, 404)
+        }
+        return response
     }
 })

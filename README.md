@@ -91,8 +91,15 @@ own.** It puts its notes in a file of their own,
 day (`# 0.3.0 (2026-12-01)`) and written as `workbench/updating.md`'s "How
 a release is written" says, adds a line for it at the top of
 `CHANGELOG.md`'s list, and sets `version` in
-`.superforge/superforge.json` to match. A fix moves the last number
-(`0.2.1`); anything added or changed moves the middle one (`0.3.0`). A PR
+`.superforge/superforge.json` to match. A version is
+`major.minor.patch`, and which number moves follows from what the PR does:
+a **patch** (`0.2.1`) only fixes something that didn't work as it says; a
+**minor** (`0.3.0`) adds anything, or changes how something works, even a
+little; and the **major** stays `0` until the owner calls `1.0.0`, after
+which a change that breaks what a copy relies on moves it (`2.0.0`). A PR
+that does more than one takes the larger, and when in doubt it's a minor.
+Asked for a version the rule doesn't give, say which it gives, and why,
+before the PR opens. A PR
 a copy wouldn't take, like a change to this section or a typo in the
 notes, changes neither and adds no notes. Once a release merges and passes
 `check`, CI tags the merge, `v` and the version (`release-tag` in

@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.10.0](.superforge/releases/0.10.0.md) (2026-11-22): every request nothing answers, and every one that fails, logged, and a page sent a POST refused.
 - [0.9.0](.superforge/releases/0.9.0.md) (2026-11-22): each release's notes in a file of its own, and this file their index.
 - [0.8.0](.superforge/releases/0.8.0.md) (2026-11-21): the app's MCP moves to `/admin/mcp`, leaving `/mcp` for the business's customers.
 - [0.7.0](.superforge/releases/0.7.0.md) (2026-11-21): analytics of the app's own, in its own Postgres, with Infra no part of them.

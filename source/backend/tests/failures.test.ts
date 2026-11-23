@@ -2,7 +2,12 @@ import { Hono } from "hono"
 import { testClient } from "hono/testing"
 import { expect, test, vi } from "vitest"
 import { z } from "zod"
-import { answerNotFound, answerUnexpected, validated } from "@/backend/failures"
+import {
+    answerNotFound,
+    answerUnexpected,
+    failure,
+    validated
+} from "@/backend/failures"
 import { testApi } from "@/backend/tests/support/api"
 import { api_failure } from "@/utilities/schemas/failures"
 
@@ -18,6 +23,9 @@ const app = new Hono()
         "/things",
         validated("json", z.object({ name: z.string().min(1) })),
         (context) => context.json({ named: context.req.valid("json").name })
+    )
+    .get("/things/:id", (context) =>
+        failure(context, 404, "not-found", "No such thing")
     )
     .get("/broken", () => {
         throw new Error("A bug")
@@ -53,13 +61,25 @@ test("a route that throws is answered 500, and logged", async () => {
     )
 })
 
-test("the API answers a path no route answers 404, uncached", async () => {
+test("the API answers a path no route answers 404, uncached, and logs it", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {})
     const { api } = await testApi()
     const response = await api.request("/api/nowhere")
     expect(response.status).toBe(404)
     expect(response.headers.get("Cache-Control")).toBe("no-store")
     const { error } = api_failure.parse(await response.json())
     expect(error.reason).toBe("not-found")
+    expect(warned).toHaveBeenCalledWith(
+        "A request missed that looks meant for the app",
+        expect.stringContaining('"path":"/api/nowhere"')
+    )
+})
+
+test("a route's own 404, for what isn't there, isn't a miss", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const response = await app.request("/api/things/missing")
+    expect(response.status).toBe(404)
+    expect(warned).not.toHaveBeenCalled()
 })
 
 test("a body that isn't JSON is answered 400 invalid, not as a bug", async () => {

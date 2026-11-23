@@ -87,9 +87,11 @@ the latest before it applies any of them. Each release says:
   output that shows the change is there, for a copy that took some of it
   by hand.
 
-A patch release (`0.1.1`) fixes something; a minor release (`0.2.0`) adds
-or changes something. Until `1.0.0`, a minor release may also change how
-something already there works, which its notes flag.
+A version is `major.minor.patch`. A patch release (`0.1.1`) only fixes
+something that didn't work as it says; a minor release (`0.2.0`) adds or
+changes something, and its notes flag a change to how something already
+there works. The major stays `0` until `1.0.0`; after it, a release that
+breaks what a copy relies on is a major (`2.0.0`).
 
 ## What an update leaves out
 
