@@ -17,10 +17,9 @@ import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { changeFile, changeFolder, finishUpload } from "./change"
 import { createFolder, startUpload } from "./create"
-import { findFile, findUpload, folderContents } from "./find"
+import { DEEPEST, findFile, findUpload, folderContents } from "./find"
 import { sendFile } from "./send"
 import {
-    emptyExpired,
     listTrash,
     restoreFile,
     restoreFolder,
@@ -71,13 +70,9 @@ export const fileRoutes = new Hono<ApiEnvironment>()
         return context.json({ kinds, unclaimed }, 200)
     })
 
-    // What's in Trash, after deleting for good what's been there 30 days
+    // What's in Trash, which the `empty-trash` workflow empties of what's
+    // been there 30 days, each hour (workflows.ts)
     .get("/files/trash", permitted("files"), async (context) => {
-        await emptyExpired(context.var.database, context.var.storage).catch(
-            (error: unknown) => {
-                console.error("Emptying Trash failed", { error })
-            }
-        )
         const trash = await listTrash(context.var.database)
         return context.json(trash, 200)
     })
@@ -113,6 +108,13 @@ export const fileRoutes = new Hono<ApiEnvironment>()
             })
             if (made.ok) {
                 return context.json(made.data, 201)
+            } else if (made.error === "too-deep") {
+                return failure(
+                    context,
+                    409,
+                    made.error,
+                    `Folders go at most ${DEEPEST} deep`
+                )
             } else {
                 return failure(
                     context,
@@ -144,6 +146,13 @@ export const fileRoutes = new Hono<ApiEnvironment>()
                     409,
                     changed.error,
                     "A folder can't go inside itself"
+                )
+            } else if (changed.error === "too-deep") {
+                return failure(
+                    context,
+                    409,
+                    changed.error,
+                    `Folders go at most ${DEEPEST} deep`
                 )
             } else if (changed.error === "no-folder") {
                 return failure(
@@ -205,11 +214,6 @@ export const fileRoutes = new Hono<ApiEnvironment>()
         validated("json", upload_start),
         async (context) => {
             const { database, storage } = context.var
-            // Now and then, rather than on a schedule: what's been in Trash
-            // 30 days, and uploads never finished
-            await emptyExpired(database, storage).catch((error: unknown) => {
-                console.error("Emptying Trash failed", { error })
-            })
             const input = context.req.valid("json")
             const started = await startUpload(database, {
                 ...input,
@@ -253,7 +257,8 @@ export const fileRoutes = new Hono<ApiEnvironment>()
     )
 
     // A file's bytes, to the server itself: where a dev server, whose
-    // folder can't sign a form, sends an upload
+    // folder can't sign a form, sends an upload. Where the bucket can sign
+    // one, as in a build, an upload goes straight to it, and this is 404
     .put(
         "/files/uploads/:file_id",
         bodyLimit({
@@ -265,7 +270,13 @@ export const fileRoutes = new Hono<ApiEnvironment>()
         validated("param", file_path),
         async (context) => {
             const { file_id } = context.req.valid("param")
-            const upload = await findUpload(context.var.database, file_id)
+            const signs = await context.var.storage.files.presignPost(
+                { file_id },
+                { seconds: UPLOAD_FORM_SECONDS, max_bytes: 1 }
+            )
+            const upload = signs.ok
+                ? null
+                : await findUpload(context.var.database, file_id)
             if (upload === null) {
                 return failure(
                     context,
@@ -346,7 +357,11 @@ export const fileRoutes = new Hono<ApiEnvironment>()
                     "not-found",
                     "No folder the app keeps is called that"
                 )
-            } else if (under !== undefined && !kind.holds(under)) {
+            } else if (
+                under !== undefined &&
+                under !== `${kind.folder}/` &&
+                !(under.endsWith("/") && kind.holds(under))
+            ) {
                 return failure(
                     context,
                     404,

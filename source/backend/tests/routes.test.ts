@@ -1,5 +1,6 @@
 import { Hono } from "hono"
 import { beforeEach, expect, test, vi } from "vitest"
+import { withVariables } from "@/backend"
 import { ACCESS, type Access } from "@/backend/auth/access"
 import {
     loggedIn,
@@ -135,14 +136,7 @@ test("a route can say the level it needs, as for a POST that only reads", async 
     const api = await testApi({ access: NARROW })
     const member = await logInAs(api, "grace@example.com", "member")
     const app = new Hono<ApiEnvironment>()
-        .use(async (context, next) => {
-            context.set("database", api.database)
-            context.set("access", {
-                internal_users: api.internal_users,
-                roles: NARROW.roles
-            })
-            await next()
-        })
+        .use(withVariables(() => api.variables))
         .post("/search", permitted("workflows", "read"), (context) =>
             context.json({ searched: true })
         )

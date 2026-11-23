@@ -1,9 +1,13 @@
 import { eq } from "drizzle-orm"
 import { beforeEach, expect, test, vi } from "vitest"
 import { z } from "zod"
+import { DEEPEST } from "@/backend/files/find"
 import { fileRoutes } from "@/backend/files/routes"
+import { emptyExpired } from "@/backend/files/trash"
+import { emptyTrash } from "@/backend/files/workflows"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
+import { WORKFLOWS } from "@/backend/workflows"
 import { file_folders, files } from "@/database/schema"
 import { Storage } from "@/database/storage"
 import { memoryStore } from "@/database/tests/support/storage"
@@ -23,11 +27,13 @@ beforeEach(() => {
 // `presigns: false`, the bucket can't sign, as a dev server's folder can't
 async function asOwner(options: { presigns?: boolean } = {}) {
     const memory = memoryStore(options)
-    const api = await testApi({ storage: new Storage(memory.store) })
+    const storage = new Storage(memory.store)
+    const api = await testApi({ storage })
     const owner = await logInAs(api, "ada@example.com")
     return {
         api,
         memory,
+        storage,
         owner,
         headers: { headers: { cookie: owner.cookie } }
     }
@@ -400,7 +406,16 @@ test("Trash takes a folder with everything in it, brings it back, and empties af
         .update(files)
         .set({ trashed_at: fromNow(-31 * DAY) })
         .where(eq(files.id, loose))
-    await logged_in.api.client.api.files.trash.$get({}, logged_in.headers)
+    // Looking in Trash deletes nothing: the schedule empties it
+    const looked = await logged_in.api.client.api.files.trash.$get(
+        {},
+        logged_in.headers
+    )
+    expect(looked.status).toBe(200)
+    expect(logged_in.memory.files.has(`files/${loose}`)).toBe(true)
+    expect(await emptyExpired(logged_in.api.database, logged_in.storage)).toBe(
+        1
+    )
     expect(logged_in.memory.files.has(`files/${loose}`)).toBe(false)
     expect(
         await logged_in.api.database
@@ -488,6 +503,25 @@ test("the app's own folders can be looked in and downloaded from, by the paths t
         logged_in.headers
     )
     expect(elsewhere.status).toBe(404)
+
+    // Its own folder, as `under`, lists it as leaving `under` out does,
+    // and a file's path is no folder of it
+    const own = await logged_in.api.client.api.files.kept[":folder"].$get(
+        {
+            param: { folder: "visitor-salt" },
+            query: { under: "visitor-salt/" }
+        },
+        logged_in.headers
+    )
+    expect(own.status).toBe(200)
+    const a_file = await logged_in.api.client.api.files.kept[":folder"].$get(
+        {
+            param: { folder: "visitor-salt" },
+            query: { under: "visitor-salt/today.json" }
+        },
+        logged_in.headers
+    )
+    expect(a_file.status).toBe(404)
     const yours = await logged_in.api.client.api.files.kept[":folder"].$get(
         { param: { folder: "files" }, query: {} },
         logged_in.headers
@@ -506,4 +540,114 @@ test("no route changes anything in a folder the app keeps for itself", () => {
         expect(route.path).not.toContain("/kept")
         expect(route.path).not.toContain("/kinds")
     }
+})
+
+test("a folder is never made or moved deeper than folders go", async () => {
+    const logged_in = await asOwner()
+    let deepest: string | null = null
+    for (let depth = 1; depth <= DEEPEST; depth++) {
+        deepest = await makeFolder(logged_in, `Level ${depth}`, deepest)
+    }
+    const past = await logged_in.api.client.api.files.folders.$post(
+        { json: { name: "Too deep", parent_id: deepest } },
+        logged_in.headers
+    )
+    expect(past.status).toBe(409)
+    expect(api_failure.parse(await past.json()).error.reason).toBe("too-deep")
+
+    // Two folders, one in the other, can't go where only one fits
+    const outer = await makeFolder(logged_in, "Outer")
+    await makeFolder(logged_in, "Inner", outer)
+    const [first] = (await contents(logged_in)).folders
+    if (first === undefined || deepest === null) {
+        throw new Error("The folders weren't made")
+    }
+    const deepest_path = await logged_in.api.client.api.files.folders[
+        ":folder_id"
+    ].$get({ param: { folder_id: deepest } }, logged_in.headers)
+    if (deepest_path.status !== 200) {
+        throw new Error("The deepest folder didn't list")
+    }
+    const one_above = (await deepest_path.json()).path.at(-2)?.id ?? null
+    const moved = await logged_in.api.client.api.files.folders[
+        ":folder_id"
+    ].$patch(
+        { param: { folder_id: outer }, json: { parent_id: one_above } },
+        logged_in.headers
+    )
+    expect(moved.status).toBe(409)
+    expect(api_failure.parse(await moved.json()).error.reason).toBe("too-deep")
+
+    // Everything made can still be opened
+    expect((await contents(logged_in, deepest)).folders).toEqual([])
+})
+
+test("where the bucket signs uploads, the server takes none itself", async () => {
+    const logged_in = await asOwner()
+    const started = await logged_in.api.client.api.files.uploads.$post(
+        {
+            json: {
+                folder_id: null,
+                name: "Notes.txt",
+                content_type: "text/plain",
+                size: 5
+            }
+        },
+        logged_in.headers
+    )
+    if (started.status !== 201) {
+        throw new Error(`The upload didn't start: ${started.status}`)
+    }
+    const { id, upload: target } = await started.json()
+    expect(target.method).toBe("POST")
+    const sent = await logged_in.api.api.request(`/api/files/uploads/${id}`, {
+        method: "PUT",
+        body: "hello",
+        headers: { ...logged_in.headers.headers, "content-type": "text/plain" }
+    })
+    expect(sent.status).toBe(404)
+    expect(logged_in.memory.files.has(`files/${id}`)).toBe(false)
+})
+
+test("a script's PUT of a text file, with no Origin, isn't taken for another site's form", async () => {
+    const logged_in = await asOwner({ presigns: false })
+    const started = await logged_in.api.client.api.files.uploads.$post(
+        {
+            json: {
+                folder_id: null,
+                name: "Notes.txt",
+                content_type: "text/plain",
+                size: 5
+            }
+        },
+        logged_in.headers
+    )
+    if (started.status !== 201) {
+        throw new Error(`The upload didn't start: ${started.status}`)
+    }
+    const { id } = await started.json()
+    const sent = await logged_in.api.api.request(`/api/files/uploads/${id}`, {
+        method: "PUT",
+        body: "hello",
+        headers: { ...logged_in.headers.headers, "content-type": "text/plain" }
+    })
+    expect(sent.status).toBe(200)
+
+    // A form's POST from another site is still refused
+    const form = await logged_in.api.api.request("/api/files/folders", {
+        method: "POST",
+        body: "name=Receipts",
+        headers: {
+            ...logged_in.headers.headers,
+            origin: "https://elsewhere.example",
+            "content-type": "application/x-www-form-urlencoded"
+        }
+    })
+    expect(form.status).toBe(403)
+})
+
+test("Trash is emptied each hour by a quiet workflow", () => {
+    expect(WORKFLOWS).toContain(emptyTrash)
+    expect(emptyTrash.schedule).not.toBeNull()
+    expect(emptyTrash.quiet).toBe(true)
 })

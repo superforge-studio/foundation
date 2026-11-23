@@ -1,17 +1,19 @@
 import { asc, eq } from "drizzle-orm"
-import { expect, test } from "vitest"
+import { expect, test, vi } from "vitest"
 import {
     type Access,
     ACCESS as APP_ACCESS,
     problemsWith,
     roleOf
 } from "@/backend/auth/access"
+import { makeApiToken } from "@/backend/auth/api-tokens"
+import { standInInfra } from "@/backend/infra"
 import { queuedRuns } from "@/backend/workflows/tests/support/queued"
-import { sessions, users } from "@/database/schema"
+import { api_tokens, sessions, users } from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
 import { fromNow } from "@/database/time"
 import { DAY } from "@/utilities/primitives/durations"
-import { syncInternalUsers } from "../sync"
+import { endConnectionsOfGone, syncInternalUsers } from "../sync"
 
 // What the server's start does with the list in backend/auth/access.ts:
 // makes `users` the listed people, found by their slugs, and deactivates
@@ -206,4 +208,50 @@ test("with no one listed, everyone is deactivated", async () => {
         deactivated: 1
     })
     expect(await everyone(database)).toMatchObject([{ active: false }])
+})
+
+test("taken off the list, someone's API tokens are revoked for good, so listing them again brings none back", async () => {
+    const database = await testDatabase()
+    await syncInternalUsers(database, listing(ADA, GRACE))
+    const [grace] = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.slug, "grace"))
+    if (grace === undefined) {
+        throw new Error("Grace wasn't made")
+    }
+    await makeApiToken(database, grace.id, {
+        name: "Nightly export",
+        scopes: ["read"],
+        expires_in_days: null
+    })
+
+    await syncInternalUsers(database, listing(ADA))
+    await syncInternalUsers(database, listing(ADA, GRACE))
+    expect(await database.select().from(api_tokens)).toEqual([])
+})
+
+test("Claude's connections as anyone deactivated are ended through Infra, and a refusal is logged, not thrown", async () => {
+    const database = await testDatabase()
+    await syncInternalUsers(database, listing(ADA, GRACE))
+    await syncInternalUsers(database, listing(ADA))
+    const [grace] = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.slug, "grace"))
+
+    const infra = standInInfra()
+    const ending = vi
+        .spyOn(infra, "endAgentConnections")
+        .mockResolvedValueOnce({ ok: true, data: 2 })
+    expect(await endConnectionsOfGone(database, infra)).toBe(2)
+    expect(ending).toHaveBeenCalledExactlyOnceWith(grace?.id)
+
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {})
+    ending.mockResolvedValueOnce({
+        ok: false,
+        error: { reason: "unavailable", message: "Infra didn't answer" }
+    })
+    expect(await endConnectionsOfGone(database, infra)).toBe(0)
+    expect(warned).toHaveBeenCalled()
 })

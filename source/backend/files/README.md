@@ -29,10 +29,11 @@ wants a Files screen builds it on them ("What's left for an app", below).
   without touching their rows: every read walks up from a file or a
   folder to the top (`folderPath`, `find.ts`), and finds nothing when a
   folder on the way is in Trash.
-- **Folders go 32 deep** (`DEEPEST`), which is where that walk stops, by
-  throwing. Making a folder checks only that its parent is there, so a
-  33rd can be made: it then can't be opened, filled or taken to Trash by
-  itself (each is a 500), only with the folder above it.
+- **Folders go 32 deep** (`DEEPEST`), which is where that walk stops.
+  Making a folder past it, or moving one where it, or a folder inside it,
+  would go deeper, is refused 409 `too-deep` (`levelsOf`, `find.ts`,
+  counts the levels a move takes with it), so every folder there is can
+  be opened.
 - **A folder's row deleted takes its folders' and files' rows with it**
   (`on delete cascade`), and a user's leaves theirs, with `uploaded_by`
   and `created_by` null.
@@ -40,7 +41,8 @@ wants a Files screen builds it on them ("What's left for an app", below).
 The operations are a file per verb: `create.ts` (`createFolder`,
 `startUpload`), `find.ts` (`folderContents`, `findFile`, `findUpload`),
 `change.ts` (`changeFolder`, `changeFile`, `finishUpload`), `trash.ts` and
-`send.ts`.
+`send.ts`, with `workflows.ts`'s `empty-trash`, which empties Trash on a
+schedule.
 
 ## The routes
 
@@ -49,14 +51,14 @@ The operations are a file per verb: `create.ts` (`createFolder`,
 | Method   | Path                                | What it does                                                                                                              |
 | -------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/files/kinds`                      | The top of the bucket: each kind's `folder`, `name`, `about`, `access` and, when it's locked, `why`, and `unclaimed`      |
-| `GET`    | `/files/trash`                      | Empties what's run out of Trash, then lists the `folders` and `files` taken there themselves, newest first                |
+| `GET`    | `/files/trash`                      | Lists the `folders` and `files` taken there themselves, newest first                                                      |
 | `GET`    | `/files/folders/:folder_id`         | A folder, or `root` for the top: `path`, the folders above it, its `folders`, each with how many `items`, and its `files` |
 | `POST`   | `/files/folders`                    | `{ name, parent_id }`: a new folder, 201 `{ id }`, or 404 `no-folder`                                                     |
 | `PATCH`  | `/files/folders/:folder_id`         | `{ name?, parent_id? }`: renames it, moves it, or both; 409 `into-itself` for a move into itself or a folder inside it    |
 | `DELETE` | `/files/folders/:folder_id`         | To Trash, with everything in it                                                                                           |
 | `POST`   | `/files/folders/:folder_id/restore` | Back from Trash: `{ to_top }`                                                                                             |
 | `POST`   | `/files/uploads`                    | `{ folder_id, name, content_type, size }`: starts an upload, 201 `{ id, upload }`, where `upload` says where the bytes go |
-| `PUT`    | `/files/uploads/:file_id`           | The bytes, to the server itself, where a dev server sends them; 413 `too-large` past 100 MB, or past what was declared    |
+| `PUT`    | `/files/uploads/:file_id`           | The bytes, to the server itself, in a dev server alone; 413 `too-large` past 100 MB, or past what was declared            |
 | `POST`   | `/files/uploads/:file_id/done`      | The bytes are in: the file is `ready`; 409 `not-uploaded` or `too-large`                                                  |
 | `GET`    | `/files/kept/:folder`               | A page of a folder the app keeps: `kind`, `files`, `folders` and `cursor`, from the top or `?under=`                      |
 | `GET`    | `/files/kept/:folder/download`      | One of its files, by `?path=` as a listing gave it, with `inline=1` to show it in place                                   |
@@ -67,8 +69,9 @@ The operations are a file per verb: `create.ts` (`createFolder`,
 | `POST`   | `/files/:file_id/restore`           | Back from Trash: `{ to_top }`                                                                                             |
 
 What isn't there, hasn't finished uploading, or is in Trash is 404
-`not-found`, and a folder to put something in that isn't there is 404
-`no-folder`. A listed file is its `id`, `folder_id`, `name`,
+`not-found`, a folder to put something in that isn't there is 404
+`no-folder`, and a folder made or moved past 32 deep is 409 `too-deep`.
+A listed file is its `id`, `folder_id`, `name`,
 `content_type`, `size`, `created_at`, `updated_at` and `uploaded_by`,
 which is the uploader's name, or their address, or null once they're gone.
 
@@ -95,15 +98,16 @@ so `upload` is `{ method: "PUT", url, fields: {} }`, with the route's own
 route reads them whole into memory and keeps them (`storage.files.put`),
 and `done` is the same.
 
-- **The `PUT` route isn't a dev server's alone.** It answers in a build
-  too, where nothing offers it. Bytes kept through it are kept as
-  `application/octet-stream`, the kind's own type, where a form keeps
-  them as the file's.
-- **A `PUT` whose `Content-Type` is `text/plain` or a form's is refused**
-  403 `forbidden`, unless the browser says it came from this site, by the
-  API's check for another site's forms (`workbench/writing-code.md`, "How
-  a route fails"). A script sends another type, or none: the file's type
-  is its row's, whatever the `PUT` says.
+- **The `PUT` route is a dev server's alone.** Where the bucket can sign
+  a form, as in a build, an upload goes straight to it, and the route is
+  404 `not-found`, so the server never reads a file into memory there.
+  Bytes kept through it are kept as `application/octet-stream`, the
+  kind's own type: the file's type is its row's, whatever the `PUT` says,
+  and a download says it.
+- **Any `Content-Type` will do.** The API's check for another site's
+  forms (`workbench/writing-code.md`, "How a route fails") looks only at
+  a `POST`, the one method a form sends, so a script's `PUT` of a `.txt`
+  file, or curl's `--data`, is taken without an `Origin`.
 - **An upload never finished** stays `uploading`, shown nowhere, until
   Trash's emptying deletes it a day after it started.
 
@@ -147,12 +151,12 @@ folder's alike.
   started. A file's bytes go from the bucket first, then its row, so a
   failure part way leaves rows to try again with, never rows whose bytes
   are gone.
-- **Nothing runs it on a schedule.** Listing Trash and starting an
-  upload each run it before their own work, and go on if it fails,
-  logging `Emptying Trash failed`. So what has run out is deleted the
-  next time someone looks in Trash or starts an upload, not on the day;
-  and since listing Trash is a `GET`, a role or a token that only reads
-  sets it off.
+- **The `empty-trash` workflow runs it each hour**, at a quarter past
+  (`workflows.ts`), quiet, so its runs show on the Workflows screen only
+  when one fails, as `prune-webhook-deliveries` does its own prune
+  (`backend/workflows/README.md`, "On a schedule"). So what has run out
+  goes within the hour, whether anyone looks, and no route deletes
+  anything for good: listing Trash, a `GET`, only reads.
 
 ## The folders the app keeps for itself
 
@@ -166,9 +170,10 @@ that's `open`.
   files and folders to a page, by their paths in the bucket: each file's
   `key`, `size` and `modified`, each folder's path, ending in `/`, and a
   `cursor` for the next page. `under` is a folder's path as a listing
-  gave it. A folder that's no locked kind's, `files` among them, and an
-  `under` outside the kind's, are 404; an `under` that's a file's path
-  throws (500).
+  gave it, or the kind's own folder (`visitor-salt/`), which lists it as
+  leaving `under` out does. A folder that's no locked kind's, `files`
+  among them, an `under` outside the kind's, and one that's a file's path
+  rather than a folder's, are 404.
 - **`GET /api/files/kept/:folder/download`** sends one by its `path`, as
   Your files are sent.
 - **Nothing changes them.** No route that changes anything is under
@@ -219,9 +224,6 @@ whoever reaches the area reaches all of them.
   address. The template sets none. Skylevel's
   `source/database/storage/cors.ts` is how: it puts the rule through the
   bucket's S3 API as each deploy goes out.
-- **Emptying Trash on the day**, if that matters: a workflow on a
-  schedule whose step calls `emptyExpired`, as `prune-webhook-deliveries`
-  calls its own prune (`backend/workflows/README.md`, "On a schedule").
 - **A kind of the app's own**, for a file the code writes, in
   `source/database/storage/app.ts`, not a row here.
 

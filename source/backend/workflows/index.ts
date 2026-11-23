@@ -1,3 +1,4 @@
+import { emptyTrash } from "@/backend/files/workflows"
 import { JOBS } from "@/backend/jobs"
 import {
     tellTeamOfNewMember,
@@ -24,6 +25,8 @@ export const WORKFLOWS: Workflow[] = [
     tellTeamOfSignUp,
     // Each hour, the webhooks older than they're kept (backend/webhooks/)
     pruneWebhookDeliveries,
+    // Each hour, what's been in Trash 30 days (backend/files/)
+    emptyTrash,
     // Each job's, which makes its change (backend/jobs/)
     ...JOBS.map((job) => job.workflow),
     ...APP_WORKFLOWS

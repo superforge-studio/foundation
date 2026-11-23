@@ -141,27 +141,35 @@ test hands its own.
   transaction, so `tell-team-of-new-member` runs once for them
   (`backend/workflows/README.md`, "The sample").
 - **`syncInternalUsers`** does that for everyone listed, deactivates
-  everyone else (`deactivated_at`), and deletes the sessions of every
-  deactivated person, in one transaction. It throws on a list with a
+  everyone else (`deactivated_at`), and deletes the sessions and the API
+  tokens of every deactivated person, in one transaction. It throws on a list with a
   mistake in it (`problemsWith`: a slug that isn't one, or a slug or an
   address listed twice), changing nothing. `syncAppInternalUsers` runs it
   with `ACCESS` once the Node server is listening (`source/node.ts`), and
   as a dev server first loads `source/server.ts`; never in the build's
-  prerender or the tests. It never rejects: it logs how many it made and
-  deactivated (`The team follows access.ts`), or that it failed
-  (`The team didn't sync with access.ts`), and the server goes on.
+  prerender or the tests, then ends Claude's connections as everyone
+  deactivated (`endConnectionsOfGone`). It never rejects: it logs how
+  many it made and deactivated (`The team follows access.ts`), or that it
+  failed (`The team didn't sync with access.ts`), and the server goes on.
 - **The list decides, not the sync.** The middleware counts someone only
   while `listedBySlug` finds their row's slug, so the sync is what keeps
   the database telling the same story, not what keeps anyone out. A list
   with a mistake still decides who logs in; `pnpm check` is what catches
   one (`../users/tests/sync.test.ts`, which also holds `ACCESS` to an
   owner who may do everything).
-- **Taking someone off deletes only their sessions.** Their row stays,
-  and so do their API tokens' rows, and Claude's connections, which
-  Infra keeps. Both kinds of token are refused while their person is off
-  the list or deactivated, and count again once they're listed again with
-  the same slug and their row is active, if the token hasn't run out or
-  been revoked meanwhile.
+- **Taking someone off ends every way they were in, for good.** Their
+  row stays, deactivated. Their sessions are deleted, and their API
+  tokens with them, so a token never works again if they're listed again:
+  they make new ones. Claude's tokens are Infra's, signed rather than kept
+  here, so the app can't delete them: `endConnectionsOfGone` asks Infra to
+  end every connection Claude has as someone deactivated
+  (`endAgentConnections`), each time the server starts, so Claude can't
+  refresh one, and what it holds runs out within minutes. Meanwhile the
+  middleware refuses a token whose person is off the list or deactivated.
+  If Infra doesn't answer, it's logged (`Claude's connections weren't
+  ended`) and asked again at the next start; a person listed again before
+  then would find a connection still working, which only Infra can end:
+  they end it themselves on their account page.
 
 ## The four checks
 
@@ -197,9 +205,11 @@ who a request is from.
   (`permissionsFor`).
 - **`loggedIn` holds a token to its scopes by the method alone**: with
   only `read`, a token makes `GET` and `HEAD` requests (`mayDo`).
-- **`maybeLoggedIn` refuses nothing**: a token with only `read` gets
-  through a `POST` behind it, as its person, with `permissions` saying
-  what it may do. It sets no `session`, `logged_in_with` or `scopes`.
+- **`maybeLoggedIn` refuses nothing, and holds a token to its scopes as
+  `loggedIn` does**: a token with only `read`, sent with anything but a
+  `GET` or a `HEAD`, is nobody's, so the route answers it as it answers a
+  visitor, as recording a visit does, never as its person. It sets no
+  `session`, `logged_in_with` or `scopes`.
 - **`inBrowser` is for what a token must never do**: see where someone is
   logged in or log a browser out, see Claude's connections, end one or
   allow Claude in, and make, list or revoke API tokens. So a token that

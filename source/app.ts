@@ -12,9 +12,11 @@
 export const HOSTS_WITHOUT_FILES: readonly string[] = []
 
 /**
- * This app's own answer to a request that isn't for /api, asked before the
- * template's own paths and the pages, or null to leave it to them. It sees
- * every method, so it answers only what it means to.
+ * This app's own answer to a request, asked before everything else the
+ * server answers, /api, the template's own paths and the pages, or null to
+ * leave it to them. It sees every request, every method and every host, so
+ * it answers only what it means to, like a path under /api on a host of
+ * its own, and the API's own paths on the site's host stay the API's.
  */
 export function appAnswer(
     _request: Request,

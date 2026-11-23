@@ -37,12 +37,13 @@ const answer = createServerEntry({
     async fetch(request) {
         const url = new URL(request.url)
         const { pathname } = url
-        if (pathname.startsWith("/api/")) {
-            return api.fetch(request)
-        }
+        // The app's own first, for whatever it claims, /api on a host of
+        // its own among it; everything it leaves is the template's
         const own = await appAnswer(request, url)
         if (own !== null) {
             return own
+        } else if (pathname.startsWith("/api/")) {
+            return api.fetch(request)
         } else if (pathname === MCP_PATH) {
             return mcp.fetch(request)
         } else if (

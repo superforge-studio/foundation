@@ -1,6 +1,9 @@
+import { readdirSync, readFileSync } from "node:fs"
+import path from "node:path"
 import { is } from "drizzle-orm"
 import { PgTable } from "drizzle-orm/pg-core"
 import { expect, test } from "vitest"
+import { z } from "zod"
 import * as schema from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
 import { tableName } from "@/database/tests/support/fill"
@@ -46,4 +49,41 @@ test("seeds every table, but the ones that say why not", async () => {
         unknown,
         "These are named in seed.ts, but schema.ts has no such table"
     ).toEqual([])
+})
+
+test("nothing the server runs or deploys reaches the seed, which writes only this checkout's own Postgres", () => {
+    // The seed's sample session logs someone in by a cookie anyone can
+    // read here, so it must never reach production: only
+    // `pnpm database:seed` runs it (workbench/scripts/seed.mjs), on
+    // localDatabaseUrl(), never DATABASE_URL
+    const root = path.resolve(import.meta.dirname, "../../../..")
+    const reaching = readdirSync(path.join(root, "source"), {
+        recursive: true,
+        encoding: "utf8"
+    })
+        .filter((file) => /\.tsx?$/.test(file))
+        .filter((file) => !file.startsWith(path.join("database", "seed")))
+        .filter((file) =>
+            /database\/seed/.test(
+                readFileSync(path.join(root, "source", file), "utf8")
+            )
+        )
+    expect(reaching).toEqual([])
+    const seed = readFileSync(
+        path.join(root, "source/database/seed/seed.ts"),
+        "utf8"
+    )
+    expect(seed).toContain("localDatabaseUrl()")
+    expect(seed).not.toContain("DATABASE_URL")
+    const { scripts } = z
+        .object({ scripts: z.record(z.string(), z.string()) })
+        .parse(
+            JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
+        )
+    expect(
+        Object.keys(scripts).filter((name) => scripts[name]?.includes("seed"))
+    ).toEqual(["database:seed"])
+    expect(
+        readFileSync(path.join(root, ".railway/railway.ts"), "utf8")
+    ).not.toContain("seed")
 })

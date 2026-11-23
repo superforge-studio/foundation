@@ -135,6 +135,14 @@ Vite's module runner, since the seed imports through `@/` paths. "By
 hand" in `workbench/writing-code.md` has the rule that every table gets a
 seeder.
 
+**It never reaches production.** Its sample session logs in as the first
+of the team with a cookie anyone can read here
+(`session=sample-session-internal`, `users.ts`), so the seed writes only
+this checkout's own Postgres (`localDatabaseUrl()`), never
+`DATABASE_URL`, nothing the server runs imports it, and no script but
+`database:seed` and nothing in `.railway/railway.ts` runs it, which its
+test holds.
+
 ## `storage/`
 
 **The `Storage` bucket, for files.** A route or a step only ever sees the
