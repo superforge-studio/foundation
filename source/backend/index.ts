@@ -152,22 +152,28 @@ function fromThisHost(origin: string, context: Context) {
 }
 
 /**
- * The server's API, on its database, bucket, workflows and Infra, with who
- * can log in as auth/access.ts says, whom the site remembers as
- * utilities/visitors.ts says, visitors placed by the database Railway
- * names (visits/location.ts), the webhook sources webhooks/sources.ts
- * lists, and this app's own (./app.ts).
+ * What the server's own API sees on `context`: its database, bucket,
+ * workflows and Infra, with who can log in as auth/access.ts says, whom
+ * the site remembers as utilities/visitors.ts says, visitors placed by the
+ * database Railway names (visits/location.ts), the webhook sources
+ * webhooks/sources.ts lists, and this app's own (./app.ts). Whatever else
+ * the server answers with the same things takes this too.
  */
-export const api = apiWith(() => ({
-    database: appDatabase(),
-    storage: appStorage(),
-    workflows: dbosWorkflows,
-    infra: appInfra(),
-    access: ACCESS,
-    visitor_mode: VISITOR_MODE,
-    locate: appLocate(),
-    webhook_sources: SOURCES,
-    ...appVariables()
-}))
+export function serverVariables(): ApiEnvironment["Variables"] {
+    return {
+        database: appDatabase(),
+        storage: appStorage(),
+        workflows: dbosWorkflows,
+        infra: appInfra(),
+        access: ACCESS,
+        visitor_mode: VISITOR_MODE,
+        locate: appLocate(),
+        webhook_sources: SOURCES,
+        ...appVariables()
+    }
+}
+
+/** The server's API. */
+export const api = apiWith(serverVariables)
 
 export type AppType = typeof api
