@@ -4,16 +4,16 @@ import { client } from "@/backend/client"
 import { sessionQuery } from "./auth"
 import { FailedRequest, readFailure } from "./failures"
 
-// The signed-in person's own account (backend/account/routes.ts): what
-// they're called, and the browsers they're signed in on
+// The logged-in person's own account (backend/account/routes.ts): what
+// they're called, and the browsers they're logged in on
 
-/** A browser someone is signed in on, as the API answers it. */
+/** A browser someone is logged in on, as the API answers it. */
 export type AccountSession = InferResponseType<
     typeof client.api.account.sessions.$get,
     200
 >["sessions"][number]
 
-/** Where the signed-in person is signed in: GET /api/account/sessions. */
+/** Where the logged-in person is logged in: GET /api/account/sessions. */
 export const accountSessionsQuery = queryOptions({
     queryKey: ["account", "sessions"],
     queryFn: async () => {
@@ -44,7 +44,7 @@ export const renameAccount = mutationOptions({
     }
 })
 
-/** Signing one of their other browsers out. */
+/** Logging one of their other browsers out. */
 export const endAccountSession = mutationOptions({
     mutationKey: ["account", "end-session"],
     mutationFn: async (input: { id: string }) => {
@@ -64,12 +64,12 @@ export const endAccountSession = mutationOptions({
     }
 })
 
-/** Signing every other browser out, keeping this one. */
-export const signOutOthers = mutationOptions({
-    mutationKey: ["account", "sign-out-others"],
+/** Logging every other browser out, keeping this one. */
+export const logOutOthers = mutationOptions({
+    mutationKey: ["account", "logout-others"],
     mutationFn: async () => {
         const response =
-            await client.api.account.sessions["sign-out-others"].$post()
+            await client.api.account.sessions["logout-others"].$post()
         if (response.status === 200) {
             return (await response.json()).ended
         } else {

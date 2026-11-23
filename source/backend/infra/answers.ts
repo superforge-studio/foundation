@@ -5,8 +5,8 @@ import { z } from "zod"
 // `error` as `reason`. README.md has each call's fields. The types the app
 // uses come from these (index.ts), and the stand-in answers the same.
 
-/** A sign-in email that went out. */
-export const started_sign_in = z.object({
+/** A login email that went out. */
+export const started_login = z.object({
     // The address as Infra keeps it, which verifying the code takes
     email: z.string(),
     // Whether the email holds a link as well as the code
@@ -18,7 +18,7 @@ export const started_sign_in = z.object({
     test: z.object({ code: z.string(), link: z.string().nullable() }).nullable()
 })
 
-/** Why Infra didn't send a sign-in email. */
+/** Why Infra didn't send a login email. */
 export const start_refused = z.union([
     // This address was sent one less than a minute ago
     z
@@ -48,9 +48,9 @@ export const start_refused = z.union([
 ])
 
 /** Whose email the code or the link was. */
-export const verified_sign_in = z.object({ email: z.string() })
+export const verified_login = z.object({ email: z.string() })
 
-/** Why what the visitor brought back didn't sign them in. */
+/** Why what the visitor brought back didn't log them in. */
 export const verify_refused = z.union([
     // Not the code, which still works for this many more tries
     z

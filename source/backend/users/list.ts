@@ -5,10 +5,10 @@ import { now } from "@/database/time"
 import { type Access, listedInternal, roleFor } from "../auth/access"
 
 /**
- * Everyone who can sign in, newest first, for the dashboard's People
+ * Everyone who can log in, newest first, for the dashboard's People
  * screen: who they are, their role, as access.ts gives it, whether they're
  * listed there as one of the business's own, when they joined and last
- * signed in, and how many browsers they're signed in on now.
+ * logged in, and how many browsers they're logged in on now.
  */
 export async function listUsers(database: Database, access: Access) {
     const rows = await database
@@ -18,7 +18,7 @@ export async function listUsers(database: Database, access: Access) {
             name: users.name,
             role: users.role,
             created_at: users.created_at,
-            signed_in_at: users.signed_in_at,
+            logged_in_at: users.logged_in_at,
             // count() answers a bigint, which pg hands over as a string
             sessions: sql<number>`count(${sessions.token_hash})::integer`
         })

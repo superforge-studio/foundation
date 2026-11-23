@@ -17,17 +17,17 @@ import {
 } from "./sessions"
 
 /**
- * Whether `email` may start signing in, before Infra is asked to email it:
- * anyone may when anyone can sign in, and otherwise only someone listed as
+ * Whether `email` may start logging in, before Infra is asked to email it:
+ * anyone may when anyone can log in, and otherwise only someone listed as
  * internal (access.ts), or already on the People screen.
  */
-export async function maySignIn(
+export async function mayLogIn(
     database: Database,
     access: Access,
     email: string
 ) {
     if (
-        access.sign_in === "anyone" ||
+        access.login === "anyone" ||
         listedInternal(access, email) !== undefined
     ) {
         return true
@@ -41,20 +41,20 @@ export async function maySignIn(
 }
 
 /**
- * Signs in the user with this email, once Infra has said it's theirs: makes
- * the user the first time the address signs in, when anyone may, marks
- * them signed in now, and starts a session in place of this browser's
+ * Logs in the user with this email, once Infra has said it's theirs: makes
+ * the user the first time the address logs in, when anyone may, marks
+ * them logged in now, and starts a session in place of this browser's
  * (`replacing`), all together. Their role and, for the business's own, their
  * name are set as access.ts lists them every time, so the database follows
  * the list: someone listed is internal with the name they're listed with,
- * and someone taken off it is external again. A sign-in that makes
+ * and someone taken off it is external again. A login that makes
  * someone new queues `user-signed-up` in the same transaction, named for
  * them, so whatever's on it (the notice to the team) runs once, and only
  * if they're made. Answers the user, the new session's token, for its
- * cookie, and whether this sign-in made them. Refuses someone nobody
- * listed or added when only they may sign in.
+ * cookie, and whether this login made them. Refuses someone nobody
+ * listed or added when only they may log in.
  */
-export async function signIn(
+export async function logIn(
     database: Database,
     {
         email,
@@ -73,14 +73,14 @@ export async function signIn(
 > {
     return await database.transaction(async (transaction) => {
         const listed = listedInternal(access, email)
-        let signed_in: SessionUser
+        let logged_in: SessionUser
         let joined: boolean
         if (listed === undefined) {
             const [existing] = await transaction
                 .select({ role: users.role })
                 .from(users)
                 .where(eq(users.email, email))
-            if (existing === undefined && access.sign_in === "listed") {
+            if (existing === undefined && access.login === "listed") {
                 return { ok: false, error: "not-listed" }
             }
             const role =
@@ -89,10 +89,10 @@ export async function signIn(
                     : roleFor(access, email, existing.role)
             const [user] = await transaction
                 .insert(users)
-                .values({ email, role, signed_in_at: now })
+                .values({ email, role, logged_in_at: now })
                 .onConflictDoUpdate({
                     target: users.email,
-                    set: { role, signed_in_at: now }
+                    set: { role, logged_in_at: now }
                 })
                 .returning({
                     ...SESSION_USER_COLUMNS,
@@ -105,14 +105,14 @@ export async function signIn(
                 throw new Error("A user's upsert answered no row")
             }
             const { joined: made, ...rest } = user
-            signed_in = rest
+            logged_in = rest
             joined = made
         } else {
             const values = {
                 email,
                 name: nameOf(listed),
                 role: listedRole(listed),
-                signed_in_at: now
+                logged_in_at: now
             }
             const [user] = await transaction
                 .insert(users)
@@ -122,14 +122,14 @@ export async function signIn(
                     set: {
                         name: values.name,
                         role: values.role,
-                        signed_in_at: now
+                        logged_in_at: now
                     }
                 })
                 .returning(SESSION_USER_COLUMNS)
             if (user === undefined) {
                 throw new Error("A user's upsert answered no row")
             }
-            signed_in = user
+            logged_in = user
             // One of the business's own is never a sign-up, even the first
             // time: no notice goes out about them
             joined = false
@@ -137,7 +137,7 @@ export async function signIn(
 
         const token = await startSession(
             transaction,
-            signed_in.id,
+            logged_in.id,
             replacing,
             user_agent
         )
@@ -145,10 +145,10 @@ export async function signIn(
             await queueEvent(
                 transaction,
                 "user-signed-up",
-                { user_id: signed_in.id, email: signed_in.email },
-                { id: signed_in.id }
+                { user_id: logged_in.id, email: logged_in.email },
+                { id: logged_in.id }
             )
         }
-        return { ok: true, data: { user: signed_in, token, joined } }
+        return { ok: true, data: { user: logged_in, token, joined } }
     })
 }

@@ -218,8 +218,8 @@ function modifierKey() {
 // What to say when a save failed, by what the server answered
 function failureMessage(error: Error) {
     const failure = failureOf(error)
-    if (failure.reason === "signed-out") {
-        return "You've been signed out. Sign in again to comment."
+    if (failure.reason === "logged-out") {
+        return "You've been logged out. Log in again to comment."
     } else if (failure.reason === "invalid") {
         return "That comment can't be sent as it is."
     } else {

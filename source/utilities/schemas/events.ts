@@ -45,7 +45,7 @@ export type EventProperties = z.infer<typeof event_properties>
 export const browser_id = z.string().regex(/^[\w-]{8,64}$/)
 
 /**
- * The app's own ID for whoever is signed in, as Superforge Infra takes one
+ * The app's own ID for whoever is logged in, as Superforge Infra takes one
  * with a comment (backend/infra/comments.ts): at most 128 characters, and
  * never an email, since Infra keeps no app's users.
  */

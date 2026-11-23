@@ -37,11 +37,11 @@ Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
    and what visitors should do next (call, book, email, or just know it's
    coming).
 10. **Its website address**, if it has a domain it wants this on.
-11. **Who will sign in**: its customers, who can sign up themselves, or
+11. **Who will log in**: its customers, who can sign up themselves, or
     only its own team (an internal tool, or a site only its staff edit).
 12. **Its own people's email addresses**, starting with the owner's: they
-    see the whole dashboard (the people who can sign in, and the work
-    running in the background) from the first time they sign in.
+    see the whole dashboard (the people who can log in, and the work
+    running in the background) from the first time they log in.
 13. **Where is the business based, and do you want visitors asked
     before they're remembered?** The site's pages count what visitors
     view and click, in the app's own database, and the site can remember
@@ -83,7 +83,7 @@ is drawn with ([shadcn's theming](https://ui.shadcn.com/docs/theming)).
   `public/favicon.svg` with the mark (an SVG with a `<title>`), and
   replace the placeholder cube in `source/frontend/routes/index.tsx`'s
   header (the favicon, in an `<img>`) with the logo, and in
-  `source/frontend/components/site/business-mark.tsx`, the sign-in page's
+  `source/frontend/components/site/business-mark.tsx`, the login page's
   and the dashboard's, with the business's name in place of "Your
   business".
 
@@ -91,7 +91,7 @@ Read `workbench/designing.md` before this step and the next: it lists the
 habits that make a site look generated, and the checks the page has to
 pass.
 
-## 3. Write the home page, and say who signs in
+## 3. Write the home page, and say who logs in
 
 Replace `source/frontend/routes/index.tsx`'s placeholder with the
 business's own page: its name, the line from step 1, and what visitors
@@ -104,23 +104,23 @@ for visitors. Delete `source/frontend/components/welcome/`, which only it
 uses, and keep `source/backend/health/`, which Railway's healthcheck
 needs.
 
-Keep the sign-in page, `source/frontend/routes/sign-in.tsx`, where the
-business's customers and staff will sign in, and where its emails link,
+Keep the login page, `source/frontend/routes/login.tsx`, where the
+business's customers and staff will log in, and where its emails link,
 in the business's voice (its name is in `business-mark.tsx`, from step
 2). Link to it from the home page only if visitors should see it yet.
 
 Keep the dashboard too, `source/frontend/routes/dashboard/`, behind
-sign-in: the business's own people see everyone who can sign in and the
+login: the business's own people see everyone who can log in and the
 work running in the background, and everyone else their own account.
-Then say who signs in, from step 1's answers, in `ACCESS` in
+Then say who logs in, from step 1's answers, in `ACCESS` in
 `source/backend/auth/access.ts`:
 
-- **`sign_in`**: `"anyone"` when customers sign up themselves, and
-  `"listed"` when only the team signs in, so a stranger can't make an
+- **`login`**: `"anyone"` when customers sign up themselves, and
+  `"listed"` when only the team logs in, so a stranger can't make an
   account; the team then adds anyone else on the dashboard's People
   screen.
 - **`internal_users`**: the business's own people, the owner first, each
-  with their first name, last name and the email they'll sign in with,
+  with their first name, last name and the email they'll log in with,
   in place of the placeholders (Ada Lovelace and Grace Hopper, at
   example.com). They're the only people who are ever internal, and the
   dashboard's People screen can't add or change them: someone joins or
@@ -128,7 +128,7 @@ Then say who signs in, from step 1's answers, in `ACCESS` in
   the business has more kinds of people than those two, like technicians
   and customers, add the roles to `INTERNAL_ROLES` or `EXTERNAL_ROLES` in
   `source/utilities/schemas/users.ts`, and give each internal person
-  theirs (`workbench/writing-code.md`, "Roles and who can sign in").
+  theirs (`workbench/writing-code.md`, "Roles and who can log in").
 
 Then say whom the site remembers, from step 1's answer, in
 `VISITOR_MODE` in `source/utilities/visitors.ts`:
@@ -193,14 +193,14 @@ pnpm format && pnpm check
 ```
 
 Then `pnpm dev` and look at the home page at http://localhost:3000, the
-sign-in page at http://localhost:3000/sign-in, and the dashboard at
-http://localhost:3000/dashboard, signed in as the owner, on a computer's
+login page at http://localhost:3000/login, and the dashboard at
+http://localhost:3000/dashboard, logged in as the owner, on a computer's
 width and a phone's, in light and dark, against the checks in
-`workbench/designing.md`. Signing in works there with nothing set up: a
+`workbench/designing.md`. Logging in works there with nothing set up: a
 dev server emails nothing, and shows the code on the page.
 `pnpm database:seed` fills the dashboard with sample people and runs. When it's
 right, delete this file and `CLAUDE.md`'s first section, commit on a
 branch, and follow `workbench/commit-and-deploy.md` to put it on Railway:
 its "Setting up Railway" section is the one-time setup, which needs the
 owner for a token, for the app's project and its key on Superforge Infra,
-which sends the sign-in emails, and, if there's a domain, its DNS.
+which sends the login emails, and, if there's a domain, its DNS.

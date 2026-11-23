@@ -2,12 +2,12 @@ import { Hono } from "hono"
 import { z } from "zod"
 import { account_change } from "@/utilities/schemas/users"
 import { listedInternal } from "../auth/access"
+import { inBrowser, loggedIn } from "../auth/logged-in"
 import {
     endOtherSessions,
     endSessionById,
     listSessions
 } from "../auth/sessions"
-import { inBrowser, signedIn } from "../auth/signed-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { renameUser } from "./rename"
@@ -17,18 +17,18 @@ import { renameUser } from "./rename"
 const session_path = z.object({ id: z.string().regex(/^[0-9a-f]{16}$/) })
 
 /**
- * The signed-in person's own account, under /api/account, whatever their
- * role: what they're called, and the browsers they're signed in on, with
- * signing out of the others. Their address is who they are, so it doesn't
+ * The logged-in person's own account, under /api/account, whatever their
+ * role: what they're called, and the browsers they're logged in on, with
+ * logging out of the others. Their address is who they are, so it doesn't
  * change here, and neither does the name of one of the business's own,
  * which is the one they're listed with in code (auth/access.ts). Where
- * they're signed in is a browser's to see and end, never Claude's
+ * they're logged in is a browser's to see and end, never Claude's
  * (`inBrowser`).
  */
 export const accountRoutes = new Hono<ApiEnvironment>()
     .patch(
         "/account",
-        signedIn,
+        loggedIn,
         validated("json", account_change),
         async (context) => {
             if (listedInternal(context.var.access, context.var.user.email)) {
@@ -48,8 +48,8 @@ export const accountRoutes = new Hono<ApiEnvironment>()
         }
     )
 
-    // Where they're signed in, this browser's session marked as current
-    .get("/account/sessions", signedIn, inBrowser, async (context) => {
+    // Where they're logged in, this browser's session marked as current
+    .get("/account/sessions", loggedIn, inBrowser, async (context) => {
         const sessions = await listSessions(
             context.var.database,
             context.var.user.id
@@ -65,11 +65,11 @@ export const accountRoutes = new Hono<ApiEnvironment>()
         )
     })
 
-    // Signs one of their other browsers out. This one signs out through
-    // /api/auth/sign-out, which clears its cookie too.
+    // Logs one of their other browsers out. This one logs out through
+    // /api/auth/logout, which clears its cookie too.
     .delete(
         "/account/sessions/:id",
-        signedIn,
+        loggedIn,
         inBrowser,
         validated("param", session_path),
         async (context) => {
@@ -79,7 +79,7 @@ export const accountRoutes = new Hono<ApiEnvironment>()
                     context,
                     409,
                     "current",
-                    "That's this browser: sign out instead"
+                    "That's this browser: log out instead"
                 )
             }
             const ended = await endSessionById(
@@ -95,10 +95,10 @@ export const accountRoutes = new Hono<ApiEnvironment>()
         }
     )
 
-    // Signs every other browser out, keeping this one
+    // Logs every other browser out, keeping this one
     .post(
-        "/account/sessions/sign-out-others",
-        signedIn,
+        "/account/sessions/logout-others",
+        loggedIn,
         inBrowser,
         async (context) => {
             const ended = await endOtherSessions(
@@ -106,7 +106,7 @@ export const accountRoutes = new Hono<ApiEnvironment>()
                 context.var.user.id,
                 context.var.session.id
             )
-            console.info("Signed out everywhere else", {
+            console.info("Logged out everywhere else", {
                 user_id: context.var.user.id,
                 ended
             })

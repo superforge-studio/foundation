@@ -31,7 +31,7 @@
 //   - `auth`: what lets someone in: their sessions, and API tokens later.
 //     The most sensitive rows, since one is as good as a password, kept
 //     apart so a read-only role can leave them out. A table here is
-//     `auth.table(...)`. The sign-in codes aren't here: Infra keeps them.
+//     `auth.table(...)`. The login codes aren't here: Infra keeps them.
 //   - `internal`: the rest of the machinery, what no person sees, like an
 //     error log or rate limits. A table here is `internal.table(...)`.
 //   - `dbos`: DBOS's own tables, the workflows' runs and their steps
@@ -58,8 +58,8 @@ import { id, timestamp } from "./columns"
 export const auth = pgSchema("auth")
 export const internal = pgSchema("internal")
 
-// The business's own people and everyone it serves, everyone who can sign
-// in: signing in for the first time makes the row (backend/auth/sign-in.ts),
+// The business's own people and everyone it serves, everyone who can log
+// in: logging in for the first time makes the row (backend/auth/login.ts),
 // unless an internal person added them first (backend/users/). Infra proves
 // the address is theirs, and keeps nothing of them.
 export const users = pgTable(
@@ -77,9 +77,9 @@ export const users = pgTable(
         // can't be used in the transaction that adds it, and a deploy
         // applies every pending migration in one
         role: text({ enum: ROLES }).notNull().default("external"),
-        // When they last signed in, or null for someone who never has, like
+        // When they last logged in, or null for someone who never has, like
         // a user added by hand before they do
-        signed_in_at: timestamp(),
+        logged_in_at: timestamp(),
         created_at: timestamp().notNull().defaultNow()
     },
     (table) => [
@@ -92,9 +92,9 @@ export const users = pgTable(
     ]
 )
 
-// A browser's sign-in, which its `session` cookie holds the token for
+// A browser's login, which its `session` cookie holds the token for
 // (backend/auth/sessions.ts). Only the token's SHA-256 is kept. It lasts 30
-// days from when it was last renewed, and signing out deletes it.
+// days from when it was last renewed, and logging out deletes it.
 export const sessions = auth.table(
     "sessions",
     {
@@ -103,7 +103,7 @@ export const sessions = auth.table(
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
         // The browser it's in, as it said (its User-Agent), so the account
-        // page can say where someone is signed in
+        // page can say where someone is logged in
         user_agent: text(),
         expires_at: timestamp().notNull(),
         created_at: timestamp().notNull().defaultNow()
@@ -133,7 +133,7 @@ export const analytics_visits = pgTable(
         // visitors.ts): a visitor the site doesn't remember, who can't be
         // told from anyone once the day is over
         anonymous: boolean().notNull(),
-        // Whoever was signed in, only of a visitor the site remembers: the
+        // Whoever was logged in, only of a visitor the site remembers: the
         // day's hash is never kept beside who someone is
         user_id: uuid().references(() => users.id, { onDelete: "set null" }),
         // Its first event and its last, by the server's clock
@@ -208,7 +208,7 @@ export const analytics_events = pgTable(
         // ID in their `visitor` cookie when the server knows it, which
         // joins it to their visits.
         visitor_id: text(),
-        // Whoever was signed in, or whoever a server's event is about
+        // Whoever was logged in, or whoever a server's event is about
         user_id: uuid().references(() => users.id, { onDelete: "set null" }),
         // The page's path, without its query or fragment, which can hold a
         // token or an address

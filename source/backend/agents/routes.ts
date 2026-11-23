@@ -1,15 +1,15 @@
 import { Hono } from "hono"
 import { z } from "zod"
 import { agent_allow } from "@/utilities/schemas/agents"
-import { inBrowser, internalOnly } from "../auth/signed-in"
+import { inBrowser, internalOnly } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 
 // Claude connecting to the app's MCP, as the business's own people see it:
 // the Allow page, which shows what Claude asked for and sends the browser
 // back to Claude once someone allows or declines it, and their Connected
-// list on the account page. Infra signs Claude in (infra/agents.ts); these
-// tell it who allowed what. Only one of the business's own, signed in on
+// list on the account page. Infra logs Claude in (infra/agents.ts); these
+// tell it who allowed what. Only one of the business's own, logged in on
 // a browser, may (`internalOnly`, `inBrowser`): a token can't allow
 // another, or see the connections.
 
@@ -43,7 +43,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
     )
 
     // They allowed it, as themselves: where their browser goes back to
-    // Claude, with what Claude needs to finish signing in
+    // Claude, with what Claude needs to finish logging in
     .post(
         "/connect/:request_id/allow",
         internalOnly,

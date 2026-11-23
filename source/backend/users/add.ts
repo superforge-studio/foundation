@@ -4,7 +4,7 @@ import { users } from "@/database/schema"
 import type { user_addition } from "@/utilities/schemas/users"
 
 /**
- * Adds someone before they've signed in, with their role, so they can sign
+ * Adds someone before they've logged in, with their role, so they can log
  * in when only listed people may (backend/auth/access.ts), and are already
  * what they should be when they do. Refuses an address someone has.
  */

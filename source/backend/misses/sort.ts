@@ -30,7 +30,7 @@ export type SortedMiss =
  * dumps, and the admin panels of software the app doesn't run. A path is a
  * probe when any of its parts matches one, unless it's signed like a
  * webhook. `/.well-known/` isn't: what's under it is asked for by services
- * the app may use, like Claude signing in (backend/agents/oauth.ts).
+ * the app may use, like Claude logging in (backend/agents/oauth.ts).
  */
 const PROBES = [
     /\.(php\d?|phtml|aspx?|ashx|asmx|jsp|cgi|env|ini|sql|bak|old|orig|swp)$/i,

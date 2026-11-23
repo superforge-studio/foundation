@@ -13,13 +13,13 @@ import {
 /**
  * Makes `users` follow the people access.ts lists as internal, all
  * together: each one is a user, with the name and role they're listed
- * with, made now if they've never signed in, so the People screen and the
+ * with, made now if they've never logged in, so the People screen and the
  * notices to the team have them from the deploy that lists them; and
  * anyone else the database says is internal is made `external`. Answers how
  * many are listed, how many it made, and how many it made external.
  *
- * The sign-in middleware gives everyone the role the list says whatever
- * this has done (auth/signed-in.ts), so this is what keeps the database
+ * The login middleware gives everyone the role the list says whatever
+ * this has done (auth/logged-in.ts), so this is what keeps the database
  * telling the same story, not what keeps anyone out.
  */
 export async function syncInternalUsers(database: Database, access: Access) {
@@ -83,7 +83,7 @@ export async function syncInternalUsers(database: Database, access: Access) {
  * `syncInternalUsers` on the server's database with this app's ACCESS, as
  * the server starts (source/node.ts, and a dev server as it first loads
  * source/server.ts). It never rejects: a failure is logged, and the server
- * goes on, since the sign-in middleware gives everyone the list's role
+ * goes on, since the login middleware gives everyone the list's role
  * regardless.
  */
 export async function syncAppInternalUsers() {

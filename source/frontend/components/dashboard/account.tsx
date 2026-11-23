@@ -7,10 +7,10 @@ import { Label } from "@/frontend/components/primitives/label"
 import {
     accountSessionsQuery,
     endAccountSession,
-    renameAccount,
-    signOutOthers
+    logOutOthers,
+    renameAccount
 } from "@/frontend/queries/account"
-import { type SessionUser, signOut } from "@/frontend/queries/auth"
+import { logOut, type SessionUser } from "@/frontend/queries/auth"
 import { failureOf } from "@/frontend/queries/failures"
 import { isInternal, person_name } from "@/utilities/schemas/users"
 import { Connections } from "./connections"
@@ -20,7 +20,7 @@ import { describeBrowser, isHandheld, moment, since } from "./words"
 
 // Someone's own account, whatever their role: a customer's whole dashboard,
 // and one screen of an internal person's. What they're called, the address
-// they sign in with, and the browsers they're signed in on, with signing
+// they log in with, and the browsers they're logged in on, with logging
 // out of the others, and for the business's own, where they've let Claude
 // in (connections.tsx).
 
@@ -55,7 +55,7 @@ function ListedDetails({ user }: { user: SessionUser }) {
                 <span className="font-medium text-sm">Name</span>
                 <span className="text-sm">{user.name ?? "No name yet"}</span>
             </div>
-            <SignInEmail email={user.email} />
+            <LoginEmail email={user.email} />
             <p className="max-w-prose text-pretty text-muted-foreground text-sm">
                 You're listed as one of the business's own in the app's code,
                 with this name and address, so they change there.
@@ -64,14 +64,14 @@ function ListedDetails({ user }: { user: SessionUser }) {
     )
 }
 
-/** The address someone signs in with, which never changes here. */
-function SignInEmail({ email }: { email: string }) {
+/** The address someone logs in with, which never changes here. */
+function LoginEmail({ email }: { email: string }) {
     return (
         <div className="flex flex-col gap-1">
-            <span className="font-medium text-sm">Sign-in email</span>
+            <span className="font-medium text-sm">Login email</span>
             <span className="text-sm">{email}</span>
             <span className="text-muted-foreground text-sm">
-                Your sign-in codes and links go here.
+                Your login codes and links go here.
             </span>
         </div>
     )
@@ -145,7 +145,7 @@ function NameForm({ user }: { user: SessionUser }) {
                     {problem}
                 </p>
             </div>
-            <SignInEmail email={user.email} />
+            <LoginEmail email={user.email} />
         </form>
     )
 }
@@ -154,8 +154,8 @@ function Sessions() {
     const now = useNow()
     const sessions = useQuery(accountSessionsQuery)
     const end = useMutation(endAccountSession)
-    const others = useMutation(signOutOthers)
-    const leave = useMutation(signOut)
+    const others = useMutation(logOutOthers)
+    const leave = useMutation(logOut)
     const list = sessions.data ?? []
     const has_others = list.some((session) => !session.current)
     const failed = end.error ?? others.error ?? leave.error
@@ -163,7 +163,7 @@ function Sessions() {
     return (
         <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-                <h2 className={sectionHeading}>Where you're signed in</h2>
+                <h2 className={sectionHeading}>Where you're logged in</h2>
                 {has_others && (
                     <button
                         type="button"
@@ -172,8 +172,8 @@ function Sessions() {
                         onClick={() => others.mutate()}
                     >
                         {others.isPending
-                            ? "Signing out…"
-                            : "Sign out everywhere else"}
+                            ? "Logging out…"
+                            : "Log out everywhere else"}
                     </button>
                 )}
             </div>
@@ -207,13 +207,13 @@ function Sessions() {
                                     </span>
                                     <span
                                         className="text-muted-foreground text-xs tabular-nums"
-                                        title={`Signed in ${moment(session.created_at)}`}
+                                        title={`Logged in ${moment(session.created_at)}`}
                                     >
                                         {session.current
                                             ? "This browser"
                                             : `Last used ${since(session.renewed_at, now)}`}
                                         {" · "}
-                                        signed in{" "}
+                                        logged in{" "}
                                         {since(session.created_at, now)}
                                     </span>
                                 </div>
@@ -226,7 +226,7 @@ function Sessions() {
                                             end.mutate({ id: session.id })
                                         }
                                     >
-                                        Sign out
+                                        Log out
                                     </button>
                                 )}
                             </li>
@@ -236,7 +236,7 @@ function Sessions() {
             )}
             {failed !== null && (
                 <p role="alert" className="text-destructive text-sm">
-                    That didn't sign out: {failureOf(failed).message}. Try again
+                    That didn't log out: {failureOf(failed).message}. Try again
                     in a moment.
                 </p>
             )}
@@ -247,7 +247,7 @@ function Sessions() {
                 className="h-10 w-fit px-4"
             >
                 <LogOut aria-hidden />
-                {leave.isPending ? "Signing out…" : "Sign out of this browser"}
+                {leave.isPending ? "Logging out…" : "Log out of this browser"}
             </Button>
         </section>
     )

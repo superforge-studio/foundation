@@ -117,10 +117,10 @@ export function databaseStatus(found: Finding): Status {
     }
 }
 
-// Sign-in, the dashboard, Storage and workflows aren't checked live: the page says where
+// Login, the dashboard, Storage and workflows aren't checked live: the page says where
 // they are instead, which differs between the dev server and a build
 
-export function signInStatus(): Status {
+export function loginStatus(): Status {
     if (IN_DEVELOPMENT) {
         return {
             tone: "fact",
@@ -155,8 +155,8 @@ export function storageStatus(): Status {
 export function dashboardStatus(): Status {
     return {
         tone: "fact",
-        label: "Behind sign-in",
-        detail: "Drawn in the browser, for whoever's signed in"
+        label: "Behind login",
+        detail: "Drawn in the browser, for whoever's logged in"
     }
 }
 

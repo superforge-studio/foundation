@@ -14,8 +14,8 @@ const told = z.object({ told: z.number() })
 /**
  * Tells the business's own people that someone new has signed up, as the
  * template's example of background work: it's on `user-signed-up`, which
- * the sign-in that makes a user queues in its own transaction
- * (backend/auth/sign-in.ts), under an id named for them, so it runs once. Until Superforge Infra can send email it writes the notice to the
+ * the login that makes a user queues in its own transaction
+ * (backend/auth/login.ts), under an id named for them, so it runs once. Until Superforge Infra can send email it writes the notice to the
  * logs; then `send-notice` emails it, with an idempotency key of the run's
  * id, so sending twice sends once. Every step is safe to run again
  * (backend/workflows/README.md).

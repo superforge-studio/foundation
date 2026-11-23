@@ -5,14 +5,14 @@ import { z } from "zod"
 import { unavailableOAuth } from "./agents"
 import { INFRA_URL, infraClient } from "./client"
 import type { Infra, InfraUnavailable } from "./index"
-import { standInInfra, type WaitingSignIn } from "./stand-in"
+import { standInInfra, type WaitingLogin } from "./stand-in"
 
 // Which Infra the server calls, by what it runs as and the keys it has:
 //
 // | Runs as    | Has                          | Calls                         |
 // | ---------- | ---------------------------- | ----------------------------- |
 // | a build    | INFRA_SECRET_KEY, sf_secret_ | Infra, which sends the emails |
-// | a build    | anything else                | nothing: sign-in is down      |
+// | a build    | anything else                | nothing: login is down      |
 // | dev server | INFRA_TEST_KEY, sf_test_     | Infra, in test mode           |
 // | dev server | none                         | the stand-in (stand-in.ts)    |
 //
@@ -92,7 +92,7 @@ export function chooseInfra({
             }
         } else {
             console.error(
-                "Sign-in is down: INFRA_SECRET_KEY isn't a secret key (sf_secret_…). Set it on the app's service in Railway.",
+                "Login is down: INFRA_SECRET_KEY isn't a secret key (sf_secret_…). Set it on the app's service in Railway.",
                 { set: INFRA_SECRET_KEY !== undefined }
             )
             return { infra: unavailableInfra(), using: "nothing" }
@@ -110,11 +110,11 @@ export function chooseInfra({
             )
         } else {
             console.info(
-                "Infra: no test key, so sign-in uses the stand-in, which emails nothing"
+                "Infra: no test key, so login uses the stand-in, which emails nothing"
             )
         }
         return {
-            infra: standInInfra({ waiting: devServerSignIns(), logs: true }),
+            infra: standInInfra({ waiting: devServerLogins(), logs: true }),
             using: "stand-in"
         }
     }
@@ -178,15 +178,15 @@ function mainCheckout(checkout: string) {
 }
 
 declare global {
-    // A dev server's stand-in sign-ins, kept for the process rather than the
+    // A dev server's stand-in logins, kept for the process rather than the
     // module, since Vite's dev server evaluates a changed module again, and
-    // a code sent before an edit should still sign in after it
-    var appStandInSignIns: Map<string, WaitingSignIn> | undefined
+    // a code sent before an edit should still log in after it
+    var appStandInLogins: Map<string, WaitingLogin> | undefined
 }
 
-function devServerSignIns() {
-    globalThis.appStandInSignIns ??= new Map()
-    return globalThis.appStandInSignIns
+function devServerLogins() {
+    globalThis.appStandInLogins ??= new Map()
+    return globalThis.appStandInLogins
 }
 
 // Infra when it can't be reached at all: every call answers unavailable,
@@ -197,10 +197,10 @@ function unavailableInfra(): Infra {
         error: { reason: "unavailable" }
     }
     return {
-        async startSignIn() {
+        async startLogin() {
             return unavailable
         },
-        async verifySignIn() {
+        async verifyLogin() {
             return unavailable
         },
         async fileComment() {

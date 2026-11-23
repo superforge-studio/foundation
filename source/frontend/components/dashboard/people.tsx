@@ -24,7 +24,7 @@ import { RunStatusMark } from "./marks"
 import { BackToList, sectionHeading, textButton } from "./shell"
 import { moment, since } from "./words"
 
-// The People screen's two halves: everyone who can sign in, and the one
+// The People screen's two halves: everyone who can log in, and the one
 // chosen, or someone being added
 
 /** What a role is called on screen. */
@@ -155,7 +155,7 @@ export function PeopleList({
 }
 
 /**
- * One person: their role, when they joined and last signed in, the runs
+ * One person: their role, when they joined and last logged in, the runs
  * about them, and removing them. The business's own people are listed in
  * the app's code (backend/auth/access.ts), so they're neither changed nor
  * removed here, and neither are you, who are one of them.
@@ -205,13 +205,13 @@ export function PersonDetailPane({
                 </dd>
                 <dt className="text-muted-foreground">Joined</dt>
                 <dd className="tabular-nums">{moment(person.created_at)}</dd>
-                <dt className="text-muted-foreground">Last signed in</dt>
+                <dt className="text-muted-foreground">Last logged in</dt>
                 <dd className="tabular-nums">
-                    {person.signed_in_at === null
+                    {person.logged_in_at === null
                         ? "Never: added by hand"
-                        : moment(person.signed_in_at)}
+                        : moment(person.logged_in_at)}
                 </dd>
-                <dt className="text-muted-foreground">Signed in on</dt>
+                <dt className="text-muted-foreground">Logged in on</dt>
                 <dd className="tabular-nums">
                     {person.sessions === 0
                         ? "No browsers right now"
@@ -307,7 +307,7 @@ function RemovePerson({ person }: { person: Person }) {
         <section className="flex flex-col gap-2 border-t pt-6">
             <h3 className="font-medium text-sm">Remove them</h3>
             <p className="max-w-prose text-pretty text-muted-foreground text-sm">
-                They lose access and every session they have ends. If they sign
+                They lose access and every session they have ends. If they log
                 in again, they come back as someone new.
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 text-sm">
@@ -363,9 +363,9 @@ function RemovePerson({ person }: { person: Person }) {
 }
 
 /**
- * Adding someone before they sign in: their address, a name if it's known,
+ * Adding someone before they log in: their address, a name if it's known,
  * and, for a business with more than one external role, which. They can
- * sign in with that address from then on, even when only listed people
+ * log in with that address from then on, even when only listed people
  * may. The business's own people aren't added here: they're listed in the
  * app's code (backend/auth/access.ts).
  */
@@ -411,7 +411,7 @@ export function AddPersonPane() {
             : failureOf(add.error).reason === "taken"
               ? "Someone with this address is already here."
               : failureOf(add.error).reason === "listed"
-                ? "They're listed as one of the business's own in the app's code, so they can already sign in."
+                ? "They're listed as one of the business's own in the app's code, so they can already log in."
                 : `They weren't added: ${failureOf(add.error).message}.`
 
     return (
@@ -422,7 +422,7 @@ export function AddPersonPane() {
                     Add someone
                 </h2>
                 <p className="text-pretty text-muted-foreground">
-                    They sign in with their email, as anyone does, and see only
+                    They log in with their email, as anyone does, and see only
                     their own account. The business's own people are listed in
                     the app's code instead.
                 </p>

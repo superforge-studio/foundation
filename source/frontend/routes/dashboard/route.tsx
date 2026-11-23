@@ -6,12 +6,12 @@ import {
 } from "@tanstack/react-router"
 import { DashboardBar } from "@/frontend/components/dashboard/shell"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
-import { SignInForm } from "@/frontend/components/site/sign-in-form"
+import { LoginForm } from "@/frontend/components/site/login-form"
 import { useSession } from "@/frontend/queries/auth"
 import { isInternal } from "@/utilities/schemas/users"
 
 /**
- * The dashboard, behind sign-in: a bar across the top, and the screen
+ * The dashboard, behind login: a bar across the top, and the screen
  * under it, each with its own address so Back, refresh and a shared link
  * keep it. The business's own people (internal roles) get the workflows,
  * the people and their account; everyone else only their account. It's
@@ -33,8 +33,8 @@ function Dashboard() {
     const { pathname } = useLocation()
     if (session.status === "loading") {
         return <Loading />
-    } else if (session.status === "signed-out") {
-        return <SignedOut />
+    } else if (session.status === "logged-out") {
+        return <LoggedOut />
     }
 
     const internal = isInternal(session.user.role)
@@ -67,9 +67,9 @@ function Loading() {
     )
 }
 
-// Someone who opens the dashboard without signing in: the way in, here,
+// Someone who opens the dashboard without logging in: the way in, here,
 // so they land where they meant to go
-function SignedOut() {
+function LoggedOut() {
     return (
         <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-10 px-5 py-6 sm:py-10">
             <header>
@@ -78,14 +78,14 @@ function SignedOut() {
             <section className="flex flex-col gap-6 sm:mt-10">
                 <div className="flex flex-col gap-2">
                     <h1 className="text-balance font-heading font-semibold text-3xl tracking-tight">
-                        Sign in to your dashboard
+                        Log in to your dashboard
                     </h1>
                     <p className="text-pretty text-muted-foreground leading-relaxed">
                         Enter your email and we'll send you a code and a link.
                         There's no password.
                     </p>
                 </div>
-                <SignInForm />
+                <LoginForm />
             </section>
         </main>
     )

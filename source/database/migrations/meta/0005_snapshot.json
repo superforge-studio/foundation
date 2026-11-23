@@ -1,0 +1,627 @@
+{
+    "id": "bee6d0f9-3c3b-4939-bcef-7c985ab3bc6a",
+    "prevId": "56de559b-5506-41ab-a59b-b0a181fde5c7",
+    "version": "7",
+    "dialect": "postgresql",
+    "tables": {
+        "public.analytics_events": {
+            "name": "analytics_events",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "gen_random_uuid()"
+                },
+                "source": {
+                    "name": "source",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "visit_id": {
+                    "name": "visit_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "visitor_id": {
+                    "name": "visitor_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "path": {
+                    "name": "path",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "properties": {
+                    "name": "properties",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'{}'::jsonb"
+                },
+                "occurred_at": {
+                    "name": "occurred_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                }
+            },
+            "indexes": {
+                "analytics_events_occurred_at_index": {
+                    "name": "analytics_events_occurred_at_index",
+                    "columns": [
+                        {
+                            "expression": "occurred_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                },
+                "analytics_events_visit_id_index": {
+                    "name": "analytics_events_visit_id_index",
+                    "columns": [
+                        {
+                            "expression": "visit_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                },
+                "analytics_events_user_id_index": {
+                    "name": "analytics_events_user_id_index",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "where": "\"analytics_events\".\"user_id\" is not null",
+                    "concurrently": false
+                }
+            },
+            "foreignKeys": {
+                "analytics_events_visit_id_analytics_visits_id_fk": {
+                    "name": "analytics_events_visit_id_analytics_visits_id_fk",
+                    "tableFrom": "analytics_events",
+                    "columnsFrom": ["visit_id"],
+                    "tableTo": "analytics_visits",
+                    "columnsTo": ["id"],
+                    "onUpdate": "no action",
+                    "onDelete": "cascade"
+                },
+                "analytics_events_user_id_users_id_fk": {
+                    "name": "analytics_events_user_id_users_id_fk",
+                    "tableFrom": "analytics_events",
+                    "columnsFrom": ["user_id"],
+                    "tableTo": "users",
+                    "columnsTo": ["id"],
+                    "onUpdate": "no action",
+                    "onDelete": "set null"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.analytics_visits": {
+            "name": "analytics_visits",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "gen_random_uuid()"
+                },
+                "visitor_id": {
+                    "name": "visitor_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "anonymous": {
+                    "name": "anonymous",
+                    "type": "boolean",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "started_at": {
+                    "name": "started_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "ended_at": {
+                    "name": "ended_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "views": {
+                    "name": "views",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": 0
+                },
+                "clicks": {
+                    "name": "clicks",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": 0
+                },
+                "bounced": {
+                    "name": "bounced",
+                    "type": "boolean",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": true
+                },
+                "landing_path": {
+                    "name": "landing_path",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "exit_path": {
+                    "name": "exit_path",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "referrer": {
+                    "name": "referrer",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "utm_source": {
+                    "name": "utm_source",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "utm_medium": {
+                    "name": "utm_medium",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "utm_campaign": {
+                    "name": "utm_campaign",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "utm_term": {
+                    "name": "utm_term",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "utm_content": {
+                    "name": "utm_content",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "ad_network": {
+                    "name": "ad_network",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "country": {
+                    "name": "country",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "region": {
+                    "name": "region",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "city": {
+                    "name": "city",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "device": {
+                    "name": "device",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "browser": {
+                    "name": "browser",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "os": {
+                    "name": "os",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                }
+            },
+            "indexes": {
+                "analytics_visits_started_at_index": {
+                    "name": "analytics_visits_started_at_index",
+                    "columns": [
+                        {
+                            "expression": "started_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                },
+                "analytics_visits_visitor_id_ended_at_index": {
+                    "name": "analytics_visits_visitor_id_ended_at_index",
+                    "columns": [
+                        {
+                            "expression": "visitor_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "ended_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                },
+                "analytics_visits_user_id_index": {
+                    "name": "analytics_visits_user_id_index",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "where": "\"analytics_visits\".\"user_id\" is not null",
+                    "concurrently": false
+                }
+            },
+            "foreignKeys": {
+                "analytics_visits_user_id_users_id_fk": {
+                    "name": "analytics_visits_user_id_users_id_fk",
+                    "tableFrom": "analytics_visits",
+                    "columnsFrom": ["user_id"],
+                    "tableTo": "users",
+                    "columnsTo": ["id"],
+                    "onUpdate": "no action",
+                    "onDelete": "set null"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "auth.sessions": {
+            "name": "sessions",
+            "schema": "auth",
+            "columns": {
+                "token_hash": {
+                    "name": "token_hash",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true
+                },
+                "user_id": {
+                    "name": "user_id",
+                    "type": "uuid",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "user_agent": {
+                    "name": "user_agent",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "expires_at": {
+                    "name": "expires_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {
+                "sessions_user_id_index": {
+                    "name": "sessions_user_id_index",
+                    "columns": [
+                        {
+                            "expression": "user_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                }
+            },
+            "foreignKeys": {
+                "sessions_user_id_users_id_fk": {
+                    "name": "sessions_user_id_users_id_fk",
+                    "tableFrom": "sessions",
+                    "columnsFrom": ["user_id"],
+                    "tableTo": "users",
+                    "columnsTo": ["id"],
+                    "onUpdate": "no action",
+                    "onDelete": "cascade"
+                }
+            },
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {},
+            "isRLSEnabled": false
+        },
+        "public.users": {
+            "name": "users",
+            "schema": "",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "gen_random_uuid()"
+                },
+                "email": {
+                    "name": "email",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "name": {
+                    "name": "name",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "role": {
+                    "name": "role",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'external'"
+                },
+                "logged_in_at": {
+                    "name": "logged_in_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {
+                "users_email_unique": {
+                    "name": "users_email_unique",
+                    "columns": ["email"],
+                    "nullsNotDistinct": false
+                }
+            },
+            "policies": {},
+            "checkConstraints": {
+                "users_role_check": {
+                    "name": "users_role_check",
+                    "value": "\"role\" in ('internal', 'external')"
+                }
+            },
+            "isRLSEnabled": false
+        },
+        "internal.webhook_deliveries": {
+            "name": "webhook_deliveries",
+            "schema": "internal",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "uuid",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "default": "gen_random_uuid()"
+                },
+                "source": {
+                    "name": "source",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "received_at": {
+                    "name": "received_at",
+                    "type": "timestamp (3) with time zone",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "now()"
+                },
+                "delivery_id": {
+                    "name": "delivery_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "headers": {
+                    "name": "headers",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "body": {
+                    "name": "body",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true
+                },
+                "outcome": {
+                    "name": "outcome",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'received'"
+                },
+                "problem": {
+                    "name": "problem",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": false
+                },
+                "events": {
+                    "name": "events",
+                    "type": "jsonb",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "default": "'[]'::jsonb"
+                }
+            },
+            "indexes": {
+                "webhook_deliveries_received_at_index": {
+                    "name": "webhook_deliveries_received_at_index",
+                    "columns": [
+                        {
+                            "expression": "received_at",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                },
+                "webhook_deliveries_source_delivery_id_index": {
+                    "name": "webhook_deliveries_source_delivery_id_index",
+                    "columns": [
+                        {
+                            "expression": "source",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        },
+                        {
+                            "expression": "delivery_id",
+                            "isExpression": false,
+                            "asc": true,
+                            "nulls": "last"
+                        }
+                    ],
+                    "isUnique": false,
+                    "with": {},
+                    "method": "btree",
+                    "concurrently": false
+                }
+            },
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {},
+            "policies": {},
+            "checkConstraints": {
+                "webhook_deliveries_outcome_check": {
+                    "name": "webhook_deliveries_outcome_check",
+                    "value": "\"outcome\" in ('received', 'refused', 'ignored', 'accepted', 'failed')"
+                }
+            },
+            "isRLSEnabled": false
+        }
+    },
+    "enums": {},
+    "schemas": {
+        "auth": "auth",
+        "internal": "internal"
+    },
+    "views": {},
+    "sequences": {},
+    "roles": {},
+    "policies": {},
+    "_meta": {
+        "columns": {},
+        "schemas": {},
+        "tables": {}
+    }
+}

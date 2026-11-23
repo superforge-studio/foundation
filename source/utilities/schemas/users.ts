@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { email_address } from "./auth"
 
-// The people who can sign in, as the dashboard and the routes under
+// The people who can log in, as the dashboard and the routes under
 // /api/users check them (backend/users/routes.ts): the same schemas on both
 // sides, so a form says what's wrong before it sends.
 
@@ -46,7 +46,7 @@ export const person_name = z.string().trim().min(1).max(120)
 export const account_change = z.object({ name: person_name.nullable() })
 
 /**
- * Someone added by hand, before they've signed in: their address, a name
+ * Someone added by hand, before they've logged in: their address, a name
  * if it's known, and their role, one of the external ones.
  */
 export const user_addition = z.object({

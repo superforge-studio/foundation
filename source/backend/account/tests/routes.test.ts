@@ -1,10 +1,10 @@
 import { beforeEach, expect, test, vi } from "vitest"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import { api_failure } from "@/utilities/schemas/failures"
 
 // Someone's own account, through the whole API, whatever their role: their
-// name, and the browsers they're signed in on
+// name, and the browsers they're logged in on
 
 beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
@@ -12,7 +12,7 @@ beforeEach(() => {
 
 test("sets and clears your name, which the session then says", async () => {
     const api = await testApi()
-    const { cookie } = await signInAs(api, "maria@example.com")
+    const { cookie } = await logInAs(api, "maria@example.com")
     const headers = { headers: { cookie } }
 
     const named = await api.client.api.account.$patch(
@@ -35,7 +35,7 @@ test("sets and clears your name, which the session then says", async () => {
 
 test("one of the business's own keeps the name they're listed with", async () => {
     const api = await testApi()
-    const { cookie } = await signInAs(api, "ada@example.com", "internal")
+    const { cookie } = await logInAs(api, "ada@example.com", "internal")
     const headers = { headers: { cookie } }
 
     const renamed = await api.client.api.account.$patch(
@@ -51,10 +51,10 @@ test("one of the business's own keeps the name they're listed with", async () =>
     })
 })
 
-test("lists where you're signed in, this browser marked, with its browser", async () => {
+test("lists where you're logged in, this browser marked, with its browser", async () => {
     const api = await testApi()
-    const first = await signInAs(api, "maria@example.com")
-    await signInAs(api, "maria@example.com")
+    const first = await logInAs(api, "maria@example.com")
+    await logInAs(api, "maria@example.com")
     const listed = await api.client.api.account.sessions.$get(
         {},
         { headers: { cookie: first.cookie } }
@@ -68,11 +68,11 @@ test("lists where you're signed in, this browser marked, with its browser", asyn
     }
 })
 
-test("signs out another browser, but not this one, nor anyone else's", async () => {
+test("logs out another browser, but not this one, nor anyone else's", async () => {
     const api = await testApi()
-    const here = await signInAs(api, "maria@example.com")
-    const elsewhere = await signInAs(api, "maria@example.com")
-    const someone = await signInAs(api, "jun@example.com")
+    const here = await logInAs(api, "maria@example.com")
+    const elsewhere = await logInAs(api, "maria@example.com")
+    const someone = await logInAs(api, "jun@example.com")
     const headers = { headers: { cookie: here.cookie } }
 
     const sessionsOf = async (cookie: string) => {
@@ -91,7 +91,7 @@ test("signs out another browser, but not this one, nor anyone else's", async () 
     ]
     const [theirs] = await sessionsOf(someone.cookie)
     if (current === undefined || other === undefined || theirs === undefined) {
-        throw new Error("Each sign-in should have its session")
+        throw new Error("Each login should have its session")
     }
 
     const this_one = await api.client.api.account.sessions[":id"].$delete(
@@ -121,15 +121,16 @@ test("signs out another browser, but not this one, nor anyone else's", async () 
     expect(await gone.json()).toEqual({ user: null })
 })
 
-test("signs out everywhere else, keeping this browser", async () => {
+test("logs out everywhere else, keeping this browser", async () => {
     const api = await testApi()
-    const here = await signInAs(api, "maria@example.com")
-    await signInAs(api, "maria@example.com")
-    await signInAs(api, "maria@example.com")
+    const here = await logInAs(api, "maria@example.com")
+    await logInAs(api, "maria@example.com")
+    await logInAs(api, "maria@example.com")
 
-    const ended = await api.client.api.account.sessions[
-        "sign-out-others"
-    ].$post({}, { headers: { cookie: here.cookie } })
+    const ended = await api.client.api.account.sessions["logout-others"].$post(
+        {},
+        { headers: { cookie: here.cookie } }
+    )
     expect(await ended.json()).toEqual({ ended: 2 })
     const still = await api.client.api.auth.session.$get(
         {},

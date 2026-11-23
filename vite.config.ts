@@ -34,7 +34,7 @@ export default defineConfig({
             // Every page is written out as HTML at build time, found by
             // following links from the home page, but the dashboard and
             // Claude's Allow page (/connect/…), which are drawn in the
-            // browser for whoever's signed in. Only /api,
+            // browser for whoever's logged in. Only /api,
             // the dashboard and anything that isn't a page run on request
             // (source/server.ts).
             prerender: {
@@ -45,9 +45,9 @@ export default defineConfig({
                     !path.startsWith("/dashboard/") &&
                     !path.startsWith("/connect/")
             },
-            // And /sign-in, whatever links to it: the email's link lands
+            // And /login, whatever links to it: the email's link lands
             // there, so it's a page even once the home page doesn't link it
-            pages: [{ path: "/sign-in" }]
+            pages: [{ path: "/login" }]
         }),
         viteReact(),
         // A running dev server counts as using this checkout's Postgres, so

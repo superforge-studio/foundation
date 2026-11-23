@@ -14,15 +14,15 @@
 //      a POST to a page 405
 //   5. its workflows launched: DBOS registers the app's queues in its own
 //      tables once it has (source/backend/workflows/engine.ts)
-//   6. with no INFRA_SECRET_KEY, sign-in answers 503, never the stand-in a
-//      dev server signs in with (source/backend/infra/choose.ts)
+//   6. with no INFRA_SECRET_KEY, login answers 503, never the stand-in a
+//      dev server logs in with (source/backend/infra/choose.ts)
 //   7. its traces reach a collector, as they reach Railway's once tracing
 //      is on (source/tracing.ts): its requests named for their routes,
 //      with their queries inside them, sent as it stops on SIGTERM
 //
 // So a start script that crashes, a migration that won't apply from empty,
 // a page the server can't find, a broken cache header, workflows that
-// never start, a build that would show sign-in codes on the page or
+// never start, a build that would show login codes on the page or
 // tracing that sees nothing fails here, not in the deploy. It drops its database
 // whatever happens.
 import { execFileSync, spawn } from "node:child_process"
@@ -135,10 +135,10 @@ try {
     // 5. The workflows, which launch once the server is listening
     await waitForWorkflows()
 
-    // 6. Sign-in, which a build without INFRA_SECRET_KEY refuses, rather
+    // 6. Login, which a build without INFRA_SECRET_KEY refuses, rather
     //    than falling back to the dev server's stand-in, which shows the
     //    code on the page (source/backend/infra/choose.ts)
-    await expectSignInDown(base)
+    await expectLoginDown(base)
 
     // 7. The traces, which the server sends its collector in batches, and
     //    the last of as it stops: stopped here as Railway stops it
@@ -295,9 +295,9 @@ async function waitForWorkflows() {
     throw new Error("The workflows didn't launch within 30 seconds")
 }
 
-// A sign-in started on a build with no secret key: refused as unavailable,
+// A login started on a build with no secret key: refused as unavailable,
 // with no code in the answer
-async function expectSignInDown(base) {
+async function expectLoginDown(base) {
     const response = await fetch(`${base}/api/auth/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

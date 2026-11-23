@@ -10,9 +10,9 @@ import {
     apiStatus,
     dashboardStatus,
     databaseStatus,
+    loginStatus,
     type Status,
     StatusLine,
-    signInStatus,
     storageStatus,
     type Tone,
     websiteStatus,
@@ -20,7 +20,7 @@ import {
 } from "./status"
 
 // The app as a transit line, a stop for each part, drawn in the theme's main
-// color: you, the website, the API with sign-in, the dashboard, Storage and
+// color: you, the website, the API with login, the dashboard, Storage and
 // the workflows on branches, and the database. The health check runs down it as a pulse each
 // time it's asked; a stop it passes through fills in, and where it can't
 // get through, the line turns red and the stop says what to do. The parts
@@ -33,7 +33,7 @@ type Station = {
     path?: string
     status?: Status
     // A page of the app's that shows this part working
-    page?: { to: "/sign-in" | "/dashboard"; label: string }
+    page?: { to: "/login" | "/dashboard"; label: string }
     shape: "origin" | "stop" | "branch" | "planned"
     // Which part this is, when a failed check can be about it
     checks?: Recovery["part"]
@@ -100,18 +100,18 @@ export function LineMap({ className }: { className?: string }) {
             checks: "api"
         },
         {
-            name: "Sign-in",
+            name: "Login",
             kind: "Superforge Infra",
-            what: "Your customers and staff sign in with a code or a link by email. No passwords.",
+            what: "Your customers and staff log in with a code or a link by email. No passwords.",
             path: "source/backend/auth/",
-            page: { to: "/sign-in", label: "Try signing in" },
-            status: signInStatus(),
+            page: { to: "/login", label: "Try logging in" },
+            status: loginStatus(),
             shape: "branch"
         },
         {
             name: "Dashboard",
             kind: "/dashboard",
-            what: "Your people see everyone who can sign in and the workflows as they run; everyone else, their own account.",
+            what: "Your people see everyone who can log in and the workflows as they run; everyone else, their own account.",
             path: "source/frontend/routes/dashboard/",
             page: { to: "/dashboard", label: "Open the dashboard" },
             status: dashboardStatus(),

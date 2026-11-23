@@ -3,7 +3,7 @@ import { cn } from "cn"
 
 /**
  * The business's mark, back to the home page: its logo and its name, at the
- * top of the sign-in page and the dashboard. START-HERE.md puts the
+ * top of the login page and the dashboard. START-HERE.md puts the
  * business's own here, in place of the favicon and "Your business".
  */
 export function BusinessMark({ className }: { className?: string }) {

@@ -5,16 +5,16 @@ import { client } from "@/backend/client"
 import type { ExternalRole, user_addition } from "@/utilities/schemas/users"
 import { FailedRequest, readFailure } from "./failures"
 
-// Everyone who can sign in (backend/users/routes.ts), for the dashboard's
+// Everyone who can log in (backend/users/routes.ts), for the dashboard's
 // People screen, which only the business's own people see
 
-/** Someone who can sign in, as the API answers them. */
+/** Someone who can log in, as the API answers them. */
 export type Person = InferResponseType<
     typeof client.api.users.$get,
     200
 >["users"][number]
 
-/** Everyone who can sign in, newest first: GET /api/users. */
+/** Everyone who can log in, newest first: GET /api/users. */
 export const usersQuery = queryOptions({
     queryKey: ["users"],
     queryFn: async () => {
@@ -27,7 +27,7 @@ export const usersQuery = queryOptions({
     }
 })
 
-/** Adding someone before they sign in. Answers their id. */
+/** Adding someone before they log in. Answers their id. */
 export const addUser = mutationOptions({
     mutationKey: ["users", "add"],
     mutationFn: async (input: z.input<typeof user_addition>) => {
@@ -66,7 +66,7 @@ export const changeRole = mutationOptions({
     }
 })
 
-/** Removing someone, which signs them out everywhere. */
+/** Removing someone, which logs them out everywhere. */
 export const removeUser = mutationOptions({
     mutationKey: ["users", "remove"],
     mutationFn: async (input: { id: string }) => {

@@ -60,11 +60,11 @@ wrote it its own way, their checks would drift apart:
 - **`database/` is imported only by `backend/`**, and by its own scripts
   and tests.
 - **Claude is one of the ways in.** It connects to the app's MCP
-  (`backend/mcp/`), signed in as one of the business's own people with a
-  token Infra signs, which `signedIn` takes in a cookie's place
+  (`backend/mcp/`), logged in as one of the business's own people with a
+  token Infra signs, which `loggedIn` takes in a cookie's place
   (`backend/auth/agents.ts`), and its tools call the routes under `/api`
   in this process. So every route is a tool, with its checks, and a
-  route that changes who can sign in takes `inBrowser`, so no token can.
+  route that changes who can log in takes `inBrowser`, so no token can.
 - **A feature is a route before it's a screen.** Anything a person or an
   agent can do is a route, with its checks, so a script or an agent can do
   through the same route what a person does on the site. A workflow, which
@@ -99,8 +99,8 @@ matters:
     failures.ts     the one failure shape: failure(), validated()
     workflows/      DBOS, for background work (its README has the rules)
     infra/          Superforge Infra, the one wrapper for calling it
-    auth/           signing in through Infra, the sessions, signedIn and
-                    internalOnly, and who can sign in (access.ts)
+    auth/           logging in through Infra, the sessions, loggedIn and
+                    internalOnly, and who can log in (access.ts)
     <feature>/      one folder per feature, like health/, account/ and
                     users/
       routes.ts     Hono: check the input, call an operation, answer
@@ -167,25 +167,25 @@ matters:
   <name>`, which `components.json` sends there), `states/` for what a
   screen shows while it's empty, loading or lost (`not-found.tsx`),
   `site/` for the public pages' and `dashboard/` for the screens behind
-  sign-in.
-- **A screen behind sign-in** → a route under
+  login.
+- **A screen behind login** → a route under
   `source/frontend/routes/dashboard/`, drawn in the browser (`ssr: false`
   on `dashboard/route.tsx`) and left out of the prerender (the `filter` in
   `vite.config.ts`), since it changes per visitor, which knows who's
-  signed in from `useSession()` (`frontend/queries/auth.ts`). It sits in
+  logged in from `useSession()` (`frontend/queries/auth.ts`). It sits in
   the dashboard's frame (`components/dashboard/shell.tsx`): a list beside
   the one chosen from it, chosen by an id in the address (`?run=`,
   `?person=`), so Back and a shared link keep it. A screen for the
   business's own people gets a place in the bar's switch (`SECTIONS`);
-  everyone else sees only `/dashboard/account` ([Roles](#roles-and-who-can-sign-in)).
-  Public pages stay prerendered, like `/sign-in` itself.
-- **A route that needs the user** → `signedIn` before its handler
-  (`backend/auth/signed-in.ts`), which answers 401 `signed-out` without a
+  everyone else sees only `/dashboard/account` ([Roles](#roles-and-who-can-login)).
+  Public pages stay prerendered, like `/login` itself.
+- **A route that needs the user** → `loggedIn` before its handler
+  (`backend/auth/logged-in.ts`), which answers 401 `logged-out` without a
   live session and puts the user on `context.var.user` with one;
   `internalOnly` for a route only the business's own people may call,
-  which answers 403 `not-internal` to anyone else; `maybeSignedIn` for a
+  which answers 403 `not-internal` to anyone else; `maybeLoggedIn` for a
   route a visitor may call too, with the user or null. Nothing else reads
-  the session's cookie or `auth.sessions`, so who's signed in, and who
+  the session's cookie or `auth.sessions`, so who's logged in, and who
   may see what, is decided in one place, whatever a page shows.
 - **Something that runs in the background** → a workflow, in its
   feature's `workflows.ts`, listed in `backend/workflows/index.ts`, and
@@ -211,9 +211,9 @@ matters:
 - **Content** lives where it's published: a page's copy in its route, and
   copy more than one page shares in `source/utilities/`.
 
-### Roles and who can sign in
+### Roles and who can log in
 
-**Everyone who can sign in is a row in `users`, with a `role`**: one of
+**Everyone who can log in is a row in `users`, with a `role`**: one of
 `ROLES` in `source/utilities/schemas/users.ts`, `internal` for the
 business's own people and `external` for everyone it serves.
 `INTERNAL_ROLES` says which roles see the business's side of the dashboard
@@ -222,13 +222,13 @@ everyone else's, who see only their own account.
 
 - **The business's own people are listed in code**, never added on a
   screen: `internal_users` in `ACCESS`, `source/backend/auth/access.ts`,
-  each with a first name, a last name and the address they sign in with
+  each with a first name, a last name and the address they log in with
   (and, for a business with more than one internal role, which). They're
-  the only people who are ever internal. The sign-in middleware gives
+  the only people who are ever internal. The login middleware gives
   everyone the role the list says, whatever the database does
-  (`signed-in.ts`), so someone taken off the list is external from their
+  (`logged-in.ts`), so someone taken off the list is external from their
   next request, and a row made internal by hand changes nothing. Each
-  sign-in, and the server's start (`backend/users/sync.ts`), write the
+  login, and the server's start (`backend/users/sync.ts`), write the
   list into `users`, so the People screen and the notices to the team
   agree with it: a listed person is a user from the deploy that lists
   them, with the name they're listed with, which their account page then
@@ -244,16 +244,16 @@ everyone else's, who see only their own account.
 - **Permissions that don't nest**, like a technician who sees the
   schedule but not the invoices, are a middleware beside `internalOnly`
   that checks the role a route needs: still one role per person.
-- **Who can sign in** is `sign_in` in the same `ACCESS`, which
+- **Who can log in** is `login` in the same `ACCESS`, which
   START-HERE.md sets: `"anyone"` makes someone new at their first
-  sign-in, as `external`, and `"listed"` lets in only the internal users
+  login, as `external`, and `"listed"` lets in only the internal users
   and someone already on the People screen (added by an internal person).
-  It's code, not a Railway variable, so a dev server signs in the way
+  It's code, not a Railway variable, so a dev server logs in the way
   production does. Routes read it from `context.var.access`, and a test
-  hands its own (`testApi({ access })`), or signs someone in as internal
-  with `signInAs(api, email, "internal")`, which lists them first.
+  hands its own (`testApi({ access })`), or logs someone in as internal
+  with `logInAs(api, email, "internal")`, which lists them first.
 - **No one changes or removes the business's own people but the code**,
-  so it always has someone who can sign in to the dashboard.
+  so it always has someone who can log in to the dashboard.
 
 ### How a route fails
 
@@ -268,7 +268,7 @@ failure the same way, whatever route it came from
 `reason` is for a program to branch on, a kebab-case word or two that
 never changes once a route answers with it, and `message` is for a person.
 The status says what kind of failure it is: 400 for input that doesn't
-fit, 401 for nobody signed in, 403 for someone who may not, 404 for what
+fit, 401 for nobody logged in, 403 for someone who may not, 404 for what
 isn't there, 409 for a conflict, 503 for a dependency that's down.
 
 - **An expected failure** is answered with
@@ -377,7 +377,7 @@ against `now` and `fromNow` from `time.ts`.
   - **`auth`**, what lets someone in: the sessions, and API tokens later:
     `auth.table(...)`. They're the most sensitive rows, since one is as
     good as a password, kept apart so a read-only role can be given
-    everything but them. The sign-in codes aren't here: Infra keeps them.
+    everything but them. The login codes aren't here: Infra keeps them.
   - **`internal`**, the rest of the machinery, what no person sees, like
     an error log or rate limits: `internal.table(...)`.
   - **`dbos`**, DBOS's own tables, once background workflows arrive. DBOS
@@ -572,8 +572,8 @@ on it.
 - **The dev server only ever uses the checkout's database**, whatever
   `DATABASE_URL` says (`appDatabase()`), so it can't reach production's by
   accident.
-- **Signing in works with nothing set up**: a dev server with no Infra
-  test key signs in through an in-memory stand-in, which emails nothing
+- **Logging in works with nothing set up**: a dev server with no Infra
+  test key logs in through an in-memory stand-in, which emails nothing
   and shows the code and the link on the page. With a test key of the
   project's (`INFRA_TEST_KEY` in the checkout's `.env`, from
   `.env.example`), it goes through Infra's test mode instead, the same
@@ -610,8 +610,8 @@ the API as the server mounts it, on a database of the test's own, the
 bucket's bytes in memory, the workflows recorded rather than run, in
 `started`, and Infra's stand-in, called through the typed client, as
 `source/backend/health/tests/routes.test.ts` does. A route that needs
-someone signed in gets them through the stand-in, as
-`source/backend/auth/tests/routes.test.ts` does: its sign-ins answer
+someone logged in gets them through the stand-in, as
+`source/backend/auth/tests/routes.test.ts` does: its logins answer
 their code. A workflow that needs
 DBOS itself is tested as `source/backend/workflows/tests/engine.test.ts`
 is. The server is the checkout's own, here and in CI, which the setup

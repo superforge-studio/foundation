@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { deleteExpiredSessions } from "@/backend/auth/sessions"
 import { standInAgentToken } from "@/backend/infra/stand-in"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import { sessions } from "@/database/schema"
 import type { AgentScope } from "@/utilities/schemas/agents"
 
@@ -63,7 +63,7 @@ async function asClaude(
 describe("the jobs", () => {
     test("lists every job with what it takes", async () => {
         const setup = await testApi()
-        const { cookie } = await signInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA, "internal")
         const response = await setup.client.api.jobs.$get(
             {},
             { headers: { Cookie: cookie } }
@@ -78,7 +78,7 @@ describe("the jobs", () => {
 
     test("a dry run says what it would change, and changes nothing", async () => {
         const setup = await testApi()
-        const { id, cookie } = await signInAs(setup, ADA, "internal")
+        const { id, cookie } = await logInAs(setup, ADA, "internal")
         await expiredSessions(setup, id, 3)
         const before = await sessionCount(setup)
         const response = await setup.client.api.jobs[":name"].$post(
@@ -96,7 +96,7 @@ describe("the jobs", () => {
 
     test("starts the change as a workflow only when asked to", async () => {
         const setup = await testApi()
-        const { cookie } = await signInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA, "internal")
         const response = await setup.client.api.jobs[":name"].$post(
             {
                 param: { name: "prune-sessions" },
@@ -112,7 +112,7 @@ describe("the jobs", () => {
 
     test("refuses a job that isn't one, or input it doesn't take", async () => {
         const setup = await testApi()
-        const { cookie } = await signInAs(setup, ADA, "internal")
+        const { cookie } = await logInAs(setup, ADA, "internal")
         const unknown = await setup.client.api.jobs[":name"].$post(
             { param: { name: "drop-everything" }, json: {} },
             { headers: { Cookie: cookie } }
@@ -127,14 +127,14 @@ describe("the jobs", () => {
 
     test("only the team, and Claude allowed to act, may start one", async () => {
         const setup = await testApi()
-        const outsider = await signInAs(setup, "bob@example.com")
+        const outsider = await logInAs(setup, "bob@example.com")
         const refused = await setup.client.api.jobs[":name"].$post(
             { param: { name: "prune-sessions" }, json: {} },
             { headers: { Cookie: outsider.cookie } }
         )
         expect(refused.status).toBe(403)
 
-        await signInAs(setup, ADA, "internal")
+        await logInAs(setup, ADA, "internal")
         const reading = await asClaude(
             setup,
             "/api/jobs/prune-sessions",
@@ -155,7 +155,7 @@ describe("the jobs", () => {
 describe("prune-sessions", () => {
     test("deletes only sessions that have run out, a batch at a time", async () => {
         const setup = await testApi()
-        const { id } = await signInAs(setup, ADA, "internal")
+        const { id } = await logInAs(setup, ADA, "internal")
         await expiredSessions(setup, id, 3)
         const live = (await sessionCount(setup)) - 3
         expect(await deleteExpiredSessions(setup.database, 2)).toBe(2)

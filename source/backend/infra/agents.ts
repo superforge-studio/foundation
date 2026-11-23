@@ -7,7 +7,7 @@ import {
     MCP_PATH
 } from "@/utilities/schemas/agents"
 
-// Claude signing in to the app's own MCP, through Infra: Infra is the OAuth
+// Claude logging in to the app's own MCP, through Infra: Infra is the OAuth
 // server, and the app only checks the tokens it signs, with Infra's public
 // keys, never asking Infra (Infra's README, "Claude"). This is what of it
 // the app's Infra wrapper uses: where the app was reached, which every
@@ -103,13 +103,13 @@ export async function passThrough({
 
 /**
  * What a call passed through answers when Infra can't be asked, as RFC
- * 6749 has it, so Claude says sign-in isn't working rather than looping
+ * 6749 has it, so Claude says login isn't working rather than looping
  */
 export function unavailableOAuth() {
     return Response.json(
         {
             error: "temporarily_unavailable",
-            error_description: "The app can't reach Infra to sign Claude in"
+            error_description: "The app can't reach Infra to log Claude in"
         },
         { status: 503, headers: { "Cache-Control": "no-store" } }
     )

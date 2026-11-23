@@ -5,7 +5,7 @@ import { appInfra, type Infra } from "../infra"
 import { requestOrigin } from "../infra/agents"
 
 // What Claude finds at the app's own addresses, outside /api, when it
-// signs in to the MCP (source/server.ts): where to sign in, and the OAuth
+// logs in to the MCP (source/server.ts): where to log in, and the OAuth
 // calls themselves, which Infra answers, passed through with the app's key
 // so the app's own domain is what Claude sees (infra/agents.ts). Infra's
 // README, "Claude", has the flow.
@@ -14,11 +14,11 @@ import { requestOrigin } from "../infra/agents"
 const OAUTH_CALLS = ["authorize", "token", "register", "revoke"]
 
 /**
- * The addresses Claude signs in through, on `infra`: the server's, below,
+ * The addresses Claude logs in through, on `infra`: the server's, below,
  * or a test's own
  */
 export function oauthWith(infra: () => Infra) {
-    // What the MCP is, and who signs Claude in to it (RFC 9728): the app
+    // What the MCP is, and who logs Claude in to it (RFC 9728): the app
     // itself, at its own origin, so Claude reads the server's metadata here
     // too. Some clients ask at the bare address, others with the MCP's
     // path after it.

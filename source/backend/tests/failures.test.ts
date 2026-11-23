@@ -106,7 +106,7 @@ test("the API refuses another site's form, and takes this site's", async () => {
         headers: { "Content-Type": "application/x-www-form-urlencoded" }
     }
 
-    const cross_site = await api.request("http://app.test/api/auth/sign-out", {
+    const cross_site = await api.request("http://app.test/api/auth/logout", {
         ...form,
         headers: { ...form.headers, Origin: "https://elsewhere.test" }
     })
@@ -117,14 +117,14 @@ test("the API refuses another site's form, and takes this site's", async () => {
 
     // Behind Railway's proxy the request says http and the browser https:
     // the host is what counts
-    const same_site = await api.request("http://app.test/api/auth/sign-out", {
+    const same_site = await api.request("http://app.test/api/auth/logout", {
         ...form,
         headers: { ...form.headers, Origin: "https://app.test" }
     })
     expect(same_site.status).toBe(200)
 
     // A browser that says the request came from this site
-    const same_origin = await api.request("http://app.test/api/auth/sign-out", {
+    const same_origin = await api.request("http://app.test/api/auth/logout", {
         ...form,
         headers: { ...form.headers, "Sec-Fetch-Site": "same-origin" }
     })

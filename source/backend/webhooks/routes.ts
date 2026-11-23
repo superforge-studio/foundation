@@ -21,7 +21,7 @@ const source_path = z.object({
 /**
  * Webhooks other services post, at /api/webhooks/<source>, from the
  * sources in `context.var.webhook_sources` (sources.ts, README.md). No one
- * signs in for one: its signature says who sent it. It's mounted ahead of
+ * logs in for one: its signature says who sent it. It's mounted ahead of
  * the API's check for another site's forms (index.ts), since some senders,
  * like Twilio, post forms, and none sends an Origin.
  *

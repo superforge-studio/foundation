@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { bodyLimit } from "hono/body-limit"
 import { EVENTS_BODY_LIMIT } from "@/utilities/schemas/events"
 import { consent_answer, page_batch } from "@/utilities/schemas/visits"
-import { maybeSignedIn } from "../auth/signed-in"
+import { maybeLoggedIn } from "../auth/logged-in"
 import { visitorIp, visitorUserAgent } from "../auth/visitor"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
@@ -44,7 +44,7 @@ export const visitRoutes = new Hono<ApiEnvironment>()
                 )
         }),
         validated("json", page_batch),
-        maybeSignedIn,
+        maybeLoggedIn,
         async (context) => {
             const { sent_at, events } = context.req.valid("json")
             const mode = context.var.visitor_mode

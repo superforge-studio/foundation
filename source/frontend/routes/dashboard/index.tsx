@@ -7,10 +7,10 @@ export const Route = createFileRoute("/dashboard/")({
 })
 
 // Where /dashboard opens: the workflows for the business's own people, and
-// everyone else's account (route.tsx has signed them in by now)
+// everyone else's account (route.tsx has logged them in by now)
 function Start() {
     const session = useSession()
-    if (session.status === "signed-in" && isInternal(session.user.role)) {
+    if (session.status === "logged-in" && isInternal(session.user.role)) {
         return <Navigate to="/dashboard/workflows" replace />
     } else {
         return <Navigate to="/dashboard/account" replace />

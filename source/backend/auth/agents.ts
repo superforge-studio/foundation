@@ -6,12 +6,12 @@ import { requestOrigin } from "../infra/agents"
 import { roleFor } from "./access"
 import { SESSION_USER_COLUMNS } from "./sessions"
 
-// Claude, signed in with a token in place of a browser's cookie: an access
+// Claude, logged in with a token in place of a browser's cookie: an access
 // token Infra signed when one of the business's own people allowed Claude
 // in on the Allow page (agents/). Infra proves whose address it is; the app
 // decides what that person may do, here, on every request: they must still
 // be one of the business's own, as access.ts lists them, and Claude acts as
-// them, with what they allowed. signed-in.ts calls this when a request has
+// them, with what they allowed. logged-in.ts calls this when a request has
 // a token.
 
 /** The token in an `Authorization: Bearer <token>` header, or null */

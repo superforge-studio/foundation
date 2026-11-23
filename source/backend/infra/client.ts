@@ -15,8 +15,8 @@ import {
     comment_refused,
     kept_comment,
     start_refused,
-    started_sign_in,
-    verified_sign_in,
+    started_login,
+    verified_login,
     verify_refused
 } from "./answers"
 import type { AgentRefused, Infra, InfraUnavailable } from "./index"
@@ -27,7 +27,7 @@ import type { AgentRefused, Infra, InfraUnavailable } from "./index"
  */
 export const INFRA_URL = "https://infra.superforge.studio/v1"
 
-// How long a call waits for Infra's answer. Starting a sign-in waits on
+// How long a call waits for Infra's answer. Starting a login waits on
 // Infra sending the email, which takes a second or two.
 const TIMEOUT = 15 * SECOND
 
@@ -91,7 +91,7 @@ export function infraClient({
     }
     const post = (call: string, body: unknown) => ask("POST", call, body)
 
-    // Claude's sign-in (agents.ts): Infra's public keys, fetched once and
+    // Claude's login (agents.ts): Infra's public keys, fetched once and
     // again for a key they don't have, and which project and mode the key
     // is, which every token must be for, asked once
     const keys = infraKeys(url)
@@ -134,8 +134,8 @@ export function infraClient({
     }
 
     return {
-        async startSignIn({ email, ip, origin }) {
-            const call = "/sign-in/start"
+        async startLogin({ email, ip, origin }) {
+            const call = "/login/start"
             const answer = await post(
                 call,
                 origin === null ? { email, ip } : { email, ip, origin }
@@ -143,7 +143,7 @@ export function infraClient({
             if (answer === null) {
                 return { ok: false, error: UNAVAILABLE }
             } else if (answer.status === 200) {
-                const parsed = started_sign_in.safeParse(answer.json)
+                const parsed = started_login.safeParse(answer.json)
                 if (parsed.success) {
                     return { ok: true, data: parsed.data }
                 } else {
@@ -159,13 +159,13 @@ export function infraClient({
             }
         },
 
-        async verifySignIn(proof) {
-            const call = "/sign-in/verify"
+        async verifyLogin(proof) {
+            const call = "/login/verify"
             const answer = await post(call, proof)
             if (answer === null) {
                 return { ok: false, error: UNAVAILABLE }
             } else if (answer.status === 200) {
-                const parsed = verified_sign_in.safeParse(answer.json)
+                const parsed = verified_login.safeParse(answer.json)
                 if (parsed.success) {
                     return { ok: true, data: parsed.data }
                 } else {

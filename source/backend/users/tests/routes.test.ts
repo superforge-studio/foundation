@@ -1,10 +1,10 @@
 import { beforeEach, expect, test, vi } from "vitest"
 import { testApi } from "@/backend/tests/support/api"
-import { signInAs } from "@/backend/tests/support/sign-in"
+import { logInAs } from "@/backend/tests/support/login"
 import { sessions } from "@/database/schema"
 import { api_failure } from "@/utilities/schemas/failures"
 
-// Everyone who can sign in, through the whole API: only the business's own
+// Everyone who can log in, through the whole API: only the business's own
 // people see them or change them, and only the code changes who they are
 
 beforeEach(() => {
@@ -13,10 +13,10 @@ beforeEach(() => {
 
 test("only the business's own people see everyone, marked when they're listed in code", async () => {
     const api = await testApi()
-    const signed_out = await api.client.api.users.$get()
-    expect(signed_out.status).toBe(401)
+    const logged_out = await api.client.api.users.$get()
+    expect(logged_out.status).toBe(401)
 
-    const customer = await signInAs(api, "maria@example.com")
+    const customer = await logInAs(api, "maria@example.com")
     const refused = await api.client.api.users.$get(
         {},
         { headers: { cookie: customer.cookie } }
@@ -26,7 +26,7 @@ test("only the business's own people see everyone, marked when they're listed in
         "not-internal"
     )
 
-    const owner = await signInAs(api, "ada@example.com", "internal")
+    const owner = await logInAs(api, "ada@example.com", "internal")
     const listed = await api.client.api.users.$get(
         {},
         { headers: { cookie: owner.cookie } }
@@ -46,9 +46,9 @@ test("only the business's own people see everyone, marked when they're listed in
     }
 })
 
-test("adds someone external before they sign in, once, but never someone listed", async () => {
+test("adds someone external before they log in, once, but never someone listed", async () => {
     const api = await testApi()
-    const owner = await signInAs(api, "ada@example.com", "internal")
+    const owner = await logInAs(api, "ada@example.com", "internal")
     const headers = { headers: { cookie: owner.cookie } }
     const json = { email: " Linus@Example.com " }
 
@@ -70,15 +70,15 @@ test("adds someone external before they sign in, once, but never someone listed"
     if (everyone.status === 200) {
         const { users } = await everyone.json()
         const linus = users.find((user) => user.email === "linus@example.com")
-        expect(linus).toMatchObject({ role: "external", signed_in_at: null })
+        expect(linus).toMatchObject({ role: "external", logged_in_at: null })
     }
 })
 
 test("no one is made internal here: an internal role is refused, and the listed are changed only in code", async () => {
     const api = await testApi()
-    const owner = await signInAs(api, "ada@example.com", "internal")
-    const grace = await signInAs(api, "grace@example.com", "internal")
-    const customer = await signInAs(api, "maria@example.com")
+    const owner = await logInAs(api, "ada@example.com", "internal")
+    const grace = await logInAs(api, "grace@example.com", "internal")
+    const customer = await logInAs(api, "maria@example.com")
     const headers = { headers: { cookie: owner.cookie } }
 
     const kept = await api.client.api.users[":id"].$patch(
@@ -117,11 +117,11 @@ test("no one is made internal here: an internal role is refused, and the listed 
     expect(nobody.status).toBe(404)
 })
 
-test("removes someone external, signing them out everywhere, but never someone listed", async () => {
+test("removes someone external, logging them out everywhere, but never someone listed", async () => {
     const api = await testApi()
-    const owner = await signInAs(api, "ada@example.com", "internal")
-    const grace = await signInAs(api, "grace@example.com", "internal")
-    const customer = await signInAs(api, "maria@example.com")
+    const owner = await logInAs(api, "ada@example.com", "internal")
+    const grace = await logInAs(api, "grace@example.com", "internal")
+    const customer = await logInAs(api, "maria@example.com")
     const headers = { headers: { cookie: owner.cookie } }
 
     const removed = await api.client.api.users[":id"].$delete(
@@ -150,7 +150,7 @@ test("removes someone external, signing them out everywhere, but never someone l
 
 test("a role that isn't one is refused", async () => {
     const api = await testApi()
-    const owner = await signInAs(api, "ada@example.com", "internal")
+    const owner = await logInAs(api, "ada@example.com", "internal")
     const response = await api.api.request("/api/users", {
         method: "POST",
         headers: { cookie: owner.cookie, "Content-Type": "application/json" },

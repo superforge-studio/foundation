@@ -6,13 +6,13 @@ import { DAY } from "@/utilities/primitives/durations"
 import { randomToken, sha256 } from "./tokens"
 
 // The sessions, in `auth.sessions`: operations on them by their token, which
-// only the browser's cookie holds (signed-in.ts), and by their id, for the
+// only the browser's cookie holds (logged-in.ts), and by their id, for the
 // account page. Nothing else reads the cookie or this table: a route that
-// needs the user uses `signedIn`.
+// needs the user uses `loggedIn`.
 
 /**
  * How long a session lasts from when it was last renewed, so someone who
- * keeps coming back never has to sign in again.
+ * keeps coming back never has to log in again.
  */
 export const SESSION_LIFETIME = 30 * DAY
 
@@ -23,7 +23,7 @@ const RENEW_BEFORE = fromNow(SESSION_LIFETIME - RENEW_EVERY)
 
 // What a session is called outside this file: the start of its token's
 // hash, enough to tell someone's sessions apart, and nothing a browser can
-// sign in with
+// log in with
 const ID_LENGTH = 16
 
 /** A session's id, from its token's hash. */
@@ -32,8 +32,8 @@ export function sessionId(token_hash: string) {
 }
 
 /**
- * Who a session signs in, as every route that needs them sees them: who
- * they are, what they're called, their role, and when they first signed in.
+ * Who a session logs in, as every route that needs them sees them: who
+ * they are, what they're called, their role, and when they first logged in.
  */
 export type SessionUser = Pick<
     typeof users.$inferSelect,
@@ -53,7 +53,7 @@ export const SESSION_USER_COLUMNS = {
  * Starts a session for this user, ending the one this browser had
  * (`replacing`, its cookie's token), and answers its token, for the
  * cookie. Their sessions that have run out are cleared away with it. A
- * user who never signs in again leaves theirs, which no request accepts
+ * user who never logs in again leaves theirs, which no request accepts
  * (`liveSession`): a workflow can prune them once there are enough to
  * matter. `user_agent` is the browser's, for the account page.
  */
@@ -119,7 +119,7 @@ export async function liveSession(database: Database, token: string) {
 /**
  * Gives the session behind this token its whole lifetime again, and says
  * whether this call was the one that did: of the requests a page makes at
- * once, only one is, and a session signed out of meanwhile has nothing to
+ * once, only one is, and a session logged out of meanwhile has nothing to
  * renew.
  */
 export async function renewSession(database: Database, token: string) {
@@ -161,7 +161,7 @@ export async function listSessions(database: Database, user_id: string) {
 }
 
 /**
- * Ends one of someone's sessions by its id, as the account page's "Sign
+ * Ends one of someone's sessions by its id, as the account page's "Log
  * out" beside it does; never another person's.
  */
 export async function endSessionById(

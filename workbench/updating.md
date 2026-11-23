@@ -16,7 +16,7 @@ The template is public, at `github.com/superforge-studio/<template>`, and
 each release is a tag there (`v0.1.0`), with its notes in a file of their
 own. An update takes what changed in the template between this codebase's
 release and a later one, applies it here on a branch, and opens a PR.
-There's no script and no account to sign in to.
+There's no script and no account to log in to.
 
 **The diff is between two of the template's releases**, never this
 codebase against the template, which would show every change the owner

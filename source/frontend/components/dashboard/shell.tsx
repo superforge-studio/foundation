@@ -24,7 +24,7 @@ const SECTIONS = [
 
 /**
  * The bar: the business's mark, the switch between its sections for its
- * own people, and who's signed in, which opens their account.
+ * own people, and who's logged in, which opens their account.
  */
 export function DashboardBar({
     user,
