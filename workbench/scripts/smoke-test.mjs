@@ -52,7 +52,6 @@ database_url.pathname = `/${name}`
 
 const problems = []
 let server
-let server_exited = null
 
 // Railway's collector, as the server finds it once tracing is on: an OTLP
 // receiver at the address and with the header Railway's variables give
@@ -106,7 +105,6 @@ try {
         stdio: ["ignore", "inherit", "inherit"],
         detached: true
     })
-    server_exited = new Promise((resolve) => server.once("exit", resolve))
     const base = `http://127.0.0.1:${port}`
 
     // 3. The healthcheck, which Railway waits on before sending traffic
@@ -171,9 +169,14 @@ if (problems.length > 0) {
 
 // Stops the server as Railway stops a deployment it replaces, with SIGTERM
 // to the whole group, pnpm and the Node server it started, and waits for
-// it to exit, after it has sent its last spans
+// every one of them to exit, the Node server after it has sent its last
+// spans. Not just for pnpm: its exit isn't the server's. A pnpm that
+// switched to the version package.json names, as CI's does, runs that
+// version as a child and relays the signal to it, so that one is sent
+// SIGTERM twice, and the second kills it at once (signal-exit, in pnpm
+// 10), while the server it started is still shutting down.
 async function stopServer() {
-    if (server?.pid === undefined || server.exitCode !== null) {
+    if (server?.pid === undefined || !groupRunning(server.pid)) {
         return
     }
     try {
@@ -182,13 +185,34 @@ async function stopServer() {
         console.error("The server had already stopped", { error })
         return
     }
-    const exited = await Promise.race([
-        server_exited.then(() => true),
-        sleep(20_000).then(() => false)
-    ])
-    if (!exited) {
-        problems.push("The server didn't stop within 20 seconds of SIGTERM")
-        process.kill(-server.pid, "SIGKILL")
+    const deadline = Date.now() + 20_000
+    while (groupRunning(server.pid)) {
+        if (Date.now() > deadline) {
+            problems.push("The server didn't stop within 20 seconds of SIGTERM")
+            try {
+                process.kill(-server.pid, "SIGKILL")
+            } catch (error) {
+                console.error("The server stopped as it was killed", { error })
+            }
+            return
+        }
+        await sleep(25)
+    }
+}
+
+// Whether any process in a group is still running, without signaling it:
+// signal 0 only checks. Every process in the group is this script's own, so
+// the EPERM macOS answers means only exited ones are left, not yet reaped.
+function groupRunning(group) {
+    try {
+        process.kill(-group, 0)
+        return true
+    } catch (error) {
+        if (error.code === "ESRCH" || error.code === "EPERM") {
+            return false
+        } else {
+            throw error
+        }
     }
 }
 
