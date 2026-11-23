@@ -9,24 +9,31 @@ import { FailedRequest, readFailure } from "./failures"
 // (backend/auth/routes.ts): Infra emails a six-digit code and a link, and
 // the API keeps the session in a cookie the page never sees.
 
-/** Who's logged in, as the API answers them: one of the team. */
-export type SessionUser = NonNullable<
-    InferResponseType<typeof client.api.auth.session.$get, 200>["user"]
+/**
+ * What the API answers when asked who's logged in: one of the team, with
+ * what they may do in each area of the app, or null for each, and
+ * whatever else the app says of whoever else logs in
+ * (backend/auth/others.ts).
+ */
+export type SessionAnswer = InferResponseType<
+    typeof client.api.auth.session.$get,
+    200
 >
 
-/** Who's logged in, and what they may do in each area of the app. */
-type LoggedIn = { user: SessionUser; permissions: Permissions }
+/** Who's logged in, as the API answers them: one of the team. */
+export type SessionUser = NonNullable<SessionAnswer["user"]>
 
-/** Who's logged in, or null for a visitor: GET /api/auth/session. */
+/**
+ * Who's logged in: GET /api/auth/session, as it answered, or null once
+ * this browser has logged out. `useSession()` reads the team member from
+ * it, and whatever else the app answers there is read from it too.
+ */
 export const sessionQuery = queryOptions({
     queryKey: ["session"],
-    queryFn: async (): Promise<LoggedIn | null> => {
+    queryFn: async (): Promise<SessionAnswer | null> => {
         const response = await client.api.auth.session.$get()
         if (response.ok) {
-            const { user, permissions } = await response.json()
-            return user === null || permissions === null
-                ? null
-                : { user, permissions }
+            return await response.json()
         } else {
             throw new FailedRequest(await readFailure(response))
         }
@@ -39,15 +46,21 @@ export type Session =
     | { status: "logged-in"; user: SessionUser; permissions: Permissions }
 
 /**
- * Who's logged in, for any component. A prerendered page is drawn for a
- * visitor, so it's "loading" until the browser asks: treat that like a
- * visitor, and hide only what would jump.
+ * Which of the team is logged in, for any component. A prerendered page is
+ * drawn for a visitor, so it's "loading" until the browser asks: treat
+ * that like a visitor, and hide only what would jump. Anyone who isn't one
+ * of the team is "logged-out" here.
  */
 export function useSession(): Session {
     const session = useQuery(sessionQuery)
     if (session.isPending) {
         return { status: "loading" }
-    } else if (session.isError || session.data === null) {
+    } else if (
+        session.isError ||
+        session.data === null ||
+        session.data.user === null ||
+        session.data.permissions === null
+    ) {
         return { status: "logged-out" }
     } else {
         return {
@@ -101,22 +114,13 @@ export const verifyLogin = mutationOptions({
             throw new FailedRequest(await readFailure(response))
         }
     },
-    onSuccess: async (verified, _input, _result, context) => {
+    onSuccess: async (_verified, _input, _result, context) => {
         // A session fetched before this login, and answered after it,
-        // would put the visitor back
+        // would put the visitor back; and who's logged in is asked again,
+        // rather than worked out here, since the app may say more of them
+        // than this answer does
         await context.client.cancelQueries({ queryKey: sessionQuery.queryKey })
-        if ("user" in verified) {
-            const logged_in: LoggedIn = {
-                user: verified.user,
-                permissions: verified.permissions
-            }
-            context.client.setQueryData(sessionQuery.queryKey, logged_in)
-        } else {
-            // Someone else the app lets in: no one on the team is logged
-            // in, and whatever asks about them asks again
-            context.client.setQueryData(sessionQuery.queryKey, null)
-            await context.client.invalidateQueries()
-        }
+        await context.client.refetchQueries({ queryKey: sessionQuery.queryKey })
     }
 })
 

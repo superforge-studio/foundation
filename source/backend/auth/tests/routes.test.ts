@@ -119,7 +119,9 @@ test("logs in with the email's link", async () => {
     const verified = await client.api.auth.verify.$post({ json: { token } })
     expect(verified.status).toBe(200)
     if (verified.status === 200) {
-        expect((await verified.json()).user.email).toBe(EMAIL)
+        expect(await verified.json()).toMatchObject({
+            user: { email: EMAIL }
+        })
     }
 })
 
@@ -468,13 +470,15 @@ test("someone listed logs in with the names and role the list gives, and their f
         )
         expect(verified.status).toBe(200)
         if (verified.status === 200) {
-            expect((await verified.json()).user).toMatchObject({
-                slug: "ada",
-                email: EMAIL,
-                name: "Ada Lovelace",
-                first_name: "Ada",
-                last_name: "Lovelace",
-                role: "owner"
+            expect(await verified.json()).toMatchObject({
+                user: {
+                    slug: "ada",
+                    email: EMAIL,
+                    name: "Ada Lovelace",
+                    first_name: "Ada",
+                    last_name: "Lovelace",
+                    role: "owner"
+                }
             })
         }
     }
