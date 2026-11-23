@@ -18,7 +18,7 @@ export const failure_details = z.object({
     retry_after: z.number().optional(),
     // For "not-permitted": the area of the app the route is in, and the
     // level of it the route needed, which the person's role doesn't reach
-    // (utilities/permissions.ts)
+    // (utilities/permissions/)
     area: z.string().optional(),
     level: z.string().optional(),
     // Why it failed, in plain words, from whatever refused, like Infra's

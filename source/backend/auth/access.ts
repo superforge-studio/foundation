@@ -21,7 +21,7 @@ export type Access = {
      */
     internal_users: readonly InternalUser[]
     /**
-     * What each role may do, area by area (utilities/permissions.ts):
+     * What each role may do, area by area (utilities/permissions/):
      * `everything`, or a level for each area the role may use, the rest
      * being `none`. Every route that names an area checks it, and the
      * dashboard leaves out what someone can't use.

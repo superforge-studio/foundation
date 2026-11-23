@@ -14,7 +14,10 @@ import { folderStore } from "./folder"
 
 export { Storage } from "./app"
 
-/** Bytes kept under keys, which only `Files` (./kind.ts) uses. */
+/**
+ * Bytes kept under keys, which `Files` (./kind.ts) uses, and the listing
+ * of the bucket's top folders that no kind claims (./files.ts).
+ */
 export type ObjectStore = {
     /** Keeps `body` under `key`, in place of whatever was kept there. */
     put(

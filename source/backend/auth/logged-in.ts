@@ -145,7 +145,7 @@ export const loggedIn = createFactory<LoggedIn>().createMiddleware(
 
 /**
  * `loggedIn` for what's the business's, in one of the app's areas
- * (utilities/permissions.ts): lets a request through only when whoever's
+ * (utilities/permissions/): lets a request through only when whoever's
  * asking may do this in `area`. A route that reads, a `GET` or a `HEAD`,
  * needs `read`, and any other needs `write`, unless `level` says, as for a
  * `POST` that only reads. Someone whose role doesn't reach it is answered
