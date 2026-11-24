@@ -36,8 +36,8 @@ export type Kind<Key, Body> = {
 }
 
 /**
- * How a kind shows on a screen of the bucket's folders, like Skylevel's
- * Files: its name and a sentence on what it holds, for the people who look,
+ * How a kind shows on a screen of the bucket's folders, like a Files
+ * screen a copy builds: its name and a sentence on what it holds, for the people who look,
  * and whether they may change its files there. A kind whose files the code
  * writes and depends on is `locked`, and says why in a sentence a person
  * reads: the screen lets them look and download, never change it.

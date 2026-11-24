@@ -3,7 +3,7 @@
 Superforge Infra is the backend services this app runs on, at
 `https://infra.superforge.studio/v1`. The app calls it through
 [`@superforge/infra`](https://www.npmjs.com/package/@superforge/infra),
-the package every Foundation and Skylevel app shares, which holds the
+the package every app built on a Superforge template shares, which holds the
 client, the stand-in and the choice between them; its README has how they
 work. This folder is the app's one seam to it: a route or a workflow's
 step calls `context.var.infra`, never a bare `fetch` to Infra
@@ -132,7 +132,7 @@ keeps what was written and the person saves it again.
 
 Claude connects to the app's own MCP (`backend/mcp/`) as one of the
 business's own people. **Infra is the OAuth server, and the app only
-checks the tokens it signs**: Infra's README, "Claude", has the flow.
+checks the tokens it signs**: `@superforge/infra`'s README has the flow.
 
 - **`passOAuth`** answers Claude's OAuth calls, which
   `backend/agents/oauth.ts` hands it from
@@ -198,9 +198,8 @@ Which one the server uses is decided once, as it starts (`appInfra()` in
   so they never reach Infra.
 
 A build always calls Infra at its own address. Only a dev server reads
-`INFRA_URL`, which points it at another Infra, like a superforge
-checkout's own (`http://infra.localhost:3002/v1`), while Infra itself is
-worked on.
+`INFRA_URL`, which points it at another Infra's address. A copy never
+needs it.
 
 ## In this folder
 
@@ -212,11 +211,6 @@ worked on.
   schemas, at `@superforge/infra/contract`, which
   `utilities/schemas/agents.ts` takes Claude's scopes from), the stand-in
   and choosing between them, is the package's.
-
-To try a change to the package before it's released, point this checkout
-at the package's own (`pnpm add @superforge/infra@link:<its folder>`), and
-back to a released version before a PR: a `link:` is one computer's
-alone.
 
 To check a key from a terminal, `GET /v1/project` answers its project and
 its mode, `live` or `test`:

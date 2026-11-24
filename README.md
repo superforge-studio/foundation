@@ -3,7 +3,12 @@
 Your business, in one codebase: a website, an API and a database in one
 repository, deployed on Railway, made to be changed with Claude.
 
-**New here? Open this folder with Claude Code and say "start here".** It
+**Make your own copy first, and make it private**: on GitHub, Use this
+template → Create a new repository, set to Private. Your copy will list
+your team's names and login addresses in its code, so it never belongs in
+a public repository, or in a fork of this one.
+
+**New here? Open your copy with Claude Code and say "start here".** It
 follows [START-HERE.md](START-HERE.md): it asks about the business, then
 sets the colors, fonts, logo and copy, and writes `PRODUCT.md` and
 `DESIGN.md`.
@@ -27,7 +32,7 @@ source/
   frontend/      the website: routes, components, queries, styles
   backend/       the Hono API under /api, a folder per feature, and its workflows on DBOS
   database/      Postgres through Drizzle: the schema, migrations, this checkout's own Postgres
-  utilities/     what both sides share: primitives/ and zod schemas/
+  utilities/     what both sides share: primitives/, zod schemas/ and permissions/
   server.ts      Start's server entry: /api to Hono, everything else to Start
   node.ts        the Node server Railway runs: the build's files, then server.ts
 public/          static files, like the favicon
@@ -49,8 +54,9 @@ There's nothing to set up besides `pnpm install` (Node 22 and pnpm 10): no
 Docker and no credentials. `pnpm dev` and the tests run a Postgres of the
 checkout's own, from npm (`workbench/writing-code.md`, "Local
 development"), and logging in at `/login` shows its code on the page
-rather than emailing it. After `pnpm database:seed`, log in as
-`ada@example.com`, the sample team's owner, to see the whole admin at
+rather than emailing it. After `pnpm database:seed`, log in as the
+team's owner, the first `source/backend/auth/access.ts` lists
+(`ada@example.com` as the template ships), to see the whole admin at
 `/admin`.
 
 Deploys run on Railway when a PR merges to `main`. Setting Railway up is a
@@ -59,6 +65,18 @@ one-time job for each copy
 "Setting up Railway").
 
 Claude (and humans): start with [CLAUDE.md](CLAUDE.md).
+
+## Superforge Infra
+
+Login runs on Superforge Infra, Superforge's hosted service, which the app
+calls through the `@superforge/infra` package. It receives the team's
+login addresses (to email each login's code and link), the comments the
+toolbar files, and Claude's logins to the app's MCP. Everything else, the
+users, their sessions, the data and the analytics, stays in the app's own
+database. A dev server needs none of it; production needs a project on
+superforge.studio, where Infra's price and terms are
+([workbench/commit-and-deploy.md](workbench/commit-and-deploy.md),
+"Setting up Railway").
 
 ## Updates
 
@@ -78,12 +96,13 @@ yours to keep, change and build on. What you add to it is your own.
 ## This template
 
 This repository is a GitHub template (Use this template → Create a new
-repository), copied from Superforge's production setup with the app code
-taken out. It's Superforge Foundation (internal code `starter-template`).
-It lives at <https://github.com/superforge-studio/starter-template>, and
-its own copy runs on Railway, in the `superforge-starter` project, at
-<https://superforge-starter.up.railway.app>. A copy made from it replaces
-this section, and the names above, in `START-HERE.md`'s step 5.
+repository). It's Superforge Foundation (`starter-template`), at
+<https://github.com/superforge-studio/starter-template>. A copy made from
+it replaces this section, and the names above, in `START-HERE.md`'s step 5.
+
+**Found a problem?** A bug or a wrong step in the template is an issue on
+its repository. A security vulnerability is reported privately, never in
+an issue: [SECURITY.md](SECURITY.md) says how.
 
 **Releases: every PR to this template is a release of its own, and
 bumps the version in that same PR.** It puts its notes in a file of their

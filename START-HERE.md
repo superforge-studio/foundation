@@ -12,6 +12,27 @@ decided, choose a sensible default, say what you chose, and move on. When
 every step is done, delete this file and the first section of `CLAUDE.md`,
 which points here.
 
+## 0. Check whose repository this is
+
+Before anything else, run `git remote get-url origin`. This codebase is
+about to hold the team's names and login addresses, in code
+(`source/backend/auth/access.ts`), and the business's own description
+(`PRODUCT.md`), so it must live in a repository of the owner's own, and
+a private one.
+
+- **`origin` is `superforge-studio/starter-template`** (or there's no
+  `origin`): this is a clone of Superforge's public template, not a copy.
+  Stop, and have the owner make their own: on
+  <https://github.com/superforge-studio/starter-template>, **Use this
+  template → Create a new repository**, under their own account or
+  organization, set to **Private**. Then clone that one and start again
+  there. Never push to the template, and never fork it: a fork of a public
+  repository is public.
+- **`origin` is the owner's own repository**: ask them to confirm it's
+  private (with the `gh` CLI, `gh repo view --json visibility`). If it's
+  public, have them make it private (Settings → General → Danger Zone →
+  Change visibility) before step 1.
+
 ## 1. Ask about the business
 
 Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
@@ -103,7 +124,8 @@ title and description in `source/frontend/routes/__root.tsx`'s `head`.
 The placeholder's line map, with the health check running down it, is
 there to show the owner what the codebase has and that it runs; it isn't
 for visitors. Delete `source/frontend/components/welcome/`, which only it
-uses, and keep `source/backend/health/`, which Railway's healthcheck
+uses, with `source/frontend/queries/health.ts`, the query only the line map
+calls, and keep `source/backend/health/`, which Railway's healthcheck
 needs.
 
 Keep the login page, `source/frontend/routes/login.tsx`, where the
@@ -179,7 +201,10 @@ short, lowercase name for the business (like `acme-plumbing`):
   run there. Choose it now: once the first apply has made the buckets,
   they can't move.
 - `README.md`: its title and first paragraph, and the "This template"
-  section, which goes.
+  section, which goes. In its "Develop" section, take out "(`ada@example.com` as
+  the template ships)": the seed's team is the one step 3 listed.
+- `SECURITY.md`, which is how to report a problem in the template to
+  Superforge, goes: it isn't this codebase's.
 
 Leave `.superforge/` as it is: `superforge.json`'s `starter-template` is
 the template this codebase came from, which updates read

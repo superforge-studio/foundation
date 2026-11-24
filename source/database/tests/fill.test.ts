@@ -2,8 +2,8 @@ import { expect, test } from "vitest"
 import { testDatabase } from "./support/database"
 import { fill } from "./support/fill"
 
-// The upgrade test's sample rows on checks a copy's tables may have, as
-// Skylevel's appointments and notes do: one column after another, and at
+// The upgrade test's sample rows on checks a copy's tables may have, like
+// an appointment's or a note's: one column after another, and at
 // least one of several set, on tables of the test's own, named so they
 // never meet a copy's. A row that broke either would fail its insert, and
 // fill() with it.

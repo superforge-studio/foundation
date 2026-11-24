@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.23.0](.superforge/releases/0.23.0.md) (2026-11-24): a copy starts in a private repository of its own, an update follows the latest release's procedure and stops at a release flagged Deploy, a rule for `package.json`, `pnpm check` fails on a schema change no migration holds, `SECURITY.md`, the docs put right, and unused primitives gone.
 - [0.22.0](.superforge/releases/0.22.0.md) (2026-11-23): eight fixes from the guides for Your files and logging in, each with a test (folders no deeper than 32, Trash emptied each hour by a workflow, the dev server's upload route in a dev server alone, API tokens revoked for good when someone leaves the team), the app's own answers asked before `/api`, and `superforge.json` and `CLAUDE.md` laid out so an update stops conflicting on them.
 - [0.21.1](.superforge/releases/0.21.1.md) (2026-11-23): guides for logging in, Your files and the database, each a README in its folder, and a few comments put right.
 - [0.21.0](.superforge/releases/0.21.0.md) (2026-11-23): a file has one owner, the template or the app: an `app.ts` beside each list the template keeps holds the app's own tables, routes, workflows, seeders, kinds of file and areas, and login has one place for someone besides the team to log in, so an update stops meeting what a business added.

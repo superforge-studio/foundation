@@ -58,8 +58,8 @@ export default defineRailway(() => {
     // (workbench/writing-code.md, "Restoring production"). Railway's
     // Postgres image archives whenever the `WAL_ARCHIVE_*` variables are set,
     // so these are what turn it on, from the first apply. They're the ones
-    // `railway postgres pitr enable` sets (read from superforge's on
-    // 2026-11-14). The bucket is in the database's region.
+    // `railway postgres pitr enable` sets. The bucket is in the database's
+    // region.
     const recoveryArchive = bucket("Postgres-PITR", { region: REGION.bucket })
     database.variables = {
         WAL_ARCHIVE_BUCKET: ref(recoveryArchive, "BUCKET"),

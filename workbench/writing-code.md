@@ -53,7 +53,7 @@ wrote it its own way, their checks would drift apart:
 - **Only `backend/` touches the database, and inside it only
   operations do**: plain functions that take the database and their
   input and answer what happened, named for what they do
-  (`contacts/create.ts`, `contacts/find.ts`). A route checks what came in,
+  (`users/sync.ts`, `auth/sessions.ts`). A route checks what came in,
   calls an operation, and answers; a workflow's step calls one. Neither
   runs a query of its own.
 - **The website reaches data only over HTTP**, through the API's typed
@@ -135,8 +135,8 @@ matters:
   own Postgres ([Local development](#local-development)). Server-only: used
   by `backend/`, never by `frontend/`.
 - **`utilities/`** — what both sides share. Nothing here may import from
-  the other three. It has two folders, and a file that fits neither sits
-  at the top, named for what it's about:
+  the other three. It has three folders, and a file that fits none of them
+  sits at the top, named for what it's about, like `webhooks.ts`:
   - **`primitives/`**, what knows nothing of the app, and could be copied
     into another one unchanged: `durations.ts`'s `MINUTE` and `WEEK`. Nothing here imports even from the rest of `utilities/`.
   - **`schemas/`**, the zod schemas both sides check with, a file per
@@ -200,7 +200,7 @@ an update: the pages and their look, the team and its roles (`ACCESS`),
   `context.var.workflows`. The browser calls it through the typed client
   in `source/backend/client.ts`, inside a TanStack Query `queryOptions` or
   `mutationOptions` in `source/frontend/queries/`, a file per area of the
-  API, like `health.ts`.
+  API, like `users.ts`.
 - **An operation** → a plain function in its feature's folder that takes
   the database (a `Database`, so it runs inside a transaction too) and its
   input, and answers an `OperationResult` when it can fail in a way its
@@ -371,7 +371,7 @@ failure the same way, whatever route it came from
 (`source/utilities/schemas/failures.ts`):
 
 ```json
-{ "error": { "reason": "not-found", "message": "No such contact" } }
+{ "error": { "reason": "not-found", "message": "No such file" } }
 ```
 
 `reason` is for a program to branch on, a kebab-case word or two that
@@ -383,7 +383,7 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
 - **An expected failure** is answered with
   `failure(context, status, reason, message)` (`backend/failures.ts`),
   usually from the result an operation answered:
-  `failure(context, 404, found.error, "No such contact")`. The typed client
+  `failure(context, 404, found.error, "No such file")`. The typed client
   knows each reason a route can answer.
 - **Input that doesn't fit** is answered by `validated()` itself: 400,
   `invalid`, and `issues`, what didn't fit, field by field. A body that
@@ -398,7 +398,7 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
   throws** is 500 `unexpected`, logged (`index.ts` mounts both handlers).
   Throwing is for bugs, never for a failure a caller handles.
 - **A page reads a failure** with `readFailure(response)`
-  (`frontend/queries/failures.ts`), inside its query, as `health.ts` does,
+  (`frontend/queries/failures.ts`), inside its query, as `users.ts` does,
   which answers `unavailable` for an answer not in this shape, like
   Railway's own page while the server is down.
 
@@ -509,8 +509,10 @@ writes the migration that changes the check when it changes.
   server. A test hands `new Storage(memoryStore().store)`
   (`source/database/tests/support/storage.ts`) to the route's `context` in its place.
 - **A table goes in one of four Postgres schemas**, by who owns its rows
-  and who sees them, and there's never a fifth, nor one per feature
-  (features are folders in code):
+  and who sees them, and there's never another of ours, nor one per
+  feature (features are folders in code). A fifth, `drizzle`, is Drizzle's
+  own, its journal of the migrations applied, which `migrate.ts` reads and
+  nothing of ours writes:
   - **`public`**, the business's own data, whatever the app is built to
     do: `pgTable(...)`. The users are here: they're the business's team,
     whom its other tables point at (`references(() => users.id)`).
@@ -520,7 +522,7 @@ writes the migration that changes the check when it changes.
     everything but them. The login codes aren't here: Infra keeps them.
   - **`internal`**, the rest of the machinery, what no person sees, like
     an error log or rate limits: `internal.table(...)`.
-  - **`dbos`**, DBOS's own tables, once background workflows arrive. DBOS
+  - **`dbos`**, DBOS's own tables, the workflows' runs and queues. DBOS
     makes and migrates it, nothing of ours writes to it, and Drizzle Kit
     leaves it alone (`schemaFilter` in `drizzle.config.ts`).
 
@@ -570,7 +572,8 @@ runs before the new one starts. So:
   and `select()` and `.returning()` list them all too:
 
   ```sql
-  insert into "users" ("id", "email", "role", "created_at") values (default, $1, default, default)
+  insert into "users" ("id", "slug", "email", "name", "deactivated_at", "logged_in_at", "created_at")
+  values (default, $1, $2, $3, default, default, default)
   ```
 
   So the deploy that stops using a column takes it out of `schema.ts`,
@@ -1133,7 +1136,9 @@ When changing existing code and nobody mentioned backward compatibility:
 
 The one exception is **a published URL**. A page's address may be linked
 from emails, ads, other sites and search results, so renaming a slug or
-moving a route needs a redirect from the old path.
+moving a route needs a redirect from the old path, once the site is
+live. (The template itself redirects nothing of its own before 1.0: a
+copy's live pages are its own.)
 
 ## Keeping this current
 

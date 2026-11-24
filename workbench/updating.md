@@ -9,7 +9,7 @@ This codebase started as a copy of one of Superforge's templates, and
 `.superforge/superforge.json` says which one, and which release it's on:
 
 ```json
-{ "template": "starter-template", "version": "0.1.0" }
+{ "version": "0.1.0", "template": "starter-template", "project_id": null }
 ```
 
 The template is public, at `github.com/superforge-studio/<template>`, and
@@ -83,6 +83,9 @@ the latest before it applies any of them. Each release says:
     that needs a destructive apply.
   - **Owner**: a step only the owner can take, like a token or a DNS
     record.
+  - **Deploy**: this release has to be deployed before the next one is
+    applied, like a release whose code stops reading a column that a
+    later release drops. An update stops after it (step 4).
 - **How to tell a copy already has it**: a file, a line or a command's
   output that shows the change is there, for a copy that took some of it
   by hand.
@@ -109,10 +112,11 @@ is one PR's change.
   it. `pnpm build` writes it again, with the release's routes and the
   copy's (step 4).
 - **What only the template has**: `START-HERE.md`, the template's home
-  page's line map, `source/frontend/components/welcome/`, which
-  `START-HERE.md` deletes with the page, the "This template" section of
-  `README.md`, and `CLAUDE.md`'s first section, which a copy removes as it
-  becomes the business's own.
+  page's line map, `source/frontend/components/welcome/`, with
+  `source/frontend/queries/health.ts`, which `START-HERE.md` deletes with
+  the page, `SECURITY.md`, the "This template" section of `README.md`,
+  and `CLAUDE.md`'s first section, which a copy removes as it becomes the
+  business's own.
 
 ## 1. Start clean
 
@@ -149,11 +153,18 @@ git show template/tags/v0.10.0:.superforge/releases/0.9.0.md
 git show template/tags/v0.10.0:.superforge/releases/0.10.0.md
 ```
 
+**Then follow the latest tag's procedure, not this file**: read it with
+`git show template/tags/v0.10.0:workbench/updating.md`, and follow that one
+from step 4 on, since this file is the release this codebase is updating
+from, and a later release may have fixed a step. The update brings it
+here too.
+
 Read each with its flags ("How a release is written", above). Then, before
 changing anything, tell the owner in plain words what's coming, and get
 their yes for anything that costs money, needs a secret, or needs them to
-do something (**Railway**, **Secret**, **Owner**). Don't start an update
-they haven't agreed to.
+do something (**Railway**, **Secret**, **Owner**), and tell them of each
+**Deploy**, which splits the update into PRs merged one after another.
+Don't start an update they haven't agreed to.
 
 ## 4. Apply each release, in order, as its own commit
 
@@ -172,6 +183,8 @@ git diff --binary --no-color template/tags/v0.1.0 template/tags/v0.2.0 -- . \
     ':(exclude)source/database/migrations' \
     ':(exclude)source/frontend/routeTree.gen.ts' \
     ':(exclude)source/frontend/components/welcome' \
+    ':(exclude)source/frontend/queries/health.ts' \
+    ':(exclude)SECURITY.md' \
     ':(exclude)START-HERE.md' |
     git apply --3way
 ```
@@ -199,7 +212,7 @@ it's resolving beside it. What `git apply` says:
   meant, ask them. Then `git add` the file. A conflict in `README.md`'s
   "This template" section, which a copy has removed, stays removed.
 
-Two files have a rule of their own, since every copy has changed them:
+Three files have a rule of their own, since every copy has changed them:
 
 - **`.superforge/superforge.json`**: the release's `version`, this
   codebase's `project_id`, and `template` as it is. Since `0.22.0`,
@@ -218,6 +231,11 @@ Two files have a rule of their own, since every copy has changed them:
   template's bullets: on the update that brings `0.22.0`, take the
   release's bullets and move each of this codebase's own into "This app's
   own", once, so the next update meets none of them.
+- **`package.json`**: every dependency the template lists takes the
+  release's version, whatever this codebase had (a Dependabot bump
+  included), since the release's code is what was tested with it; the
+  dependencies this codebase added of its own stay, and so do its `name`
+  and the font it chose (`START-HERE.md`, step 2). Then `pnpm install`.
 
 Then, before the next release:
 
@@ -232,6 +250,14 @@ Then, before the next release:
    ```bash
    pnpm database:generate --name=<what-it-changed>
    ```
+
+   If it asks whether a column or a table was renamed or made new, it's
+   asking on a terminal, which an agent's shell may not have. Answer from
+   the notes, in a terminal the owner runs it in if need be, never by
+   guessing: a rename answered as new drops the old one's data.
+   `pnpm check` fails while `schema.ts` has a change no migration holds
+   (`workbench/scripts/check-migrations.sh`), so a Schema flag that was
+   missed is caught there.
 3. Check that `.superforge/superforge.json` says the release's version,
    and that `.superforge/releases/` has its notes: the diff brings both.
 4. `pnpm format`, and commit the release on its own. The tree was clean
@@ -240,6 +266,10 @@ Then, before the next release:
    ```bash
    git add -A && git commit -m "Template v0.2.0"
    ```
+
+**A release flagged Deploy ends this update here**, after its commit:
+check it and open its PR (step 5), and once it has merged and deployed,
+start again from step 1 for the releases after it.
 
 ## 5. Check it, and open the PR
 
@@ -269,4 +299,6 @@ never arrives.
 
 This file comes from the template, and updates bring its new versions. If
 a step here is wrong, fix it in this codebase, and tell the owner, so
-Superforge can fix it in the template too.
+Superforge can fix it in the template too: as an issue on the template's
+repository (`github.com/superforge-studio/<template>`), or, for a security
+problem, privately, as the template's `SECURITY.md` says.

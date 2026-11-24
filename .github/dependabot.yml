@@ -4,6 +4,12 @@
 # like any PR, so it merges only once `check` passes on it. A security fix
 # comes as soon as there is one, once Dependabot security updates are on in
 # the repository's settings (Settings → Code security).
+#
+# `@superforge/infra` is never offered: the app's code speaks one release
+# of it, so it moves only with the template's code that speaks the next
+# (in a copy, by an update from the template). In a copy, a Dependabot bump
+# of a dependency the template lists is overruled by the template's version
+# at the next update (workbench/updating.md, "package.json").
 version: 2
 updates:
     - package-ecosystem: github-actions
@@ -18,6 +24,8 @@ updates:
       directory: /
       schedule:
           interval: monthly
+      ignore:
+          - dependency-name: "@superforge/infra"
       groups:
           dependencies:
               patterns: ["*"]
