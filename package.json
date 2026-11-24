@@ -51,7 +51,6 @@
         "aws4fetch": "^1.0.20",
         "bowser": "2.15.0",
         "class-variance-authority": "^0.7.1",
-        "cmdk": "^1.1.1",
         "cn": "^0.5.0",
         "drizzle-orm": "^0.45.4",
         "hono": "^4.13.13",

@@ -15,7 +15,7 @@ import {
 // metadata, and the OAuth calls themselves, which Infra answers, passed on
 // with the app's key so the app's own domain is what Claude sees, at the
 // package's paths (`APP_PATHS`: `/oauth`, and the Allow page at
-// `/connect`). Infra's README, "Claude", has the flow.
+// `/connect`). backend/infra/README.md, "Claude", has the flow.
 
 // Whether a call under `/oauth` is one Claude makes
 function isOAuthCall(call: string): call is OAuthCall {

@@ -164,6 +164,23 @@ Once per copy of this codebase, before its first deploy. Agents don't
 create tokens, change repository settings or touch DNS: the steps marked
 **(the human)** are the owner's, and an agent says what's needed and waits.
 
+**What you'll need**, before step 1:
+
+- **Accounts**: GitHub, holding this repository, private (`START-HERE.md`,
+  step 0); a ruleset on a private repository (step 5) needs a paid GitHub
+  plan (Pro, Team or Enterprise). Railway, on the Hobby or Pro plan. And
+  Superforge, on superforge.studio, for the app's project on Superforge
+  Infra, which sends the login emails: production's login doesn't work
+  without it (step 6). Infra is Superforge's hosted service; its price and
+  terms are Superforge's, on superforge.studio.
+- **CLIs**: the Railway CLI, at the version CI uses
+  (`npm install --global @railway/cli@5.71.0`, as in
+  `.github/workflows/ci.yml`), and GitHub's `gh` (<https://cli.github.com>),
+  logged in with `gh auth login`.
+- **Two secrets**, both the owner's to make and set, never an agent's:
+  `RAILWAY_TOKEN`, a repository secret (step 4), and `INFRA_SECRET_KEY`, a
+  variable on the Railway service (step 6).
+
 1. **(The human)** A Railway account on the Hobby or Pro plan, with
    Railway's GitHub app allowed to read this repository (railway.com →
    Account Settings → GitHub).
@@ -199,6 +216,13 @@ create tokens, change repository settings or touch DNS: the steps marked
    there's nothing to restore from. If the status says `disabled`, run
    `railway postgres pitr enable --service Postgres`, then make
    `.railway/railway.ts` match what it changed, so the plan is clean.
+
+   Tracing (`tracing` in `.railway/railway.ts`) is a Railway preview,
+   behind the account's Tracing beta. If the apply refuses it, or the
+   service shows no traces, turn the beta on in the account's settings on
+   Railway, or set `tracing: { enabled: false }` in the file. The app runs
+   the same without it: `source/tracing.ts` stays off without the `OTEL_*`
+   variables, and its logs are all there is to read.
 4. **(The human)** A project token for the `production` environment (the
    project's Settings → Tokens on Railway), set as the repository secret
    that `railway-apply` uses:
@@ -238,7 +262,11 @@ create tokens, change repository settings or touch DNS: the steps marked
    curl -H "Authorization: Bearer <the key>" https://infra.superforge.studio/v1/project
    ```
 
-   It answers the project and `"mode": "live"`.
+   It answers the project and `"mode": "live"`. Then write the project's
+   public ID (`sf_project_…`) as `project_id` in
+   `.superforge/superforge.json`: nothing in the app reads it, but it's
+   how Superforge's tools, and an agent, know which Infra project this
+   codebase is.
 7. Merge to `main`. The push's CI applies the configuration, and Railway
    deploys it. Open the service's address: the home page loads, (on the
    placeholder page) its line shows the API answering and the database

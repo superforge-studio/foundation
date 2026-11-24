@@ -3,7 +3,7 @@
 # that ships it, before it gets there. Part of `pnpm check`, so CI runs it
 # on every PR (`pnpm database:check` runs it alone). It reads Postgres's
 # migrations, in source/database/migrations/ (workbench/writing-code.md,
-# "Migrations"). Two checks:
+# "Migrations"). Three checks:
 #
 # - The journal (meta/_journal.json) numbers its entries from 0 with no
 #   gaps, each entry's `when` comes after the one before it, and each
@@ -21,6 +21,12 @@
 #   the statement:
 #     -- small table, a few rows per account
 #     -- squawk-ignore require-concurrent-index-creation
+#
+# - The migrations hold every change to schema.ts: drizzle-kit generate,
+#   run on a copy of the folder, writes nothing. A missing column fails the
+#   tests anyway, since Drizzle names every column, but a changed check,
+#   index, default or on-delete doesn't, and production would keep the old
+#   one. Run `pnpm database:generate` for the change.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -67,5 +73,28 @@ if [ ${#migrations[@]} -gt 0 ] && ! pnpm exec squawk --config .squawk.toml "${mi
     echo "safe, say why on the line before a \"-- squawk-ignore <rule>\" comment." >&2
     failed=1
 fi
+
+# drizzle-kit generate, on a copy of the folder so nothing here changes,
+# with no terminal to ask on (a rename it can't tell from a drop and an add
+# fails here, and `pnpm database:generate` asks)
+before=$(mktemp -d)
+cp -R "$FOLDER/." "$before/"
+if ! pnpm exec drizzle-kit generate </dev/null >"$before.log" 2>&1; then
+    cat "$before.log" >&2
+    echo "drizzle-kit generate failed, or needs to ask about a rename: run" >&2
+    echo "\`pnpm database:generate\` in a terminal, and commit its migration." >&2
+    failed=1
+elif ! diff -rq "$before" "$FOLDER" >/dev/null; then
+    diff -rq "$before" "$FOLDER" >&2 || true
+    echo "schema.ts has changes no migration holds. Run" >&2
+    echo "\`pnpm database:generate --name=<what-it-changed>\` and commit it" >&2
+    echo "(workbench/writing-code.md, \"Migrations\")." >&2
+    failed=1
+fi
+# Put the folder back as it was, whatever generate wrote
+rm -rf "$FOLDER"
+mkdir -p "$FOLDER"
+cp -R "$before/." "$FOLDER/"
+rm -rf "$before" "$before.log"
 
 exit $failed

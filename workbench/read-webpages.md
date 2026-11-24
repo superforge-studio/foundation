@@ -36,8 +36,8 @@ less noise than Jina.
 ## When Jina is blocked
 
 Keyless Jina is per-IP, and a shared cloud egress IP can be blocked
-outright rather than merely rate-limited. Measured 2026-08-15 from a Claude
-Code web sandbox — every URL, instantly, no retry-after:
+outright rather than merely rate-limited: every URL fails instantly, with no
+retry-after:
 
 ```json
 {"code":401,"name":"AuthenticationRequiredError","status":40103,
@@ -47,9 +47,7 @@ Code web sandbox — every URL, instantly, no retry-after:
 
 That is not the 429 described above and waiting does not clear it.
 
-**It is per-IP and it comes and goes, so test rather than assume.** The
-same keyless endpoint answered HTTP 200 with normal markdown from a Claude
-Code web sandbox on 2026-09-17. Treat a block as a fact about the IP your
+**It is per-IP and it comes and goes, so test rather than assume.** Treat a block as a fact about the IP your
 session happens to have today, in either direction: don't skip Jina
 because a task mentions it being blocked, and don't rely on it being
 there.
@@ -123,7 +121,7 @@ sites that block Jina:
 
 ## Keeping this current
 
-Jina's rate limit and output shape were verified 2026-07-19. If Jina starts
+If Jina starts
 failing consistently, returning something other than markdown, or agents
 hit 429s in normal use (an API key would raise the limit ~10x — flag it to
 the user), update this guide (`CLAUDE.md`, "Keep things current as you go").

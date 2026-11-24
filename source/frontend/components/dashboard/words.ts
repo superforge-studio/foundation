@@ -1,9 +1,7 @@
 // How the dashboard says times, durations and browsers, in words a person
 // reads at a glance, with the exact moment for a title or a detail
 
-const MINUTE = 60 * 1000
-const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
+import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 
 /**
  * How long ago, for a list: "just now", "4 min ago", "2 h ago",

@@ -221,9 +221,8 @@ whoever reaches the area reaches all of them.
 - **The bucket's CORS**, for a browser. A page that posts an upload's
   form, or reads a file's bytes with `fetch`, is calling the bucket from
   the app's address, which the bucket refuses until its CORS allows that
-  address. The template sets none. Skylevel's
-  `source/database/storage/cors.ts` is how: it puts the rule through the
-  bucket's S3 API as each deploy goes out.
+  address. The template sets none: a copy that needs it puts the rule
+  through the bucket's S3 API (`PutBucketCors`) as each deploy goes out.
 - **A kind of the app's own**, for a file the code writes, in
   `source/database/storage/app.ts`, not a row here.
 
