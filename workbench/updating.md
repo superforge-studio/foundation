@@ -108,9 +108,11 @@ is one PR's change.
   the routes, so a copy that has pages of its own would only conflict on
   it. `pnpm build` writes it again, with the release's routes and the
   copy's (step 4).
-- **What only the template has**: `START-HERE.md`, and the "This template"
-  section of `README.md`, which a copy removes as it becomes the
-  business's own.
+- **What only the template has**: `START-HERE.md`, the template's home
+  page's line map, `source/frontend/components/welcome/`, which
+  `START-HERE.md` deletes with the page, the "This template" section of
+  `README.md`, and `CLAUDE.md`'s first section, which a copy removes as it
+  becomes the business's own.
 
 ## 1. Start clean
 
@@ -169,6 +171,7 @@ git diff --binary --no-color template/tags/v0.1.0 template/tags/v0.2.0 -- . \
     ':(exclude)pnpm-lock.yaml' \
     ':(exclude)source/database/migrations' \
     ':(exclude)source/frontend/routeTree.gen.ts' \
+    ':(exclude)source/frontend/components/welcome' \
     ':(exclude)START-HERE.md' |
     git apply --3way
 ```
@@ -195,6 +198,26 @@ it's resolving beside it. What `git apply` says:
   worked in only where it still fits. When it isn't clear what the owner
   meant, ask them. Then `git add` the file. A conflict in `README.md`'s
   "This template" section, which a copy has removed, stays removed.
+
+Two files have a rule of their own, since every copy has changed them:
+
+- **`.superforge/superforge.json`**: the release's `version`, this
+  codebase's `project_id`, and `template` as it is. Since `0.22.0`,
+  `version` is the file's first line and `project_id` its last (null until
+  the app is on Infra), so an update moves the version without meeting the
+  ID. The update that brings `0.22.0` conflicts on it once, from the old
+  layout, where `project_id` was added after `version`: write it as the
+  release has it, with this codebase's ID, or null if it has none.
+- **`CLAUDE.md`**: its first section, "First: is this codebase someone's
+  yet?", stays removed, like `README.md`'s "This template". The rules and
+  the Workbench hooks take the release's, keeping what the owner added on
+  purpose. The Project Architecture list is the template's: its bullets
+  take the release's wording, and what this codebase says of its own
+  areas goes under "This app's own", at the list's end, which no release
+  changes. A copy from before `0.22.0` has its own areas written into the
+  template's bullets: on the update that brings `0.22.0`, take the
+  release's bullets and move each of this codebase's own into "This app's
+  own", once, so the next update meets none of them.
 
 Then, before the next release:
 

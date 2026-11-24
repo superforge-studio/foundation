@@ -1,23 +1,27 @@
 import type { Database } from "@/database"
 import { file_folders, files } from "@/database/schema"
-import { folderPath } from "./find"
+import { DEEPEST, folderPath } from "./find"
 
 // Making things in Your files: a folder, and the row a file's upload starts
 // with, before its bytes reach the bucket.
 
 /**
  * A new folder in `parent_id`, or at the top for null. Fails `no-folder`
- * when the folder it goes in isn't there, or is in Trash.
+ * when the folder it goes in isn't there, or is in Trash, and `too-deep`
+ * when it would be more than `DEEPEST` folders deep.
  */
 export async function createFolder(
     database: Database,
     input: { name: string; parent_id: string | null; by: string }
-): AsyncOperationResult<{ id: string }, "no-folder"> {
-    if (
-        input.parent_id !== null &&
-        (await folderPath(database, input.parent_id)) === null
-    ) {
+): AsyncOperationResult<{ id: string }, "no-folder" | "too-deep"> {
+    const above =
+        input.parent_id === null
+            ? []
+            : await folderPath(database, input.parent_id)
+    if (above === null) {
         return { ok: false, error: "no-folder" }
+    } else if (above.length + 1 > DEEPEST) {
+        return { ok: false, error: "too-deep" }
     } else {
         const [made] = await database
             .insert(file_folders)

@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono"
 import { csrf } from "hono/csrf"
+import { createMiddleware } from "hono/factory"
 import { appDatabase } from "@/database"
 import { appStorage } from "@/database/storage"
 import { traceRoutes } from "@/utilities/tracing"
@@ -51,13 +52,8 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // app adds of its own (./app.ts). Nothing under /api is kept in
             // Railway's cache (source/node.ts), so each request reaches the
             // server.
+            .use(withVariables(variables))
             .use(async (context, next) => {
-                const given = variables()
-                // Object.keys can only say its keys are strings, but
-                // they're the variables' own
-                for (const name of Object.keys(given) as VariableName[]) {
-                    put(context, given, name)
-                }
                 await next()
                 context.header("Cache-Control", "no-store")
             })
@@ -73,9 +69,11 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // browser says the request came from this site. JSON, which a
             // form can't send, is left alone, and so is a request that says
             // nothing of its body, like a script's bodiless POST, since a
-            // form always says. A route of the app's that must take one
-            // says so (./app.ts).
+            // form always says, and so is any method but POST, which a form
+            // can't send, like a script's PUT of a .txt file. A route of
+            // the app's that must take one says so (./app.ts).
             .use((context, next) =>
+                context.req.method !== "POST" ||
                 context.req.header("Content-Type") === undefined ||
                 takesFormsFromOtherSites(context.req.method, context.req.path)
                     ? next()
@@ -126,6 +124,24 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // This app's own routes, after the template's (app.ts)
             .route("/", appRoutes)
     )
+}
+
+/**
+ * The middleware that puts `variables()` on `context`, each by its name, as
+ * `apiWith()` does for every route: a test's own Hono app takes it too, with
+ * its test API's (`testApi().variables`), so its routes see everything the
+ * API's do, this app's own among them.
+ */
+export function withVariables(variables: () => ApiEnvironment["Variables"]) {
+    return createMiddleware<ApiEnvironment>(async (context, next) => {
+        const given = variables()
+        // Object.keys can only say its keys are strings, but they're the
+        // variables' own
+        for (const name of Object.keys(given) as VariableName[]) {
+            put(context, given, name)
+        }
+        await next()
+    })
 }
 
 type VariableName = keyof ApiEnvironment["Variables"]

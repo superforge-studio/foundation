@@ -38,6 +38,30 @@ export async function folderPath(database: Database, folder_id: string) {
     return path
 }
 
+/**
+ * How many levels of folders `folder_id` is, counting itself: 1 for one
+ * with no folders in it, out of Trash or in it, since what's in Trash comes
+ * back to where it was. A move adds them all below where it goes.
+ */
+export async function levelsOf(database: Database, folder_id: string) {
+    let levels = 0
+    let level = [folder_id]
+    while (level.length > 0) {
+        levels += 1
+        if (levels > DEEPEST) {
+            throw new Error(
+                `Folder ${folder_id} has more than ${DEEPEST} below it`
+            )
+        }
+        const children = await database
+            .select({ id: file_folders.id })
+            .from(file_folders)
+            .where(inArray(file_folders.parent_id, level))
+        level = children.map((child) => child.id)
+    }
+    return levels
+}
+
 /** A file's columns as the API answers them, with who uploaded it. */
 export const file_columns = {
     id: files.id,

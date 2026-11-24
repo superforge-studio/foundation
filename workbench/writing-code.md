@@ -17,6 +17,10 @@ Everything runs in one Node server on Railway (`source/node.ts`).
 | Every page | TanStack Start                   | Prerendered at build, served as static files |
 | Not a page | TanStack Start                   | On request: the not-found page               |
 
+Before any of them, it asks the app's own answers (`appAnswer`,
+`source/app.ts`), for whatever they claim, like a path under `/api` on a
+host of the app's own; what they leave goes on as the table says.
+
 A page is only ever fetched: anything but a `GET` or a `HEAD` sent where a
 page would be, like a webhook given the site's address, is refused with a
 405 before it reaches Start, which would draw the page and answer 200.
@@ -156,19 +160,19 @@ tables or the routes. Each of those has a file of the app's beside it,
 named `app.ts`, which the template's reads. The template made each once,
 empty, and no update changes it:
 
-| The app's own                               | go in                                 | beside the template's    |
-| ------------------------------------------- | ------------------------------------- | ------------------------ |
-| Tables                                      | `source/database/schema/app.ts`       | `schema/foundation.ts`   |
-| Seeders, and tables that get none           | `source/database/seed/app.ts`         | `seed/seed.ts`           |
-| Kinds of file in the bucket                 | `source/database/storage/app.ts`      | `storage/files.ts`       |
-| Routes, and what they see on `context`      | `source/backend/app.ts`               | `index.ts`, `context.ts` |
-| Workflows and runners                       | `source/backend/workflows/app.ts`     | `workflows/index.ts`     |
-| Jobs                                        | `source/backend/jobs/app.ts`          | `jobs/index.ts`          |
-| Whoever logs in besides the team            | `source/backend/auth/app.ts`          | `auth/others.ts`         |
-| Checks before the app says it's healthy     | `source/backend/health/app.ts`        | `health/routes.ts`       |
-| Areas of the app                            | `source/utilities/permissions/app.ts` | `permissions/index.ts`   |
-| Answers that are neither a page nor the API | `source/app.ts`                       | `source/server.ts`       |
-| Stand-ins a test gets for the app's own     | `source/backend/tests/support/app.ts` | `tests/support/api.ts`   |
+| The app's own                             | go in                                 | beside the template's    |
+| ----------------------------------------- | ------------------------------------- | ------------------------ |
+| Tables                                    | `source/database/schema/app.ts`       | `schema/foundation.ts`   |
+| Seeders, and tables that get none         | `source/database/seed/app.ts`         | `seed/seed.ts`           |
+| Kinds of file in the bucket               | `source/database/storage/app.ts`      | `storage/files.ts`       |
+| Routes, and what they see on `context`    | `source/backend/app.ts`               | `index.ts`, `context.ts` |
+| Workflows and runners                     | `source/backend/workflows/app.ts`     | `workflows/index.ts`     |
+| Jobs                                      | `source/backend/jobs/app.ts`          | `jobs/index.ts`          |
+| Whoever logs in besides the team          | `source/backend/auth/app.ts`          | `auth/others.ts`         |
+| Checks before the app says it's healthy   | `source/backend/health/app.ts`        | `health/routes.ts`       |
+| Areas of the app                          | `source/utilities/permissions/app.ts` | `permissions/index.ts`   |
+| Answers of its own, asked before the rest | `source/app.ts`                       | `source/server.ts`       |
+| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts` | `tests/support/api.ts`   |
 
 **Never add the app's own to a file the template owns.** When the
 template has no place for what the app needs, change the template's file
@@ -386,8 +390,10 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
   isn't JSON at all is 400 `invalid` too, without `issues`.
 - **A form on another site** posting to the API is 403 `forbidden`
   (`csrf()` in `index.ts`), unless the browser says it came from this site.
-  JSON, which a form can't send, and a request that sends no
-  `Content-Type`, like a script's bodiless POST, are left alone.
+  JSON, which a form can't send, a request that sends no
+  `Content-Type`, like a script's bodiless POST, and any method but a
+  `POST`, the one a form sends, like a script's `PUT` of a text file, are
+  left alone.
 - **A path no route answers** is 404 `not-found`, and **a route that
   throws** is 500 `unexpected`, logged (`index.ts` mounts both handlers).
   Throwing is for bugs, never for a failure a caller handles.

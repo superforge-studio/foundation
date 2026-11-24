@@ -229,7 +229,10 @@ export const inBrowser = createFactory<LoggedIn>().createMiddleware(
  * `loggedIn` for a route anyone may call, like the one every page asks who's
  * logged in: `context.var.user` and `context.var.permissions` are null for
  * a visitor, rather than the request being refused, so a visitor's browser
- * logs no failed request. A user's session is renewed the same way.
+ * logs no failed request. A user's session is renewed the same way. A token
+ * is held to its scopes as `loggedIn` holds it: one with only `read`, sent
+ * with anything but a `GET` or a `HEAD`, is nobody's, so the route answers
+ * it as a visitor, as recording a visit does, and never acts as its person.
  */
 export const maybeLoggedIn = createFactory<{
     Variables: ApiEnvironment["Variables"] & {
@@ -238,7 +241,7 @@ export const maybeLoggedIn = createFactory<{
     }
 }>().createMiddleware(async (context, next) => {
     const asking = await whoIsAsking(context)
-    if (asking === undefined) {
+    if (asking === undefined || !mayDo(context, asking)) {
         context.set("user", null)
         context.set("permissions", null)
         await next()

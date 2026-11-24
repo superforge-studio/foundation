@@ -3,7 +3,7 @@ import type { Database } from "@/database"
 import { file_folders, files } from "@/database/schema"
 import type { Storage } from "@/database/storage"
 import { now } from "@/database/time"
-import { findFile, folderPath } from "./find"
+import { DEEPEST, findFile, folderPath, levelsOf } from "./find"
 
 // Changing what's in Your files: renaming and moving a folder or a file,
 // and finishing a file's upload once its bytes are in the bucket. Each is a
@@ -13,13 +13,17 @@ import { findFile, folderPath } from "./find"
 /**
  * Renames a folder, or moves it into another (null for the top), or both.
  * Fails `not-found` for a folder that isn't there or is in Trash,
- * `no-folder` for a folder to move into that isn't, and `into-itself` for
- * a move into the folder itself or one inside it.
+ * `no-folder` for a folder to move into that isn't, `into-itself` for
+ * a move into the folder itself or one inside it, and `too-deep` for a move
+ * that would leave a folder in it more than `DEEPEST` folders deep.
  */
 export async function changeFolder(
     database: Database,
     input: { id: string; name?: string; parent_id?: string | null }
-): AsyncOperationResult<null, "not-found" | "no-folder" | "into-itself"> {
+): AsyncOperationResult<
+    null,
+    "not-found" | "no-folder" | "into-itself" | "too-deep"
+> {
     if ((await folderPath(database, input.id)) === null) {
         return { ok: false, error: "not-found" }
     }
@@ -29,6 +33,11 @@ export async function changeFolder(
             return { ok: false, error: "no-folder" }
         } else if (into.some((folder) => folder.id === input.id)) {
             return { ok: false, error: "into-itself" }
+        } else if (
+            into.length + (await levelsOf(database, input.id)) >
+            DEEPEST
+        ) {
+            return { ok: false, error: "too-deep" }
         }
     }
     await database

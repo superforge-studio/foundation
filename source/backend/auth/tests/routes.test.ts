@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm"
 import { Hono } from "hono"
 import { expect, onTestFinished, test, vi } from "vitest"
+import { withVariables } from "@/backend"
 import { ACCESS, type Access } from "@/backend/auth/access"
 import type { ApiEnvironment } from "@/backend/context"
 import type { Infra } from "@/backend/infra"
@@ -443,11 +444,7 @@ test("loggedIn lets a live session through with its user, and answers 401 withou
     // A route of the test's own behind it, on the same database, with the
     // team, which the middleware reads each user's names and role from
     const app = new Hono<ApiEnvironment>()
-        .use(async (context, next) => {
-            context.set("database", api.database)
-            context.set("access", TEAM)
-            await next()
-        })
+        .use(withVariables(() => ({ ...api.variables, access: TEAM })))
         .get("/private", loggedIn, (context) =>
             context.json({
                 email: context.var.user.email,

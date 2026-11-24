@@ -1,5 +1,6 @@
 import { asc } from "drizzle-orm"
 import { expect, test, vi } from "vitest"
+import { makeApiToken } from "@/backend/auth/api-tokens"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
 import { connect } from "@/database"
@@ -405,4 +406,30 @@ test("in ask mode, a visitor is asked, accepts, and is remembered from the next 
 
     const after = await post(api, `${consent}; visitor=${id}`)
     expect(cookieValue(cookiesSet(after).get("visitor"))).toBe(id)
+})
+
+test("a token that may only read still records a visit, as nobody's", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await setup("remember")
+    const ada = await logInAs(api, "ada@example.com")
+    const read_only = await makeApiToken(api.database, ada.id, {
+        name: "Reader",
+        scopes: ["read"],
+        expires_in_days: null
+    })
+    const acting = await makeApiToken(api.database, ada.id, {
+        name: "Actor",
+        scopes: ["read", "act"],
+        expires_in_days: null
+    })
+    const read = await post(api, "", {
+        Authorization: `Bearer ${read_only.token}`
+    })
+    expect(read.status).toBe(200)
+    await post(api, "", { Authorization: `Bearer ${acting.token}` })
+
+    // The `read` token's POST is a visitor's, the `act` token's Ada's
+    expect((await visits(api)).map((visit) => visit.user_id).sort()).toEqual(
+        [ada.id, null].sort()
+    )
 })

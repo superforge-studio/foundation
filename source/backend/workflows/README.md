@@ -168,8 +168,9 @@ export const sendDigest = defineWorkflow({
   out.
 - **Quiet or not**, as any workflow: a prune that's worth reading only
   when it fails is quiet (`prune-webhook-deliveries`, the template's
-  example, in `backend/webhooks/workflows.ts`); a digest the owner wants to
-  see went out isn't.
+  example, in `backend/webhooks/workflows.ts`, and `empty-trash`, in
+  `backend/files/workflows.ts`); a digest the owner wants to see went out
+  isn't.
 
 ### Steps
 

@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull, isNull, notInArray } from "drizzle-orm"
 import { appDatabase, type Database } from "@/database"
-import { sessions, users } from "@/database/schema"
+import { api_tokens, sessions, users } from "@/database/schema"
 import { now } from "@/database/time"
 import {
     ACCESS,
@@ -9,6 +9,7 @@ import {
     nameOf,
     problemsWith
 } from "../auth/access"
+import { appInfra, type Infra } from "../infra"
 import { queueEvent } from "../workflows/queue"
 
 /**
@@ -69,7 +70,8 @@ export async function keepListed(database: Database, listed: InternalUser) {
  * is a user, with the slug, address and name they're listed with, made now
  * if they've never logged in, so the Team screen and the notices to the
  * team have them from the deploy that lists them; and anyone it doesn't
- * list is deactivated, with their sessions ended. Answers how many are
+ * list is deactivated, with their sessions ended and their API tokens
+ * revoked. Answers how many are
  * listed, how many it made, and how many it deactivated. Refuses a list
  * with a mistake in it (`problemsWith`), changing nothing.
  *
@@ -108,13 +110,16 @@ export async function syncInternalUsers(database: Database, access: Access) {
             .select({ id: users.id })
             .from(users)
             .where(isNotNull(users.deactivated_at))
+        // Their sessions end, and their API tokens are revoked for good, so
+        // none works again if they're listed again
         if (gone.length > 0) {
-            await transaction.delete(sessions).where(
-                inArray(
-                    sessions.user_id,
-                    gone.map((user) => user.id)
-                )
-            )
+            const gone_ids = gone.map((user) => user.id)
+            await transaction
+                .delete(sessions)
+                .where(inArray(sessions.user_id, gone_ids))
+            await transaction
+                .delete(api_tokens)
+                .where(inArray(api_tokens.user_id, gone_ids))
         }
         return {
             listed: access.internal_users.length,
@@ -132,10 +137,47 @@ export async function syncInternalUsers(database: Database, access: Access) {
  * regardless.
  */
 export async function syncAppInternalUsers() {
+    const database = appDatabase()
     try {
-        const synced = await syncInternalUsers(appDatabase(), ACCESS)
+        const synced = await syncInternalUsers(database, ACCESS)
         console.info("The team follows access.ts", synced)
     } catch (error) {
         console.error("The team didn't sync with access.ts", { error })
+        return
     }
+    try {
+        await endConnectionsOfGone(database, appInfra())
+    } catch (error) {
+        console.error("Claude's connections weren't ended", { error })
+    }
+}
+
+/**
+ * Ends, through Infra, every connection Claude has as someone deactivated,
+ * so Claude can't refresh its token, and what it holds runs out within
+ * minutes: Claude's tokens are Infra's, signed rather than kept here, so
+ * this is the only way to end them. Asked for everyone deactivated, each
+ * time the server starts, so a start when Infra didn't answer is made up
+ * for by the next; an Infra that doesn't answer is logged once, and asked
+ * nothing more. Answers how many connections it ended.
+ */
+export async function endConnectionsOfGone(database: Database, infra: Infra) {
+    const gone = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(isNotNull(users.deactivated_at))
+    let ended = 0
+    for (const [index, { id }] of gone.entries()) {
+        const result = await infra.endAgentConnections(id)
+        if (result.ok) {
+            ended += result.data
+        } else {
+            console.warn("Claude's connections weren't ended", {
+                left: gone.length - index,
+                cause: result.error
+            })
+            break
+        }
+    }
+    return ended
 }

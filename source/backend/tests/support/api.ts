@@ -63,6 +63,9 @@ export async function testApi(
         api,
         client: testClient(api),
         database: variables.database,
+        // Everything on `context`, for a test's own Hono app to put there
+        // too (`withVariables`, backend/index.ts)
+        variables,
         // What the routes kept in the bucket, the workflows they started and
         // retried, the runs the workflows list, which a test can add to, and
         // the runs their writes queued (queueWorkflow, queueEvent)
