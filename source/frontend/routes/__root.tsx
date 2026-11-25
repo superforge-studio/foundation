@@ -48,7 +48,8 @@ export const Route = createRootRouteWithContext<{
 // page records what its visitors view, click and run into, in the app's own
 // database, from an effect, so only ever in the browser, and asks first,
 // in the banner, when the server says to (frontend/visitors/). Whoever's logged in gets the toolbar on every page,
-// to comment on what they see (components/toolbar/).
+// to comment on what they see, wherever Infra keeps what they file
+// (components/toolbar/).
 function Root() {
     const { queryClient } = Route.useRouteContext()
     const router = useRouter()

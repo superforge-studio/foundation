@@ -73,7 +73,8 @@ calls through the `@superforge/infra` package. It receives the team's
 login addresses (to email each login's code and link), the comments the
 toolbar files, and Claude's logins to the app's MCP. Everything else, the
 users, their sessions, the data and the analytics, stays in the app's own
-database. A dev server needs none of it; production needs a project on
+database. A dev server needs none of it, though without a test key it has
+no toolbar, since nothing would keep the comments; production needs a project on
 superforge.studio, where Infra's price and terms are
 ([workbench/commit-and-deploy.md](workbench/commit-and-deploy.md),
 "Setting up Railway").

@@ -1,4 +1,4 @@
-import { chooseInfra, type Infra } from "@superforge/infra"
+import { chooseInfra, type Infra, type InfraChoice } from "@superforge/infra"
 
 // Superforge Infra, the backend services this app runs on, through
 // @superforge/infra, the package every app calls it with: login, where
@@ -20,6 +20,8 @@ export {
     APP_PATHS,
     type FiledComment,
     type Infra,
+    type InfraProject,
+    type InfraUnavailable,
     infraClient,
     OAUTH_CALLS,
     type OAuthCall,
@@ -28,7 +30,28 @@ export {
     standInInfra
 } from "@superforge/infra"
 
-let shared: Infra | undefined
+/**
+ * Which Infra the server calls: Infra itself, with the `"secret key"` in a
+ * build or a `"test key"` in a dev server; its `"stand-in"`, in a dev
+ * server with no test key it can use, and in the tests; or `"nothing"`,
+ * with no key it may use, as in a build with no secret key, where every
+ * call answers unavailable.
+ */
+export type InfraUsing = InfraChoice["using"]
+
+let shared: InfraChoice | undefined
+
+// What the server calls, chosen the first time it's asked for
+function serverChoice(): InfraChoice {
+    if (shared === undefined) {
+        shared = chooseInfra({
+            development: import.meta.env.DEV,
+            environment: process.env,
+            checkout: process.cwd()
+        })
+    }
+    return shared
+}
 
 /**
  * The server's Infra, chosen the first time it's asked for: the real one
@@ -38,12 +61,13 @@ let shared: Infra | undefined
  * unavailable with why (README.md, "Keys").
  */
 export function appInfra(): Infra {
-    if (shared === undefined) {
-        shared = chooseInfra({
-            development: import.meta.env.DEV,
-            environment: process.env,
-            checkout: process.cwd()
-        }).infra
-    }
-    return shared
+    return serverChoice().infra
+}
+
+/**
+ * Which one `appInfra()` is, which says whether a comment filed here
+ * reaches Infra at all: the stand-in keeps none (../comments/board.ts).
+ */
+export function appInfraUsing(): InfraUsing {
+    return serverChoice().using
 }

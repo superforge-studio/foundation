@@ -15,6 +15,18 @@ tablet, and the prerender, which draws every page for a visitor, get
 nothing, and `/api/comments` refuses anyone who isn't logged in, which
 only the team can be (`loggedIn`).
 
+**Only where Infra keeps what's filed.** Before it shows, the toolbar
+asks the server where a comment would go (`GET /api/comments/board`,
+`backend/comments/board.ts`): the board of the project the server's key
+is for, on Infra, or nowhere, and why. So there's no toolbar on a dev
+server with no test key, whose stand-in only logs a comment, nor with a
+key Infra refuses, like a test key that expired, nor in a build with no
+secret key, nor while Infra isn't answering. The server asks Infra once
+which project its key is for, and again a minute after a failure. The
+page asks once (`commentBoardQuery`, `queries/comments.ts`), so the
+toolbar never goes from under a comment being written, and the next page
+loaded asks again.
+
 ## How it works
 
 1. **Comment** turns on comment mode.
@@ -84,7 +96,8 @@ A comment there still carries the element's selector, classes and box.
 ## In this folder
 
 - `toolbar.tsx`: the toolbar, which the root route draws on every page,
-  and what it's doing: idle, picking or writing.
+  where Infra keeps what's filed, and what it's doing: idle, picking or
+  writing.
 - `pins.ts`: where it can be pinned, the nearest pin to where it's let go
   and where an arrow key moves it, and keeping the pin in localStorage.
 - `placement.ts`: dragging it by its handle, and the glide to its pin.

@@ -80,8 +80,8 @@ work. A test key's logins have none.
 
 ## Comments: `fileComment`
 
-Whoever's logged in gets the toolbar on every page
-(`frontend/components/toolbar/`): they click an element and write what
+Whoever's logged in gets the toolbar on every page, where Infra keeps
+what's filed (`frontend/components/toolbar/`): they click an element and write what
 should change, and the page posts it to the app's own `POST /api/comments`
 (`backend/comments/routes.ts`), behind `loggedIn`, so a visitor can't file
 one. The server adds who they are and calls
@@ -127,6 +127,14 @@ about the app as it is on someone's computer. The stand-in checks a
 comment as Infra does, keeps none, and in a dev server logs each. A
 comment is never sent again: one sent twice is kept twice, so the page
 keeps what was written and the person saves it again.
+
+**So the toolbar shows only where the server calls Infra itself.** It
+asks `GET /api/comments/board` first (`backend/comments/board.ts`), which
+answers the project the key is for, in its mode, by `project()`, Infra's
+`GET /v1/project`, asked once and again a minute after a failure; or
+nowhere, and why: on the stand-in (`context.var.infra_using`, "Keys",
+below), with no key, with a key Infra refuses, or with an Infra that
+doesn't answer, in Infra's words or the package's.
 
 ## Claude: `passOAuth`, `checkAgentToken` and the connections
 
@@ -181,7 +189,9 @@ once as it's made:
 A test key's comments are kept, marked as a test's.
 
 Which one the server uses is decided once, as it starts (`appInfra()` in
-`index.ts`, by the package's `chooseInfra`):
+`index.ts`, by the package's `chooseInfra`), and every route can tell
+which, from `context.var.infra_using` (`appInfraUsing()`): `"secret
+key"`, `"test key"`, `"stand-in"` or `"nothing"`:
 
 - **A build** (production, `pnpm preview`) takes only a secret key.
   Without one, or with a test key in its place, every login answers 503
@@ -193,9 +203,11 @@ Which one the server uses is decided once, as it starts (`appInfra()` in
   its own reads its main checkout's, so the key is set once per computer.
 - **A dev server with no test key**, as right after a clone, uses the
   stand-in (the package's `standInInfra`): Infra's test mode in memory,
-  with nothing to set up. Logging in works the same, without Infra.
+  with nothing to set up. Logging in works the same, without Infra, but
+  the toolbar doesn't show, since nothing keeps a comment.
 - **The tests** always use the stand-in (`backend/tests/support/api.ts`),
-  so they never reach Infra.
+  so they never reach Infra, and say so (`infra_using`); a test of what a
+  key changes gives its own (`testApi({ infra, infra_using: "test key" })`).
 
 A build always calls Infra at its own address. Only a dev server reads
 `INFRA_URL`, which points it at another Infra's address. A copy never
@@ -203,7 +215,8 @@ needs it.
 
 ## In this folder
 
-- `index.ts`: `appInfra()`, the server's Infra, and what the rest of the
+- `index.ts`: `appInfra()`, the server's Infra, `appInfraUsing()`, which
+  one it is, and what the rest of the
   app uses of `@superforge/infra`: `Infra` and its results, the stand-in
   and `standInAgentToken` for the tests, `requestOrigin`, `APP_PATHS` and
   `OAUTH_CALLS` for Claude's login, and `infraClient`. Everything else,

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
 import {
     CheckIcon,
@@ -21,6 +22,7 @@ import {
     PopoverTrigger
 } from "@/frontend/components/primitives/popover"
 import { useSession } from "@/frontend/queries/auth"
+import { commentBoardQuery } from "@/frontend/queries/comments"
 import type { CommentedElement } from "@/utilities/schemas/comments"
 import { Composer } from "./composer"
 import { describeElement } from "./describe"
@@ -30,7 +32,8 @@ import { PIN_NAMES } from "./pins"
 import { usePlacement } from "./placement"
 
 // The toolbar on every page for the business's own people, listed in code
-// (backend/auth/access.ts), on a computer with a mouse: Comment picks an element, and what's written about it goes to
+// (backend/auth/access.ts), on a computer with a mouse, wherever Infra
+// keeps what they file: Comment picks an element, and what's written about it goes to
 // Superforge Infra through the app's own /api/comments, for Claude to fix
 // later. Its handle moves it to the middle of the bottom or a corner.
 // README.md here has what a comment carries and what it never does.
@@ -55,13 +58,18 @@ const SAVED_FOR = 2500
 /**
  * The toolbar, for the team, drawn by the root route on every page, on a
  * computer with a mouse: picking an element by touch is fiddly, and on a
- * phone the toolbar covers too much. Nothing for a visitor, nor in the
- * prerender, which draws every page for a visitor.
+ * phone the toolbar covers too much. Only where something keeps what's
+ * filed, which the server says once a page (`commentBoardQuery`): Infra
+ * itself, called with the server's key, and never its stand-in, which
+ * only logs a comment, nor a server that can't reach Infra. Nothing for a
+ * visitor, nor in the prerender, which draws every page for a visitor.
  */
 export function Toolbar() {
     const session = useSession()
     const mouse = useMouse()
-    if (session.status === "logged-in" && mouse) {
+    const asking = session.status === "logged-in" && mouse
+    const board = useQuery({ ...commentBoardQuery, enabled: asking })
+    if (asking && board.data !== undefined && board.data !== null) {
         return <LoggedInToolbar />
     } else {
         return null
