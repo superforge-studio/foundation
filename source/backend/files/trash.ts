@@ -162,7 +162,8 @@ export async function listTrash(database: Database) {
  * Deletes for good what's been in Trash for `TRASH_DAYS`, and uploads that
  * never finished in a day: each file's bytes from the bucket first, then
  * its row, so a failure part way leaves rows to try again with, never rows
- * whose bytes are gone. Answers how many files went.
+ * whose bytes are gone. At most 5,000 files a run, the rest left for the
+ * next, with their folders. Answers how many files went.
  */
 export async function emptyExpired(database: Database, storage: Storage) {
     const before = fromNow(-TRASH_DAYS * DAY)
@@ -199,14 +200,27 @@ export async function emptyExpired(database: Database, storage: Storage) {
             )
         )
 
-    const going = [...in_expired, ...expired_files, ...unfinished].map(
-        (file) => file.id
-    )
-    for (const file_id of going) {
-        await storage.files.delete({ file_id })
+    // At most `MOST_A_RUN` files a run, each's bytes then the rows a
+    // thousand at a time, so no statement names more ids than Postgres
+    // takes; what's left waits for the next run, and the folders with it,
+    // since a folder's row can't go while a file's row is in it
+    const all = [
+        ...new Set(
+            [...in_expired, ...expired_files, ...unfinished].map(
+                (file) => file.id
+            )
+        )
+    ]
+    const going = all.slice(0, MOST_A_RUN)
+    for (let first = 0; first < going.length; first += ROWS_A_DELETE) {
+        const batch = going.slice(first, first + ROWS_A_DELETE)
+        for (const file_id of batch) {
+            await storage.files.delete({ file_id })
+        }
+        await database.delete(files).where(inArray(files.id, batch))
     }
-    if (going.length > 0) {
-        await database.delete(files).where(inArray(files.id, going))
+    if (all.length > going.length) {
+        return going.length
     }
     if (expired_folders.length > 0) {
         // Each folder inside one goes with it (`on delete cascade`)
@@ -219,6 +233,11 @@ export async function emptyExpired(database: Database, storage: Storage) {
     }
     return going.length
 }
+
+// The most files one run of emptying deletes, and how many rows each of
+// its deletes names
+const MOST_A_RUN = 5000
+const ROWS_A_DELETE = 1000
 
 // `folder_ids` and every folder inside them, however deep, a level at a time
 async function foldersUnder(database: Database, folder_ids: string[]) {

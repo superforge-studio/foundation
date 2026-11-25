@@ -15,6 +15,9 @@ test("your name and role are the ones you're listed with, which the session says
     const { cookie } = await logInAs(api, "ada@example.com")
     const headers = { headers: { cookie } }
     const session = await api.client.api.auth.session.$get({}, headers)
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect((await session.json()).user).toMatchObject({
         name: "Ada Example",
         first_name: "Ada",
@@ -109,5 +112,8 @@ test("logs out everywhere else, keeping this browser", async () => {
         {},
         { headers: { cookie: here.cookie } }
     )
+    if (still.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect((await still.json()).user?.email).toBe("maria@example.com")
 })

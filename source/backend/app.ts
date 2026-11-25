@@ -35,7 +35,7 @@ export const appRoutes = new Hono<ApiEnvironment>()
 /**
  * Whether a form on another site may post to this route: none may, as the
  * template ships, since a form carries the visitor's cookies (./index.ts,
- * `csrf()`). One that must take one, like the address a mail app posts a
+ * `refuseOtherSites`). One that must take one, like the address a mail app posts a
  * one-click unsubscribe to, is named here by its method and path, and
  * checks who's asking some other way.
  */

@@ -289,7 +289,9 @@ function MakeTokenForm({
     const make = useMutation(makeApiToken)
     const [name, setName] = useState("")
     const [access, setAccess] = useState<Access>("read")
-    const [lifetime, setLifetime] = useState<ApiTokenLifetime | null>(null)
+    // 90 days unless they choose otherwise, so a token someone forgets
+    // about runs out; "Never" is still a choice
+    const [lifetime, setLifetime] = useState<ApiTokenLifetime | null>(90)
     const [invalid, setInvalid] = useState(false)
 
     function submit(event: SubmitEvent<HTMLFormElement>) {

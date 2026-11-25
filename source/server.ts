@@ -86,13 +86,16 @@ function pageRoute(pathname: string) {
 // workbench/writing-code.md), so nothing of Start's needs another method.
 function refuseForPage(request: Request) {
     logMiss(request, 405)
-    return new Response("This address takes only GET and HEAD\n", {
-        status: 405,
-        headers: {
-            Allow: "GET, HEAD",
-            "Content-Type": "text/plain; charset=utf-8"
-        }
-    })
+    // In the one shape every failure takes (utilities/schemas/failures.ts)
+    return Response.json(
+        {
+            error: {
+                reason: "method-not-allowed",
+                message: "This address takes only GET and HEAD"
+            }
+        },
+        { status: 405, headers: { Allow: "GET, HEAD" } }
+    )
 }
 
 // What answers, with each request it misses and each one that fails logged

@@ -235,7 +235,10 @@ export function json<Body>(schema: z.ZodType<Body>): Format<Body> {
     }
 }
 
-/** Text, like an email's HTML, of one content type (`text/html; charset=utf-8`). */
+/**
+ * Text, like an email's HTML, of one content type (`text/html; charset=utf-8`).
+ * No kind of the template's is text: it's the kit's, for a copy's own kinds.
+ */
 export function text(content_type: string): Format<string> {
     return {
         content_type,

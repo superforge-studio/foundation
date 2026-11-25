@@ -6,6 +6,7 @@ import {
     trace
 } from "@opentelemetry/api"
 import { ATTR_HTTP_ROUTE } from "@opentelemetry/semantic-conventions"
+import { DrizzleQueryError } from "drizzle-orm/errors"
 import type { Context, MiddlewareHandler } from "hono"
 import { routePath } from "hono/route"
 
@@ -125,8 +126,30 @@ export const traceRoutes: MiddlewareHandler = async (hono, next) => {
 export function recordError(error: unknown) {
     const span = trace.getActiveSpan()
     if (span !== undefined) {
-        markFailed(span, error)
+        markFailed(span, withoutValues(error))
     }
+}
+
+/**
+ * An error as it's safe to log or keep: a failed query (Drizzle's
+ * `DrizzleQueryError`, whose message and `params` hold every value the
+ * query was sent, like an email address or a webhook's body) becomes its
+ * statement and what Postgres said, with its code; anything else is
+ * itself.
+ */
+export function withoutValues(error: unknown): unknown {
+    if (!(error instanceof DrizzleQueryError)) {
+        return error
+    }
+    const cause = error.cause
+    const said = cause instanceof Error ? cause.message : "The query failed"
+    const kept = new Error(`Failed query: ${error.query}\n${said}`)
+    kept.name = "DrizzleQueryError"
+    if (cause instanceof Error && "code" in cause) {
+        Object.assign(kept, { code: cause.code })
+    }
+    kept.stack = `${kept.name}: ${kept.message}`
+    return kept
 }
 
 function markFailed(span: Span, error: unknown) {

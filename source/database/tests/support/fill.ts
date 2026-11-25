@@ -4,6 +4,7 @@ import { getTableConfig, PgTable } from "drizzle-orm/pg-core"
 import type pg from "pg"
 import { z } from "zod"
 import * as schema from "../../schema"
+import { APP_SAMPLES } from "./app"
 
 // Sample rows in every table of a database, whatever version of the schema
 // it's at, read from Postgres's catalog rather than from schema.ts: the
@@ -164,8 +165,14 @@ function setValue(
     }
 }
 
-// A value of the column's type: the `variant`th of its kind
+// A value of the column's type: the `variant`th of its kind, the app's own
+// sample first, by its column or its type (./app.ts)
 function sample(table: string, column: Column, variant: number) {
+    const own =
+        APP_SAMPLES[`${table}.${column.name}`] ?? APP_SAMPLES[column.type]
+    if (own !== undefined) {
+        return own(variant)
+    }
     const listed = column.listed ?? enumValues(table, column.name)
     if (listed !== undefined && column.type === "_text") {
         // A list column whose check names what it may hold, like a token's

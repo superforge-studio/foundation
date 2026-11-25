@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isStorable } from "./text"
 // Relative, since drizzle-kit reads this file through schema.ts, without
 // the app's `@/` paths
 
@@ -28,6 +29,7 @@ export const item_name = z
     .min(1, "Give it a name")
     .max(255, "That name is too long")
     .refine((name) => !name.includes("/"), "A name can't have a slash")
+    .refine(isStorable, "A name can't have that character")
 
 /** A folder's ID, and a file's. */
 export const folder_id = z.uuid()

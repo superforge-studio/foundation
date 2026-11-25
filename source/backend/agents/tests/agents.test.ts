@@ -155,7 +155,8 @@ describe("Claude's token", () => {
         const token = await standInAgentToken({
             user_id: await userIdOf(setup, ADA),
             resource: RESOURCE,
-            expires_in: "0s"
+            // Past the few seconds of leeway a clock is given
+            expires_in: "1 minute ago"
         })
         const response = await setup.api.request("http://localhost/api/users", {
             headers: { Authorization: `Bearer ${token}` }
@@ -177,6 +178,68 @@ describe("Claude's token", () => {
         expect((await change.json()).error.reason).toBe("read-only")
     })
 
+    test("is refused when it names no scope the app knows", async () => {
+        const setup = await testApi()
+        await logInAs(setup, ADA)
+        const none = await asClaude(setup, "/api/users", { scopes: [] })
+        expect(none.status).toBe(401)
+    })
+
+    test("is refused, with no call to Infra, when it isn't a JWT at all", async () => {
+        const checked: string[] = []
+        const infra: Infra = {
+            ...standInInfra(),
+            checkAgentToken: async (token) => {
+                checked.push(token)
+                return {
+                    ok: false,
+                    error: { reason: "invalid-token", message: "No" }
+                }
+            }
+        }
+        const setup = await testApi({ infra })
+        const response = await setup.api.request("http://localhost/api/users", {
+            headers: { Authorization: "Bearer junk" }
+        })
+        expect(response.status).toBe(401)
+        expect(checked).toEqual([])
+    })
+
+    test("is answered 503, not 401, when Infra's keys can't be fetched to check it", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const infra: Infra = {
+            ...standInInfra(),
+            checkAgentToken: async () => ({
+                ok: false,
+                error: { reason: "unavailable", message: "Infra is down" }
+            })
+        }
+        const setup = await testApi({ infra })
+        const token = "aaa.bbb.ccc"
+        for (const path of ["/api/users", "/api/auth/session"]) {
+            const response = await setup.api.request(
+                `http://localhost${path}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            )
+            expect(response.status).toBe(503)
+            expect((await response.json()).error.reason).toBe("unavailable")
+        }
+        const mcp = mcpWith(setup.api)
+        const answered = await mcp.request("http://localhost/admin/mcp", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "content-type": "application/json",
+                accept: "application/json, text/event-stream"
+            },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" })
+        })
+        expect(answered.status).toBe(503)
+        expect(answered.headers.get("www-authenticate")).toBeNull()
+    })
+
     test("can't touch who logs in, or where", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
@@ -195,6 +258,19 @@ describe("the Allow page and the Connected list", () => {
         const ended: string[] = []
         const infra: Infra = {
             ...standInInfra(),
+            agentRequest: async (request_id) => ({
+                ok: true,
+                data: {
+                    id: request_id,
+                    client_name: "Claude",
+                    scopes: ["read", "act"],
+                    resource:
+                        request_id === ANOTHER_MCPS
+                            ? "http://localhost/mcp"
+                            : RESOURCE,
+                    expires_at: new Date(Date.now() + 60_000)
+                }
+            }),
             allowAgent: async (request_id, { user_id }) => {
                 allowed.push({ request_id, user_id })
                 return {
@@ -224,6 +300,26 @@ describe("the Allow page and the Connected list", () => {
         return { infra, allowed, ended }
     }
     const REQUEST = "0f3b2c1d-9e8a-4b7c-8d6e-5f4a3b2c1d0e"
+    // A request for another MCP on the same origin, as a copy's customers'
+    const ANOTHER_MCPS = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+
+    test("a request for another address than the team's MCP isn't the team's to allow", async () => {
+        const { infra, allowed } = recordingInfra()
+        const setup = await testApi({ infra })
+        const ada = await logInAs(setup, ADA)
+        const headers = { headers: { Cookie: ada.cookie } }
+        const shown = await setup.client.api.connect[":request_id"].$get(
+            { param: { request_id: ANOTHER_MCPS } },
+            headers
+        )
+        expect(shown.status).toBe(404)
+        const allow = await setup.client.api.connect[":request_id"].allow.$post(
+            { param: { request_id: ANOTHER_MCPS }, json: { scopes: ["read"] } },
+            headers
+        )
+        expect(allow.status).toBe(404)
+        expect(allowed).toEqual([])
+    })
 
     test("someone on the team allows it, as themselves", async () => {
         const { infra, allowed } = recordingInfra()
@@ -288,10 +384,10 @@ describe("where Claude logs in", () => {
             authorization_servers: ["http://localhost:3000"]
         })
         const live = await oauth.request(
-            "http://vmdsystem.com/.well-known/oauth-protected-resource/admin/mcp"
+            "http://example.com/.well-known/oauth-protected-resource/admin/mcp"
         )
         expect((await live.json()).resource).toBe(
-            "https://vmdsystem.com/admin/mcp"
+            "https://example.com/admin/mcp"
         )
     })
 
@@ -307,13 +403,13 @@ describe("where Claude logs in", () => {
         })
         const oauth = oauthWith(() => infra)
         const response = await oauth.request(
-            "http://vmdsystem.com/.well-known/oauth-authorization-server"
+            "http://example.com/.well-known/oauth-authorization-server"
         )
         expect(response.status).toBe(200)
         expect(await response.json()).toMatchObject({
-            issuer: "https://vmdsystem.com",
-            authorization_endpoint: "https://vmdsystem.com/oauth/authorize",
-            token_endpoint: "https://vmdsystem.com/oauth/token",
+            issuer: "https://example.com",
+            authorization_endpoint: "https://example.com/oauth/authorize",
+            token_endpoint: "https://example.com/oauth/token",
             scopes_supported: ["read", "act"]
         })
         expect(sent).toEqual([])
@@ -332,11 +428,11 @@ describe("where Claude logs in", () => {
         })
         const oauth = oauthWith(() => infra)
         const response = await oauth.request(
-            "http://vmdsystem.com/oauth/authorize?client_id=c&state=s"
+            "http://example.com/oauth/authorize?client_id=c&state=s"
         )
         expect(response.status).toBe(302)
         expect(response.headers.get("location")).toBe(
-            `https://vmdsystem.com/connect/${request_id}`
+            `https://example.com/connect/${request_id}`
         )
         const [call] = sent
         expect(call?.url).toBe(
@@ -345,10 +441,32 @@ describe("where Claude logs in", () => {
         expect(call?.headers.get("authorization")).toBe(
             `Bearer sf_secret_${"a".repeat(32)}`
         )
-        expect(call?.headers.get("app-origin")).toBe("https://vmdsystem.com")
+        expect(call?.headers.get("app-origin")).toBe("https://example.com")
 
-        const unknown = await oauth.request("http://vmdsystem.com/oauth/other")
+        const unknown = await oauth.request("http://example.com/oauth/other")
         expect(unknown.status).toBe(404)
+        expect((await unknown.json()).error.reason).toBe("not-found")
+    })
+
+    test("an OAuth call's body is a few kilobytes at most, never sent on", async () => {
+        const sent: Request[] = []
+        const infra = infraClient({
+            key: `sf_secret_${"a".repeat(32)}`,
+            url: "https://infra.example/v1",
+            send: async (input, init) => {
+                sent.push(new Request(input, init))
+                return Response.json({})
+            }
+        })
+        const oauth = oauthWith(() => infra)
+        const response = await oauth.request("http://example.com/oauth/token", {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: "a".repeat(64 * 1024)
+        })
+        expect(response.status).toBe(413)
+        expect((await response.json()).error.reason).toBe("too-large")
+        expect(sent).toEqual([])
     })
 })
 
@@ -368,6 +486,7 @@ describe("the MCP", () => {
         expect(response.headers.get("www-authenticate")).toBe(
             'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource/admin/mcp"'
         )
+        expect((await response.json()).error.reason).toBe("logged-out")
     })
 
     test("answers under /admin, leaving /mcp for a customer MCP", async () => {
@@ -409,7 +528,11 @@ describe("the MCP", () => {
         const routes = text(await client.callTool({ name: "list_routes" }))
         expect(routes).toContain("GET /api/users (team: read)")
         expect(routes).toContain("POST /api/jobs/:name (jobs: write)")
-        expect(routes).toContain("GET /api/account/sessions")
+        expect(routes).toContain("GET /api/auth/session")
+        // What only a browser may call, or anyone may, isn't offered
+        expect(routes).not.toContain("GET /api/account/sessions")
+        expect(routes).not.toContain("POST /api/auth/start")
+        expect(routes).not.toContain("/api/webhooks")
 
         const users = await client.callTool({
             name: "call_api",
@@ -453,6 +576,43 @@ describe("the MCP", () => {
         expect(routes).toContain("GET /api/workflows/runs (workflows: read)")
         expect(routes).not.toContain("/api/users")
         expect(routes).not.toContain("/api/workflows/runs/:id/retry")
+        await client.close()
+    })
+
+    test("a connection that may only read makes GET requests alone", async () => {
+        const setup = await testApi()
+        await logInAs(setup, ADA)
+        const token = await standInAgentToken({
+            user_id: await userIdOf(setup, ADA),
+            resource: RESOURCE,
+            scopes: ["read"]
+        })
+        const mcp = mcpWith(setup.api)
+        const client = new Client({ name: "test", version: "1.0.0" })
+        await client.connect(
+            new StreamableHTTPClientTransport(
+                new URL("http://localhost/admin/mcp"),
+                {
+                    fetch: async (url, init) => await mcp.request(url, init),
+                    requestInit: {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                }
+            )
+        )
+        const started = await client.callTool({
+            name: "call_api",
+            arguments: {
+                method: "POST",
+                path: "/api/auth/start",
+                body: { email: ADA }
+            }
+        })
+        expect(started.isError).toBe(true)
+        const said = (Array.isArray(started.content) ? started.content : [])
+            .map((part: { text?: string }) => part.text ?? "")
+            .join("\n")
+        expect(said).toMatch(/^403/)
         await client.close()
     })
 })

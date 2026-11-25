@@ -1,4 +1,5 @@
 import { expect, test } from "vitest"
+import { APP_SAMPLES } from "./support/app"
 import { testDatabase } from "./support/database"
 import { fill } from "./support/fill"
 
@@ -36,6 +37,28 @@ test("fill() meets a check for one column after another, and one for at least on
         expect(filled.sample_visits).toBe(3)
         expect(filled.sample_notes).toBe(3)
     } finally {
+        client.release()
+    }
+})
+
+test("fill() takes the app's own sample for a type or a check it can't read", async () => {
+    const database = await testDatabase()
+    const client = await database.$client.connect()
+    APP_SAMPLES["sample_codes.code"] = (variant) => `AB-${100 + variant}`
+    APP_SAMPLES.interval = (variant) => `${variant} days`
+    try {
+        await client.query(`
+            create table sample_codes (
+                id uuid primary key default gen_random_uuid(),
+                code text not null unique check (code ~ '^[A-Z]{2}-[0-9]{3}$'),
+                lasts interval not null
+            )
+        `)
+        const filled = await fill(client)
+        expect(filled.sample_codes).toBe(3)
+    } finally {
+        delete APP_SAMPLES["sample_codes.code"]
+        delete APP_SAMPLES.interval
         client.release()
     }
 })

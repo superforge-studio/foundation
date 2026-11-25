@@ -35,11 +35,14 @@ each may be. The pages call them through `frontend/queries/auth.ts`, whose
 2. **Who may.** `mayLogIn` (`login.ts`) looks the address up in
    `context.var.access`, and only one the team doesn't have is asked of
    `OTHERS.mayLogIn` (below). Anyone else is refused here, before Infra is
-   asked, so nothing is emailed to a stranger.
+   asked, so nothing is emailed to a stranger. Before either, each start
+   is counted per network, 20 an hour (`countAttempt`,
+   `rate-limits/count.ts`), so no one can walk a list of addresses to
+   learn who's on the team.
 3. **The email.** `context.var.infra.startLogin`, with the address, the
    visitor's IP address (`visitorIp`, from Railway's `X-Real-IP`), which
    Infra's limits count by, and `link_to`, this request's own origin with
-   `/login`. Infra emails a six-digit code, and a link to
+   `/login`. Infra emails a code, six digits today, and a link to
    `/login#<token>` when that origin is one of the project's domains, or
    localhost. The route answers the address as Infra keeps it, whether
    the email holds a link, and when the two stop working.
@@ -64,8 +67,9 @@ each may be. The pages call them through `frontend/queries/auth.ts`, whose
 
 | Route         | Status | `reason`       | When                                                             | Beside the message                             |
 | ------------- | ------ | -------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
-| start, verify | 400    | `invalid`      | The body isn't an address, a six-digit code or a link's token    | `issues`                                       |
+| start, verify | 400    | `invalid`      | The body isn't an address, a code (4 to 12 digits) or a token    | `issues`                                       |
 | start         | 403    | `not-listed`   | The address isn't the team's, and nothing else lets it in        |                                                |
+| start         | 429    | `too-many`     | 20 starts from one network in the hour, listed or not            | `retry_after`, a `Retry-After` header          |
 | start         | 429    | `rate-limited` | One of Infra's limits                                            | `retry_after`, `limit`, a `Retry-After` header |
 | start         | 502    | `not-sent`     | The email didn't go out, and nothing was counted                 | `cause`, for the team                          |
 | start, verify | 503    | `unavailable`  | Infra refused the key, didn't answer, or answered something else | `cause`, for the team                          |
@@ -178,12 +182,12 @@ or is listed in `ANYONE`, which a test holds it to; "A route that needs
 the user" in `workbench/writing-code.md` says which. Nothing else decides
 who a request is from.
 
-| Check                     | Lets through                                                                                 | Puts on `context.var`                                        | Refuses with                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `permitted(area, level?)` | Someone whose role reaches the level in the area; with a token, only as far as its scopes do | `user`, `session`, `logged_in_with`, `scopes`, `permissions` | 401 `logged-out`, 403 `not-permitted` with `area` and `level`, 403 `read-only` |
-| `loggedIn`                | Anyone on the team                                                                           | The same five                                                | 401 `logged-out`, 403 `read-only`                                              |
-| `maybeLoggedIn`           | Everyone                                                                                     | `user` and `permissions`, each null for a visitor            | Nothing                                                                        |
-| `inBrowser`               | After one of the first two, only a browser's session                                         | Nothing                                                      | 403 `browser-only`                                                             |
+| Check                     | Lets through                                                                                 | Puts on `context.var`                                        | Refuses with                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `permitted(area, level?)` | Someone whose role reaches the level in the area; with a token, only as far as its scopes do | `user`, `session`, `logged_in_with`, `scopes`, `permissions` | 401 `logged-out`, 403 `not-permitted` with `area` and `level`, 403 `read-only`, 503 `unavailable` |
+| `loggedIn`                | Anyone on the team                                                                           | The same five                                                | 401 `logged-out`, 403 `read-only`, 503 `unavailable`                                              |
+| `maybeLoggedIn`           | Everyone                                                                                     | `user`, `permissions` and `scopes`, each null for a visitor  | 503 `unavailable`, for a token alone                                                              |
+| `inBrowser`               | After one of the first two, only a browser's session                                         | Nothing                                                      | 403 `browser-only`                                                                                |
 
 - **Who's asking is worked out the same way for all of them**
   (`whoIsAsking`). An `Authorization: Bearer` header comes first: a token
@@ -204,12 +208,19 @@ who a request is from.
   the lower of the role's and what it was given, area by area
   (`permissionsFor`).
 - **`loggedIn` holds a token to its scopes by the method alone**: with
-  only `read`, a token makes `GET` and `HEAD` requests (`mayDo`).
+  only `read`, a token makes `GET` and `HEAD` requests (`mayDo`). A token
+  that names neither `read` nor `act` may do nothing: Claude's is refused
+  as nobody's (`agentUser`), and any other gets `none` in every area.
+- **Claude's token that can't be checked is 503 `unavailable`**, with a
+  `Retry-After`, never 401: when Infra's public keys can't be fetched, it
+  isn't the token's fault, and a 401 would tell Claude to drop a good
+  connection. A bearer that isn't a JWT's three parts is nobody's before
+  Infra is asked.
 - **`maybeLoggedIn` refuses nothing, and holds a token to its scopes as
   `loggedIn` does**: a token with only `read`, sent with anything but a
   `GET` or a `HEAD`, is nobody's, so the route answers it as it answers a
   visitor, as recording a visit does, never as its person. It sets no
-  `session`, `logged_in_with` or `scopes`.
+  `session` or `logged_in_with`; `scopes` is null for a visitor.
 - **`inBrowser` is for what a token must never do**: see where someone is
   logged in or log a browser out, see Claude's connections, end one or
   allow Claude in, and make, list or revoke API tokens. So a token that
@@ -340,3 +351,17 @@ its dry run.
 - `visitor.ts`: what's read of a request: `visitorIp`, `visitorBrowser`,
   `visitorUserAgent` and `appOrigin`, which the analytics and the
   comments read too.
+
+## Decisions left open
+
+- **A session renews for good** with the same token, while it's used
+  within 30 days: there's no longest life past which someone logs in
+  again.
+- **An owner can't see or end another person's** sessions, API tokens or
+  Claude's connections, short of taking them off the list in
+  `access.ts` and deploying, which ends every one of them.
+- **Whether `/auth/start` says an address isn't on the team.** It does
+  (403 `not-listed`, which the login page shows in the same words), counted
+  per network so a list can't be walked. Answering every well-formed
+  address alike, and emailing only the team, would keep membership
+  private at the cost of a stranger never learning why no email came.

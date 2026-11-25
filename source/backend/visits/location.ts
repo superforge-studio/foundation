@@ -26,6 +26,13 @@ import { HOUR, WEEK } from "@/utilities/primitives/durations"
 
 const unzip = promisify(gunzip)
 
+// The most a download, and what it unzips to, may be: about three times
+// the largest database's (the table above), so a month that grows still
+// loads, and a file that's wrong, or never ends, is refused rather than
+// filling the server's memory
+const LARGEST_DOWNLOAD = 200 * 1024 * 1024
+const LARGEST_UNZIPPED = 400 * 1024 * 1024
+
 /** The databases the server can place a visitor with (the table above). */
 export const LOCATION_DATABASES = [
     "dbip-country-lite",
@@ -106,13 +113,16 @@ export function locator({
     database,
     send = fetch,
     now = Date.now,
-    open = (file) => new Reader<CityResponse>(file)
+    open = (file) => new Reader<CityResponse>(file),
+    largest = { download: LARGEST_DOWNLOAD, unzipped: LARGEST_UNZIPPED }
 }: {
     /** Which to load, or null to load none and place no one */
     database: LocationDatabase | null
     send?: typeof fetch
     now?: () => number
     open?: (file: Buffer) => OpenDatabase
+    /** The most a download, and what it unzips to, may be, in bytes */
+    largest?: { download: number; unzipped: number }
 }) {
     // The database once loaded, and when; and when a load was last tried,
     // so a failing download is tried again at most once an hour
@@ -138,7 +148,8 @@ export function locator({
                 const response = await send(address)
                 if (response.ok) {
                     const file = await unzip(
-                        Buffer.from(await response.arrayBuffer())
+                        await capped(response, largest.download),
+                        { maxOutputLength: largest.unzipped }
                     )
                     loaded = { reader: open(file), at: now() }
                     console.info("The location database is loaded", {
@@ -215,6 +226,27 @@ export function locator({
         /** The load in flight, if there is one: for a test to wait on */
         loading: () => loading
     }
+}
+
+// A response's body, read no further than `most` bytes, which it throws
+// past
+async function capped(response: Response, most: number) {
+    const reader = response.body?.getReader()
+    const chunks: Uint8Array[] = []
+    let size = 0
+    while (reader !== undefined) {
+        const { done, value } = await reader.read()
+        if (done) {
+            break
+        }
+        size += value.length
+        if (size > most) {
+            await reader.cancel()
+            throw new Error(`The download is larger than ${most} bytes`)
+        }
+        chunks.push(value)
+    }
+    return Buffer.concat(chunks)
 }
 
 let shared: ReturnType<typeof locator> | undefined

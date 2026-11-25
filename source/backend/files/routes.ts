@@ -258,25 +258,36 @@ export const fileRoutes = new Hono<ApiEnvironment>()
 
     // A file's bytes, to the server itself: where a dev server, whose
     // folder can't sign a form, sends an upload. Where the bucket can sign
-    // one, as in a build, an upload goes straight to it, and this is 404
+    // one, as in a build, an upload goes straight to it, and this is 404.
+    // Who's asking, and whether there's an upload to take, are checked
+    // before the body is read, so no one can make the server hold one for
+    // nothing; the API's own limit doesn't reach this route (index.ts)
     .put(
         "/files/uploads/:file_id",
+        permitted("files"),
+        validated("param", file_path),
+        async (context, next) => {
+            const { file_id } = context.req.valid("param")
+            const upload = await uploadTaken(context.var, file_id)
+            if (upload === null) {
+                return failure(
+                    context,
+                    404,
+                    "not-found",
+                    "No such upload under way"
+                )
+            } else {
+                await next()
+            }
+        },
         bodyLimit({
             maxSize: LARGEST_FILE,
             onError: (context) =>
                 failure(context, 413, "too-large", "A file is at most 100 MB")
         }),
-        permitted("files"),
-        validated("param", file_path),
         async (context) => {
             const { file_id } = context.req.valid("param")
-            const signs = await context.var.storage.files.presignPost(
-                { file_id },
-                { seconds: UPLOAD_FORM_SECONDS, max_bytes: 1 }
-            )
-            const upload = signs.ok
-                ? null
-                : await findUpload(context.var.database, file_id)
+            const upload = await uploadTaken(context.var, file_id)
             if (upload === null) {
                 return failure(
                     context,
@@ -552,4 +563,18 @@ function keptKind<Kind extends { folder: string; shown: { access: string } }>(
     return kinds.find(
         (kind) => kind.folder === folder && kind.shown.access === "locked"
     )
+}
+
+// The upload under way for `file_id` that the server itself takes the bytes
+// of, or null: none where the bucket can sign a form, as in a build, whose
+// uploads go straight to it
+async function uploadTaken(
+    { storage, database }: ApiEnvironment["Variables"],
+    file_id: string
+) {
+    const signs = await storage.files.presignPost(
+        { file_id },
+        { seconds: UPLOAD_FORM_SECONDS, max_bytes: 1 }
+    )
+    return signs.ok ? null : await findUpload(database, file_id)
 }

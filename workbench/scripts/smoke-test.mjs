@@ -11,7 +11,8 @@
 //   4. every prerendered page answers 200, the build's hashed files, /api
 //      and the admin, drawn on request, answer with the cache headers
 //      source/node.ts promises, a path that isn't a page answers 404, and
-//      a POST to a page 405, and pages' heads credit the Superforge
+//      a POST to a page 405, every answer has its security headers, and
+//      pages' heads credit the Superforge
 //      template the site was built on (source/utilities/template.ts)
 //   5. its workflows launched: DBOS registers the app's queues in its own
 //      tables once it has (source/backend/workflows/engine.ts)
@@ -134,6 +135,14 @@ try {
     // A page sent a POST, like a webhook given the site's address, is
     // refused, not drawn and answered 200 (source/server.ts)
     await expectPostRefused(base, "/")
+    // The security headers, on a prerendered page, a page drawn on
+    // request, a built file and the API (source/node.ts)
+    for (const path of ["/", "/admin/workflows", "/api/health"]) {
+        await expectSecurityHeaders(base, path)
+    }
+    if (asset !== undefined) {
+        await expectSecurityHeaders(base, `/assets/${asset}`)
+    }
 
     // 5. The workflows, which launch once the server is listening
     await waitForWorkflows()
@@ -375,6 +384,27 @@ async function expectCredit(base, path) {
         )
     } else {
         console.info(`  ✓ ${path} credits ${credit[1]}`)
+    }
+}
+
+// An answer with the headers source/node.ts puts on every one
+async function expectSecurityHeaders(base, path) {
+    const response = await fetch(`${base}${path}`)
+    const expected = {
+        "content-security-policy": "frame-ancestors 'none'",
+        "x-frame-options": "DENY",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin"
+    }
+    const wrong = Object.entries(expected).filter(
+        ([name, value]) => response.headers.get(name) !== value
+    )
+    if (wrong.length > 0) {
+        problems.push(
+            `${path} is missing ${wrong.map(([name]) => name).join(", ")}`
+        )
+    } else {
+        console.info(`  ✓ ${path} has its security headers`)
     }
 }
 

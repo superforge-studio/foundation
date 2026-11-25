@@ -29,6 +29,17 @@ async function folder() {
 }
 
 describe("a dev server's storage", () => {
+    it("opens an empty file as an empty body", async () => {
+        const { storage } = await folder()
+        await storage.put("files/empty", new Uint8Array(), "text/plain")
+        const opened = await storage.open("files/empty")
+        if (!opened.ok) {
+            throw new Error("The empty file didn't open")
+        }
+        expect(opened.data.size).toBe(0)
+        expect(await new Response(opened.data.body).text()).toBe("")
+    })
+
     it("keeps each key as a file under its folder", async () => {
         const { storage, directory } = await folder()
 

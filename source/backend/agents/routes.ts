@@ -1,9 +1,10 @@
-import { Hono } from "hono"
+import { type Context, Hono } from "hono"
 import { z } from "zod"
-import { agent_allow } from "@/utilities/schemas/agents"
+import { agent_allow, MCP_PATH } from "@/utilities/schemas/agents"
 import { inBrowser, loggedIn } from "../auth/logged-in"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
+import { requestOrigin } from "../infra"
 
 // Claude connecting to the app's MCP, as the team sees it: the Allow page,
 // which shows what Claude asked for and sends the browser back to Claude
@@ -13,6 +14,32 @@ import { failure, validated } from "../failures"
 // themselves (`loggedIn`, `inBrowser`): a token can't allow another, or
 // see the connections. What Claude then may do is what both their role
 // and what they allowed let it (auth/logged-in.ts).
+
+// Whether a request Claude made is for this app's own MCP, at its origin
+// and `MCP_PATH`, the only address a token the team allows opens
+function forThisMcp(request_url: string, resource: string) {
+    return resource === `${requestOrigin(request_url)}${MCP_PATH}`
+}
+
+// Whether where Infra sends the browser back is a web address, the only
+// kind the Allow page goes to: Infra allows only Claude's own callback and
+// a loopback one, and this keeps a `javascript:` address off the page
+// whatever Infra answers
+function goesBackOverHttp(redirect_to: string) {
+    return ["https:", "http:"].includes(new URL(redirect_to).protocol)
+}
+
+function wrongRedirect(context: Context) {
+    console.error(
+        "Infra sent the Allow page somewhere that isn't a web address"
+    )
+    return failure(
+        context,
+        502,
+        "bad-redirect",
+        "Claude's login sent back an address the page can't go to"
+    )
+}
 
 const request_path = z.object({ request_id: z.uuid() })
 const connection_path = z.object({ connection_id: z.uuid() })
@@ -28,9 +55,9 @@ export const agentRoutes = new Hono<ApiEnvironment>()
         async (context) => {
             const { request_id } = context.req.valid("param")
             const asked = await context.var.infra.agentRequest(request_id)
-            if (asked.ok) {
+            if (asked.ok && forThisMcp(context.req.url, asked.data.resource)) {
                 return context.json({ request: asked.data }, 200)
-            } else if (asked.error.reason === "unavailable") {
+            } else if (!asked.ok && asked.error.reason === "unavailable") {
                 return unavailable(context)
             } else {
                 return failure(
@@ -54,11 +81,31 @@ export const agentRoutes = new Hono<ApiEnvironment>()
         async (context) => {
             const { request_id } = context.req.valid("param")
             const { scopes } = context.req.valid("json")
+            // Only a request for the team's MCP is the team's to allow: one
+            // for any other address on the origin, like a customers' MCP a
+            // copy adds, is answered not found here, and is for whoever
+            // that MCP's people are to allow (auth/others.ts)
+            const asked = await context.var.infra.agentRequest(request_id)
+            if (!asked.ok && asked.error.reason === "unavailable") {
+                return unavailable(context)
+            } else if (
+                !asked.ok ||
+                !forThisMcp(context.req.url, asked.data.resource)
+            ) {
+                return failure(
+                    context,
+                    404,
+                    "not-found",
+                    "That request was allowed already, or has run out: ask Claude to connect again"
+                )
+            }
             const allowed = await context.var.infra.allowAgent(request_id, {
                 user_id: context.var.user.id,
                 scopes
             })
-            if (allowed.ok) {
+            if (allowed.ok && !goesBackOverHttp(allowed.data.redirect_to)) {
+                return wrongRedirect(context)
+            } else if (allowed.ok) {
                 console.info("Claude allowed in", {
                     user_id: context.var.user.id,
                     scopes
@@ -93,7 +140,9 @@ export const agentRoutes = new Hono<ApiEnvironment>()
         async (context) => {
             const { request_id } = context.req.valid("param")
             const denied = await context.var.infra.denyAgent(request_id)
-            if (denied.ok) {
+            if (denied.ok && !goesBackOverHttp(denied.data.redirect_to)) {
+                return wrongRedirect(context)
+            } else if (denied.ok) {
                 return context.json(denied.data, 200)
             } else if (denied.error.reason === "unavailable") {
                 return unavailable(context)

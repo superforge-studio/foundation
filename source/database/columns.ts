@@ -22,7 +22,10 @@ export function timestamp() {
     return postgresTimestamp({ withTimezone: true, precision: 3 })
 }
 
-/** A list of strings, empty rather than null. */
+/**
+ * A list of strings, empty rather than null. No table of the template's
+ * has one: it's the kit's, for a copy's own tables, as Skylevel's use it.
+ */
 export function textList() {
     return text().array().notNull().default(sql`'{}'::text[]`)
 }

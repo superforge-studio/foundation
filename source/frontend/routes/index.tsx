@@ -9,9 +9,11 @@ export const Route = createFileRoute("/")({
     component: Home
 })
 
-// The template's own home page: the app as a line, with the health check
-// running it, and what to do next. START-HERE.md's step 3 replaces this page
-// with the business's own, and deletes components/welcome/ with it.
+// The template's own home page: in a dev server, the app as a line, with
+// the health check running it, and what to do next; in a build, only that
+// the site is running, so a copy deployed before it has a home page of its
+// own tells no visitor how it's built. START-HERE.md's step 3 replaces this
+// page with the business's own, and deletes components/welcome/ with it.
 
 // Where the docs are, for the footer
 const DOCS = [
@@ -22,6 +24,24 @@ const DOCS = [
 ] as const
 
 function Home() {
+    return import.meta.env.DEV ? <LineHome /> : <Running />
+}
+
+// What a build shows, until the business's own home page replaces it
+function Running() {
+    return (
+        <main className="mx-auto flex min-h-svh max-w-2xl flex-col justify-center gap-3 px-5 py-10 sm:px-8">
+            <h1 className="text-balance font-heading font-semibold text-3xl tracking-tight">
+                This site is running.
+            </h1>
+            <p className="text-pretty text-muted-foreground leading-relaxed">
+                Its home page is on its way.
+            </p>
+        </main>
+    )
+}
+
+function LineHome() {
     return (
         <main className="mx-auto flex max-w-5xl flex-col gap-12 px-5 py-6 sm:px-8 sm:py-10">
             <header className="flex items-center justify-between gap-4">

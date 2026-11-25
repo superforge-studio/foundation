@@ -133,7 +133,9 @@ export const loggedIn = createFactory<LoggedIn>().createMiddleware(
     // is inferred into each route's type and the typed client knows it
     async (context, next) => {
         const asking = await whoIsAsking(context)
-        if (asking === undefined) {
+        if (asking === "unavailable") {
+            return uncheckable(context)
+        } else if (asking === undefined) {
             return failure(context, 401, "logged-out", "Log in first")
         } else if (!mayDo(context, asking)) {
             return readOnly(context, asking)
@@ -160,7 +162,9 @@ export function permitted(area: Area, level?: Exclude<Level, "none">) {
         async (context, next) => {
             const asking = await whoIsAsking(context)
             const needed = level ?? levelFor(context.req.method)
-            if (asking === undefined) {
+            if (asking === "unavailable") {
+                return uncheckable(context)
+            } else if (asking === undefined) {
                 return failure(context, 401, "logged-out", "Log in first")
             } else if (
                 !allows(
@@ -238,20 +242,27 @@ export const maybeLoggedIn = createFactory<{
     Variables: ApiEnvironment["Variables"] & {
         user: TeamMember | null
         permissions: Permissions | null
+        /** What the request was let do, as `loggedIn` sets it, or null */
+        scopes: readonly AgentScope[] | null
     }
 }>().createMiddleware(async (context, next) => {
     const asking = await whoIsAsking(context)
-    if (asking === undefined || !mayDo(context, asking)) {
+    if (asking === "unavailable") {
+        return uncheckable(context)
+    } else if (asking === undefined || !mayDo(context, asking)) {
         context.set("user", null)
         context.set("permissions", null)
+        context.set("scopes", null)
         await next()
     } else if (asking.by !== "session") {
         context.set("user", asking.user)
         context.set("permissions", permissionsFor(context, asking))
+        context.set("scopes", asking.scopes)
         await next()
     } else {
         context.set("user", asking.user)
         context.set("permissions", permissionsFor(context, asking))
+        context.set("scopes", AGENT_SCOPES)
         await renewed(
             context,
             context.var.database,
@@ -280,7 +291,7 @@ type Asking =
 
 async function whoIsAsking<Environment extends ApiEnvironment>(
     context: Context<Environment>
-): Promise<Asking | undefined> {
+): Promise<Asking | "unavailable" | undefined> {
     const variables: ApiEnvironment["Variables"] = context.var
     const bearer = bearerToken(context.req.header("Authorization"))
     if (bearer !== null && isApiToken(bearer)) {
@@ -292,7 +303,9 @@ async function whoIsAsking<Environment extends ApiEnvironment>(
         return holder === undefined ? undefined : { by: "token", ...holder }
     } else if (bearer !== null) {
         const agent = await agentUser(variables, bearer, context.req.url)
-        return agent === undefined ? undefined : { by: "agent", ...agent }
+        return agent === undefined || agent === "unavailable"
+            ? agent
+            : { by: "agent", ...agent }
     }
     const token = sessionToken(context)
     const session =
@@ -313,8 +326,8 @@ async function whoIsAsking<Environment extends ApiEnvironment>(
 }
 
 // What a request may do in each area: its person's role's, and for a
-// token, no more than it was given: `read` reads every area, and `act`
-// changes them too
+// token, no more than it was given: `read` reads every area, `act` changes
+// them too, and a token with neither may do nothing
 function permissionsFor<Environment extends ApiEnvironment>(
     context: Context<Environment>,
     asking: Asking
@@ -326,7 +339,13 @@ function permissionsFor<Environment extends ApiEnvironment>(
     } else {
         return narrowed(
             role,
-            every(asking.scopes.includes("act") ? "write" : "read")
+            every(
+                asking.scopes.includes("act")
+                    ? "write"
+                    : asking.scopes.includes("read")
+                      ? "read"
+                      : "none"
+            )
         )
     }
 }
@@ -342,11 +361,28 @@ function article(word: string) {
 }
 
 // Whether what's asking may make this request, on a route that's anyone's
-// own: anyone may read, and only a browser, or a token with `act`, may
-// change anything
+// own: a browser may do anything, a token with `act` too, and one with
+// `read` only reads
 function mayDo(context: Context, asking: Asking) {
     const reads = ["GET", "HEAD"].includes(context.req.method)
-    return reads || asking.by === "session" || asking.scopes.includes("act")
+    return (
+        asking.by === "session" ||
+        asking.scopes.includes("act") ||
+        (reads && asking.scopes.includes("read"))
+    )
+}
+
+// A token that couldn't be checked, since Infra's keys couldn't be
+// fetched: a 503, which says to try again, never a 401, which would tell
+// Claude to drop a good connection
+function uncheckable(context: Context) {
+    context.header("Retry-After", "30")
+    return failure(
+        context,
+        503,
+        "unavailable",
+        "This token can't be checked right now. Try again in a minute."
+    )
 }
 
 function readOnly(context: Context, asking: Asking) {

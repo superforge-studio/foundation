@@ -74,7 +74,9 @@ schedule.
 
 What isn't there, hasn't finished uploading, or is in Trash is 404
 `not-found`, a folder to put something in that isn't there is 404
-`no-folder`, and a folder made or moved past 32 deep is 409 `too-deep`.
+`no-folder`, and a folder made or moved past 32 deep is 409 `too-deep`. A
+folder's change takes a lock first (`changeFolder`, `change.ts`), so two
+moves at once, each into the other, can't both pass their checks.
 A listed file is its `id`, `folder_id`, `name`,
 `content_type`, `size`, `created_at`, `updated_at` and `uploaded_by`,
 which is the uploader's name, or their address, or null once they're gone.
@@ -88,7 +90,9 @@ which is the uploader's name, or their address, or null once they're gone.
    bucket signed for this one file (`presignPost`):
    `{ method: "POST", url, fields }`. It works for 15 minutes, and the
    bucket holds it to the key `files/<id>`, the content type and no more
-   bytes than were declared.
+   bytes than were declared. It works those 15 minutes whatever `done`
+   says, so until it runs out, the bytes of a file that's `ready` can be
+   posted again, and its row's `size` not follow.
 2. The browser posts a multipart form to `url`: each of `fields`, then
    the file itself, last, as `file`.
 3. `POST /api/files/uploads/:file_id/done` asks the bucket what it has
@@ -108,10 +112,14 @@ and `done` is the same.
   Bytes kept through it are kept as `application/octet-stream`, the
   kind's own type: the file's type is its row's, whatever the `PUT` says,
   and a download says it.
-- **Any `Content-Type` will do.** The API's check for another site's
-  forms (`workbench/writing-code.md`, "How a route fails") looks only at
-  a `POST`, the one method a form sends, so a script's `PUT` of a `.txt`
-  file, or curl's `--data`, is taken without an `Origin`.
+- **Any `Content-Type` will do.** The API's check for another origin's
+  requests (`workbench/writing-code.md`, "How a route fails") looks at
+  the browser's `Origin` and `Sec-Fetch-Site`, never the body, so a
+  script's `PUT` of a `.txt` file, or curl's `--data`, is taken.
+- **Who's asking, and whether the upload is under way, are checked before
+  the body is read**, and then up to 100 MB of it, so no one logged out,
+  or with no upload to make, can make the server hold one. The API's own
+  megabyte limit doesn't reach this route.
 - **An upload never finished** stays `uploading`, shown nowhere, until
   Trash's emptying deletes it a day after it started.
 
@@ -136,7 +144,9 @@ folder's alike.
   of link, for seven days (`LINK_DAYS`), which saves the file under the
   name it had when the link was made. No row records one, so nothing
   lists them or takes one back: it works until it runs out, or the bytes
-  are deleted. A dev server has none to give.
+  are deleted, after its file goes to Trash (its bytes stay 30 days) and
+  after its maker leaves the team. Nothing but rotating the bucket's keys
+  ends one early. A dev server has none to give.
 
 ## Trash
 
@@ -154,7 +164,9 @@ folder's alike.
   in Trash that long, and each upload still `uploading` a day after it
   started. A file's bytes go from the bucket first, then its row, so a
   failure part way leaves rows to try again with, never rows whose bytes
-  are gone.
+  are gone. At most 5,000 files a run, a thousand rows a delete, so no
+  statement names more ids than Postgres takes; the rest, and their
+  folders, wait for the next run.
 - **The `empty-trash` workflow runs it each hour**, at a quarter past
   (`workflows.ts`), quiet, so its runs show on the Workflows screen only
   when one fails, as `prune-webhook-deliveries` does its own prune

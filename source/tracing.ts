@@ -58,11 +58,16 @@ import { z } from "zod"
  */
 
 // The query parameters whose values never reach a span, on the requests
-// the server answers and the ones it makes: the instrumentation's own list,
-// of signed URLs' signatures, and the app's, OAuth's `code` and `state`,
-// which Claude's login passes through (backend/agents/oauth.ts), and any
-// `token` or `email`. A copy whose links carry a credential or a person's
-// details in their query adds its parameter here.
+// the server answers: the instrumentation's own list, of signed URLs'
+// signatures, and the app's, OAuth's `code` and `state`, which Claude's
+// login passes through (backend/agents/oauth.ts), and any `token` or
+// `email`. Only `HttpInstrumentation` takes it, which traces what the
+// server answers: every call the server makes is `fetch`, which undici's
+// instrumentation traces with a fixed list of its own, signatures only, so
+// an outgoing address keeps any other parameter. No call the template
+// makes carries a credential in its query. A copy whose links carry one,
+// or a person's details, adds its parameter here, and one that calls out
+// with one gives `UndiciInstrumentation` a `requestHook` that redacts it.
 const REDACTED_QUERY = [
     "sig",
     "Signature",

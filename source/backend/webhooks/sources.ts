@@ -8,9 +8,13 @@ import { verifyStandardWebhook } from "./standard"
 // reads only what its delivery says, and never writes: the workflows do
 // the work, with their retries.
 
-/** A webhook as it came: its headers, its body exactly, and when. */
+/**
+ * A webhook as it came: its headers, its body's bytes exactly, which a
+ * signature is checked against, the same read as UTF-8 text, and when.
+ */
 export type Delivery = {
     headers: Headers
+    bytes: Uint8Array
     body: string
     received_at: Date
 }

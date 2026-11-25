@@ -3,7 +3,7 @@ import type { Context, ErrorHandler, NotFoundHandler } from "hono"
 import { HTTPException } from "hono/http-exception"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import type { z } from "zod"
-import { recordError } from "@/utilities/tracing"
+import { recordError, withoutValues } from "@/utilities/tracing"
 import { logMiss } from "./misses/log"
 
 // How every route fails, in the one shape the site, scripts and agents all
@@ -78,12 +78,27 @@ export const answerNotFound: NotFoundHandler = (context) => {
 }
 
 /**
+ * A body larger than its route takes, for `bodyLimit`'s `onError`: 413
+ * `too-large`.
+ */
+export function tooLarge(context: Context) {
+    return failure(
+        context,
+        413,
+        "too-large",
+        "The request's body is larger than this route takes"
+    )
+}
+
+/**
  * A route that threw: a bug, or something it was never meant to handle,
  * since an expected failure is answered, not thrown. It's logged, its
- * request's span is marked failed with the error and its stack
- * (utilities/tracing.ts), and the caller learns only that it failed. Hono's own refusals throw too, before
- * the route runs, and are answered as what they are: a body that isn't
- * JSON (400 `invalid`), or another site's form (403 `forbidden`, index.ts).
+ * request's span is marked failed with the error (utilities/tracing.ts),
+ * and the caller learns only that it failed. A query that failed is logged
+ * by its statement and Postgres's own words, never the values it was sent
+ * (`withoutValues`). Hono's own refusals throw too, before the route runs,
+ * and are answered as what they are: a body that isn't JSON is 400
+ * `invalid`, and any other its own status, as `refused`.
  */
 export const answerUnexpected: ErrorHandler = (error, context) => {
     const request = { method: context.req.method, path: context.req.path }
@@ -98,16 +113,20 @@ export const answerUnexpected: ErrorHandler = (error, context) => {
             "invalid",
             "The request doesn't fit what this route takes"
         )
-    } else if (error instanceof HTTPException && error.status === 403) {
-        console.warn("A cross-site form was refused", request)
+    } else if (error instanceof HTTPException) {
+        console.warn("A request was refused", {
+            ...request,
+            status: error.status
+        })
         return failure(
             context,
-            403,
-            "forbidden",
-            "Another site's form can't call this route"
+            error.status,
+            "refused",
+            "This request can't be answered"
         )
     } else {
-        console.error("A route threw", { ...request, error })
+        const kept = withoutValues(error)
+        console.error("A route threw", { ...request, error: kept })
         recordError(error)
         return failure(context, 500, "unexpected", "Something went wrong")
     }

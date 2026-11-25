@@ -193,3 +193,31 @@ test("GDPR applies in the EU's 27, the EEA's other three and the UK", () => {
         expect(GDPR_COUNTRIES.has(country)).toBe(false)
     }
 })
+
+test("a download, or what it unzips to, past the most a database is, is refused rather than held", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+    for (const answer of [
+        // Unzips to more than the most
+        gzipSync(Buffer.alloc(64 * 1024)),
+        // Is more than the most itself
+        Buffer.alloc(16 * 1024)
+    ]) {
+        const opened: Buffer[] = []
+        const located = locator({
+            database: "dbip-country-lite",
+            send: async () => new Response(answer),
+            open: (file) => {
+                opened.push(file)
+                return { get: () => null }
+            },
+            largest: { download: 8 * 1024, unzipped: 32 * 1024 }
+        })
+        located.start()
+        await located.loading()
+        expect(opened).toEqual([])
+    }
+    expect(logged).toHaveBeenCalledWith(
+        "The location database didn't load",
+        expect.objectContaining({ database: "dbip-country-lite" })
+    )
+})

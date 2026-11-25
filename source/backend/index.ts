@@ -1,5 +1,5 @@
 import { type Context, Hono } from "hono"
-import { csrf } from "hono/csrf"
+import { bodyLimit } from "hono/body-limit"
 import { createMiddleware } from "hono/factory"
 import { appDatabase } from "@/database"
 import { appStorage } from "@/database/storage"
@@ -12,7 +12,7 @@ import { ACCESS } from "./auth/access"
 import { authRoutes } from "./auth/routes"
 import { commentRoutes } from "./comments/routes"
 import type { ApiEnvironment } from "./context"
-import { answerNotFound, answerUnexpected } from "./failures"
+import { answerNotFound, answerUnexpected, failure, tooLarge } from "./failures"
 import { fileRoutes } from "./files/routes"
 import { healthRoutes } from "./health/routes"
 import { appInfra } from "./infra"
@@ -63,21 +63,30 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
             // senders post forms with no Origin (webhooks/)
             .route("/", webhookRoutes)
 
-            // A form on another site can post to any address, with the
-            // visitor's cookies when it's a top-level navigation: refuse
-            // the kinds of body a form sends (403, failures.ts) unless the
-            // browser says the request came from this site. JSON, which a
-            // form can't send, is left alone, and so is a request that says
-            // nothing of its body, like a script's bodiless POST, since a
-            // form always says, and so is any method but POST, which a form
-            // can't send, like a script's PUT of a .txt file. A route of
-            // the app's that must take one says so (./app.ts).
+            // No body bigger than a megabyte, whoever sends it: read before
+            // anything is checked, so it's what anyone can make the server
+            // hold. A route that takes more is ahead of this, as webhooks
+            // are, or raises it for itself after its own checks, as a dev
+            // server's upload does (files/routes.ts)
             .use((context, next) =>
-                context.req.method !== "POST" ||
-                context.req.header("Content-Type") === undefined ||
+                takesLargerBody(context.req.method, context.req.path)
+                    ? next()
+                    : limitBody(context, next)
+            )
+
+            // Another site, or another origin of the same site, like a
+            // sibling subdomain, can send a request to any address, with
+            // the visitor's cookies when it's the same site: refuse any
+            // that would change something (403 `forbidden`) when the
+            // browser says it came from elsewhere, by its Origin or its
+            // Sec-Fetch-Site. A script, or curl, sends neither, so it gets
+            // through, whatever its body. A route of the app's that must
+            // take a form from another site says so (./app.ts).
+            .use((context, next) =>
+                SAFE_METHODS.includes(context.req.method) ||
                 takesFormsFromOtherSites(context.req.method, context.req.path)
                     ? next()
-                    : refuseCrossSiteForms(context, next)
+                    : refuseOtherSites(context, next)
             )
 
             // Every failure in the one shape (failures.ts): a path no route
@@ -155,7 +164,48 @@ function put<Name extends VariableName>(
     context.set(name, given[name])
 }
 
-const refuseCrossSiteForms = csrf({ origin: fromThisHost })
+/**
+ * The most any request's body may be, unless its route says otherwise: a
+ * megabyte, which no JSON the API takes comes near. The app's MCP takes
+ * the same (mcp/).
+ */
+export const API_BODY_LIMIT = 1024 * 1024
+
+const limitBody = bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge })
+
+// The routes that set a larger limit of their own, after checking who's
+// asking: a dev server's upload, up to a file's largest
+function takesLargerBody(method: string, path: string) {
+    return method === "PUT" && path.startsWith("/api/files/uploads/")
+}
+
+// The methods that change nothing, which any site may send
+const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"]
+
+// Refuses a request a browser says another origin sent: an Origin that
+// isn't this host, or a Sec-Fetch-Site of `cross-site` or `same-site`
+async function refuseOtherSites(context: Context, next: () => Promise<void>) {
+    const origin = context.req.header("Origin")
+    const fetched_from = context.req.header("Sec-Fetch-Site")
+    if (
+        (origin !== undefined && !fromThisHost(origin, context)) ||
+        fetched_from === "cross-site" ||
+        fetched_from === "same-site"
+    ) {
+        console.warn("A request from another site was refused", {
+            method: context.req.method,
+            path: context.req.path
+        })
+        return failure(
+            context,
+            403,
+            "forbidden",
+            "Another site can't call this route"
+        )
+    } else {
+        await next()
+    }
+}
 
 // Whether a request's Origin is this site: by its host alone, since behind
 // Railway's proxy the request's own address says http, and the browser's
