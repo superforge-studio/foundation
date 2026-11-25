@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm"
 import type { Database } from "@/database"
 import { users } from "@/database/schema"
 import { now } from "@/database/time"
-import { keepListed } from "../users/sync"
+import type { Infra } from "../infra"
+import { clearConnections, comingBack, keepListed } from "../users/sync"
 import { type Access, listedInternal, listing } from "./access"
 import { startSession, TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 
@@ -19,8 +20,11 @@ export function mayLogIn(access: Access, email: string) {
  * theirs: makes their row follow the list (users/sync.ts), making it if the
  * server hasn't since they were listed, marks them logged in now, and
  * starts a session in place of this browser's (`replacing`), all together.
- * Answers them, with the names and role the list gives them, and the new
- * session's token, for its cookie. Refuses anyone the list doesn't have.
+ * A row that has to come back first, deactivated or with another address,
+ * has Infra end Claude's connections as it, and `unavailable` is the answer
+ * when Infra doesn't. Answers them, with the names and role the list gives
+ * them, and the new session's token, for its cookie. Refuses anyone the
+ * list doesn't have.
  */
 export async function logIn(
     database: Database,
@@ -28,20 +32,33 @@ export async function logIn(
         email,
         replacing,
         user_agent,
-        access
+        access,
+        infra
     }: {
         email: string
         replacing: string | undefined
         user_agent: string | null
         access: Access
+        infra: Infra
     }
-): AsyncOperationResult<{ user: TeamMember; token: string }, "not-listed"> {
+): AsyncOperationResult<
+    { user: TeamMember; token: string },
+    "not-listed" | "unavailable"
+> {
     const listed = listedInternal(access, email)
     if (listed === undefined) {
         return { ok: false, error: "not-listed" }
     } else {
+        const cleared = await clearConnections(
+            infra,
+            await comingBack(database, [listed])
+        )
         return await database.transaction(async (transaction) => {
-            const { id } = await keepListed(transaction, listed)
+            const kept = await keepListed(transaction, listed, cleared)
+            if (!kept.ok) {
+                return { ok: false, error: "unavailable" }
+            }
+            const { id } = kept.data
             const [row] = await transaction
                 .update(users)
                 .set({ logged_in_at: now })

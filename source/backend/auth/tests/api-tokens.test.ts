@@ -346,6 +346,22 @@ describe("its end", () => {
         ).toBeNull()
     })
 
+    test("stops working the moment its person is listed with another address, and is revoked once the new one logs in", async () => {
+        const setup = await testApi()
+        const { cookie } = await logInAs(setup, ADA)
+        const { token } = await makeToken(setup, cookie)
+        const [ada] = setup.internal_users
+        if (ada === undefined) {
+            throw new Error("Ada isn't listed")
+        }
+
+        setup.internal_users[0] = { ...ada, email: "ada@lovelace.dev" }
+        expect((await withToken(setup, token, "/api/users")).status).toBe(401)
+
+        await logInAs(setup, "ada@lovelace.dev")
+        expect(await setup.database.select().from(api_tokens)).toEqual([])
+    })
+
     test("is refused once it has run out, and still listed", async () => {
         const setup = await testApi()
         const { cookie } = await logInAs(setup, ADA)

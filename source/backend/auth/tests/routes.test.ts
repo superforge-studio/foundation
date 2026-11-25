@@ -536,6 +536,90 @@ test("only the list lets anyone in: taken off it, someone is logged out at their
     expect((await api.client.api.users.$get({}, headers)).status).toBe(200)
 })
 
+// Ada's entry with another address, as an owner edits it in place
+function movedTo(api: Awaited<ReturnType<typeof testApi>>, email: string) {
+    api.internal_users.splice(0, 1, { ...ADA, email })
+}
+
+// Logs in with the emailed code, and answers the verify's response
+async function verifiedAs(
+    api: Awaited<ReturnType<typeof testApi>>,
+    email: string
+) {
+    const { code } = await emailed(api.client, email)
+    return await api.client.api.auth.verify.$post({ json: { email, code } })
+}
+
+test("listed with another address, someone's session stops counting at once, and the new address logs in to the same row, ending the old one's", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await teamApi()
+    const { cookie } = await loggedInUser(api)
+    const headers = { headers: { cookie } }
+    const [before] = await api.database.select().from(users)
+
+    movedTo(api, "ada@lovelace.dev")
+    expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
+
+    const verified = await verifiedAs(api, "ada@lovelace.dev")
+    expect(verified.status).toBe(200)
+    expect(await api.database.select().from(users)).toEqual([
+        expect.objectContaining({ id: before?.id, email: "ada@lovelace.dev" })
+    ])
+    // The only session left is the one just started
+    const fresh = sessionCookie(verified) ?? ""
+    expect(
+        await api.database
+            .select({ token_hash: sessions.token_hash })
+            .from(sessions)
+    ).toEqual([{ token_hash: await sha256(fresh.replace("session=", "")) }])
+    expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
+})
+
+test("someone listed with an address a deactivated row holds logs in, as themselves", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await teamApi()
+    await loggedInUser(api)
+    const [ada] = await api.database.select().from(users)
+    await api.database.insert(users).values({
+        slug: "sam",
+        email: "ada@lovelace.dev",
+        deactivated_at: new Date()
+    })
+
+    movedTo(api, "ada@lovelace.dev")
+    const verified = await verifiedAs(api, "ada@lovelace.dev")
+    expect(verified.status).toBe(200)
+    if (verified.status !== 200) {
+        throw new Error("The login didn't verify")
+    }
+    const logged_in = await verified.json()
+    expect("user" in logged_in && logged_in.user.id).toBe(ada?.id)
+})
+
+test("a row that has to take a new address waits while Infra doesn't end Claude's connections as it, answering 503", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    vi.spyOn(console, "warn").mockImplementation(() => {})
+    const infra = standInInfra()
+    const api = await teamApi({ infra })
+    await loggedInUser(api)
+
+    vi.spyOn(infra, "endAgentConnections").mockResolvedValue({
+        ok: false,
+        error: { reason: "unavailable", message: "Infra didn't answer" }
+    })
+    movedTo(api, "ada@lovelace.dev")
+    const verified = await verifiedAs(api, "ada@lovelace.dev")
+    expect(verified.status).toBe(503)
+    expect(api_failure.parse(await verified.json())).toMatchObject({
+        error: { reason: "unavailable" }
+    })
+    // Set aside, under the address it had, with no session
+    const [row] = await api.database.select().from(users)
+    expect(row).toMatchObject({ email: "ada@example.com" })
+    expect(row?.deactivated_at).not.toBeNull()
+    expect(await api.database.select().from(sessions)).toEqual([])
+})
+
 test("a session whose person was deactivated logs no one in, even while they're listed", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const api = await teamApi()

@@ -13,7 +13,7 @@ import {
 import { AGENT_SCOPES, type AgentScope } from "@/utilities/schemas/agents"
 import type { ApiEnvironment } from "../context"
 import { failure } from "../failures"
-import { type Access, listedBySlug, listing, permissionsOf } from "./access"
+import { type Access, listedAs, listing, permissionsOf } from "./access"
 import { agentUser, bearerToken } from "./agents"
 import { apiTokenUser, isApiToken } from "./api-tokens"
 import {
@@ -30,8 +30,9 @@ import {
 // that needs them takes `permitted` (or `loggedIn`, or `maybeLoggedIn`) and
 // reads `context.var.user`; nothing else reads the cookie or the tokens.
 // Only the team logs in, and someone counts only while access.ts lists
-// them, by their slug, whatever the database says; their role, and so what
-// they may do, is the one the list gives them.
+// them, by their slug with their address (`listedAs`), whatever the
+// database says; their role, and so what they may do, is the one the list
+// gives them.
 
 const COOKIE = "session"
 
@@ -430,9 +431,9 @@ async function letThrough(
 }
 
 // The live session behind this token, if it still counts: its person's
-// while access.ts lists them by their slug, with the names and the role it
-// lists them with. One that doesn't count answers as no session, so
-// they're logged out.
+// while access.ts lists them by their slug with their address, with the
+// names and the role it lists them with. One that doesn't count answers as
+// no session, so they're logged out.
 async function currentSession(
     database: Database,
     access: Access,
@@ -440,9 +441,7 @@ async function currentSession(
 ) {
     const session = await liveSession(database, token)
     const listed =
-        session === undefined
-            ? undefined
-            : listedBySlug(access, session.user.slug)
+        session === undefined ? undefined : listedAs(access, session.user)
     if (session === undefined || listed === undefined) {
         return undefined
     } else {

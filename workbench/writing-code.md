@@ -328,11 +328,16 @@ the way production does, and the team only changes with a commit.
   make each listed person's row follow how they're listed
   (`backend/users/sync.ts`), found by their slug, so a new address
   changes their row rather than making another, and deactivate anyone
-  taken off it (`deactivated_at`), ending their sessions while their row,
-  and what they did, stays. Listing them again with the same slug brings
-  the same row back. The login middleware counts someone only while the
-  list has them, by their slug, whatever the database says, so taking
-  them off logs them out at their next request.
+  taken off it (`deactivated_at`), ending their sessions and API tokens
+  while their row, and what they did, stays. Listing them again with the
+  same slug brings the same row back. A new address ends every way in the
+  old one had, sessions, API tokens and Claude's connections, since the
+  code can't tell someone's own new address from someone new in their
+  place: someone new gets a slug of their own. The login middleware
+  counts someone only while the list has them, by their slug with their
+  row's address, whatever the database says, so taking them off, or
+  giving their slug another address, logs them out at their next
+  request.
 - **What each role may do is a level in each area of the app**:
   `roles` in the same `ACCESS`, and the areas in
   `source/utilities/permissions/` (`AREAS`: the template's in `index.ts`,

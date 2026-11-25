@@ -16,6 +16,7 @@ import {
     pgTable,
     primaryKey,
     text,
+    uniqueIndex,
     uuid
 } from "drizzle-orm/pg-core"
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
@@ -43,12 +44,13 @@ export const users = pgTable(
         // Who they are to the code, as access.ts lists them: lowercase words
         // joined by hyphens (`ada`, `nick-r`), which never changes, and is
         // never anyone else's, so a row follows its person through a new
-        // address, and a slug listed again brings its row back. A row made
-        // before slugs had its id for one, until the list gave it its own.
+        // address, and a slug listed again brings its row back
         slug: text().notNull().unique(),
         // The address they log in with, as the list has it now: trimmed and
-        // lowercased, so the unique constraint catches case variants
-        email: text().notNull().unique(),
+        // lowercased, so the index below catches case variants. A
+        // deactivated row keeps the one it had, which someone listed later
+        // may take
+        email: text().notNull(),
         // Their first and last name, as the list has them
         name: text(),
         // When they were taken off the list, or null while they're on it.
@@ -64,7 +66,11 @@ export const users = pgTable(
         check(
             "users_slug_check",
             sql.raw(`"${table.slug.name}" ~ '${USER_SLUG_PATTERN.source}'`)
-        )
+        ),
+        // An address is one active person's at a time
+        uniqueIndex("users_email_index")
+            .on(table.email)
+            .where(sql`${table.deactivated_at} is null`)
     ]
 )
 

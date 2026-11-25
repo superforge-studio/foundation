@@ -147,6 +147,9 @@ Then say who's on the team, from step 1's answers, in `ACCESS` in
   owner is `role: "owner"`; anyone listed without a role is a `member`.
   They're the only people who log in, and nothing on a screen adds or
   changes them: someone joins or leaves the team with a change here.
+  Someone who takes over another's work, even their mailbox, is listed
+  with a slug of their own, never the other's; changing someone's address
+  logs them out everywhere, once, and revokes their API tokens.
 - **`roles`**: what each role may do, area by area. As it ships, a
   member may do everything the owner may. If someone should see or
   change less, from step 1's answer, give `member` less, or add a role
