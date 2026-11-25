@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { bodyLimit } from "hono/body-limit"
 import { z } from "zod"
-import { DAY, MINUTE } from "@/utilities/primitives/durations"
+import { MINUTE } from "@/utilities/primitives/durations"
 import {
     file_change,
     file_id,
@@ -10,7 +10,7 @@ import {
     folder_id,
     LARGEST_FILE,
     LARGEST_FILE_WORDS,
-    LINK_DAYS,
+    LINKS_LAST_FOR,
     upload_start
 } from "@/utilities/schemas/files"
 import { permitted } from "../auth/logged-in"
@@ -475,14 +475,14 @@ export const fileRoutes = new Hono<ApiEnvironment>()
             }
             const link = await context.var.storage.files.presignGet(
                 { file_id },
-                { seconds: (LINK_DAYS * DAY) / 1000, download: file.name }
+                { seconds: LINKS_LAST_FOR / 1000, download: file.name }
             )
             if (link.ok) {
                 return context.json(
                     {
                         url: link.data,
                         expires_at: new Date(
-                            Date.now() + LINK_DAYS * DAY
+                            Date.now() + LINKS_LAST_FOR
                         ).toISOString()
                     },
                     200

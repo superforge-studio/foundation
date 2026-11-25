@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { defineWorkflow } from "@/backend/workflows/define"
-import { findUser, internalEmails } from "./find"
+import { findUser, teamEmails } from "./find"
 
 // What each step answered, as DBOS keeps it and hands it back to a run
 // that starts again, perhaps on newer code: checked as it's read
@@ -39,7 +39,7 @@ export const tellTeamOfNewMember = defineWorkflow({
 
         const team = found_team.parse(
             await context.step("find-team", () =>
-                internalEmails(context.database, user_id)
+                teamEmails(context.database, user_id)
             )
         )
 

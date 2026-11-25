@@ -237,7 +237,7 @@ function AddSomeone({
     const name =
         `${first.trim() || "[first name]"} ${last.trim() || "[last name]"}`.trim()
     const address = email.trim() || "[their email]"
-    const prompt = `Add ${name} (${address}) to the team, in ACCESS.internal_users in source/backend/auth/app.ts, with the slug "${slug}"${role === "member" ? "" : ` and the role "${role}"`}, so they can log in to the admin. Open a pull request.`
+    const prompt = `Add ${name} (${address}) to the team, in ACCESS.team in source/backend/auth/app.ts, with the slug "${slug}"${role === "member" ? "" : ` and the role "${role}"`}, so they can log in to the admin. Open a pull request.`
 
     return (
         <section

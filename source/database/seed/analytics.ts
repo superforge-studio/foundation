@@ -17,9 +17,7 @@ import type { Seeder } from "./seed"
 
 // The one of the team whose visit ends in their login (./users.ts): the
 // second listed, or the first when there's one
-const LOGGED_IN = (ACCESS.internal_users[1] ?? ACCESS.internal_users[0])?.email
-    .trim()
-    .toLowerCase()
+const LOGGED_IN = (ACCESS.team[1] ?? ACCESS.team[0])?.email.trim().toLowerCase()
 
 // How long ago each visit started, with its ID, written out so its events
 // can name it

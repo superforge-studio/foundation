@@ -42,7 +42,7 @@ async function setup(fileComment?: Infra["fileComment"]) {
     return { api, filed }
 }
 
-test("an internal person's comment goes to Infra with who filed it", async () => {
+test("a team member's comment goes to Infra with who filed it", async () => {
     const { api, filed } = await setup()
     const { id, cookie } = await logInAs(api, "ada@example.com")
 

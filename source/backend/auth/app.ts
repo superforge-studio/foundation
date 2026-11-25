@@ -12,7 +12,7 @@ import { NO_ONE_ELSE } from "./others"
  * from them.
  */
 export const ACCESS: Access = {
-    internal_users: [
+    team: [
         {
             slug: "ada",
             first_name: "Ada",

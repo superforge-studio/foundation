@@ -3,7 +3,7 @@ import { login_start, login_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
 import { countAttempt, networkKey } from "../rate-limits/count"
-import { listedInternal, permissionsOf } from "./access"
+import { listedByEmail, permissionsOf } from "./access"
 import { OTHERS } from "./app"
 import {
     clearSessionCookie,
@@ -234,7 +234,7 @@ export const authRoutes = new Hono<ApiEnvironment>()
 /**
  * Why login failed, in Infra's words or its package's, as `cause`, for
  * whoever can act on it: one of the business's own people, by the address
- * they typed (`internal_users`, ./app.ts), or anyone on a dev server. A
+ * they typed (`team`, ./app.ts), or anyone on a dev server. A
  * visitor gets the plain message alone, since the cause can name the app's
  * keys and settings, which aren't theirs to read.
  */
@@ -244,8 +244,7 @@ function forTheTeam(
     cause: string
 ): { cause: string } | Record<never, never> {
     const listed =
-        email !== null &&
-        listedInternal(context.var.access, email) !== undefined
+        email !== null && listedByEmail(context.var.access, email) !== undefined
     if (import.meta.env.DEV || listed) {
         return { cause }
     } else {

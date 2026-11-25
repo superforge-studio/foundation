@@ -9,7 +9,9 @@ import { APP_SETTINGS } from "./app"
 // the template's defaults below, with this app's own over them
 // (./app.ts), where an update from the template never meets them. Each
 // part reads its own (like `KEEP_EVENTS_FOR`, backend/visits/prune.ts)
-// from `SETTINGS`, both sides alike.
+// from `SETTINGS`, both sides alike. Every length of time is in
+// milliseconds, written with `DAY` (primitives/durations.ts), like
+// `90 * DAY`.
 
 /** Every setting there is, and what it does. */
 export type Settings = {
@@ -61,13 +63,12 @@ export type Settings = {
     keep_webhook_deliveries_for: number | "forever"
     /**
      * Your files' limits (backend/files/): the largest file anyone
-     * uploads, in bytes, how many days something stays in Trash before
-     * it's deleted for good, and how many days a link from "Copy a link"
-     * works.
+     * uploads, in bytes, how long something stays in Trash before it's
+     * deleted for good, and how long a link from "Copy a link" works.
      */
     largest_file: number
-    trash_days: number
-    link_days: number
+    keep_trash_for: number
+    links_last_for: number
 }
 
 /** The template's settings, which this app's own replace one by one. */
@@ -96,8 +97,9 @@ export const TEMPLATE_SETTINGS: Settings = {
     // for three days and most give up sooner
     keep_webhook_deliveries_for: 30 * DAY,
     largest_file: 100 * 1024 * 1024,
-    trash_days: 30,
-    link_days: 7
+    keep_trash_for: 30 * DAY,
+    // A week at most: the longest a link from the bucket can be signed for
+    links_last_for: 7 * DAY
 }
 
 /** This app's settings: the template's, with its own over them. */

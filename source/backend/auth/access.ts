@@ -27,7 +27,7 @@ export type Access = {
      * back, as a new address does, once Infra has ended Claude's
      * connections as them (backend/users/sync.ts).
      */
-    internal_users: readonly InternalUser[]
+    team: readonly TeamEntry[]
     /**
      * What each role may do, area by area (utilities/permissions/):
      * `everything`, or a level for each area the role may use, the rest
@@ -38,7 +38,7 @@ export type Access = {
 }
 
 /** One of the business's own people, as ACCESS lists them. */
-export type InternalUser = {
+export type TeamEntry = {
     /**
      * Who they are to the code, which never changes and is never given to
      * anyone else: lowercase words joined by hyphens, like `ada` or
@@ -58,19 +58,19 @@ export type InternalUser = {
 }
 
 /** A listed person's address, as their row keeps it: trimmed and lowercased. */
-export function addressOf(listed: InternalUser) {
+export function addressOf(listed: TeamEntry) {
     return listed.email.trim().toLowerCase()
 }
 
 /** The team member listed with `email`, if anyone is. */
-export function listedInternal(access: Access, email: string) {
+export function listedByEmail(access: Access, email: string) {
     const address = email.trim().toLowerCase()
-    return access.internal_users.find((listed) => addressOf(listed) === address)
+    return access.team.find((listed) => addressOf(listed) === address)
 }
 
 /** The team member listed with `slug`, if anyone is. */
 export function listedBySlug(access: Access, slug: string) {
-    return access.internal_users.find((listed) => listed.slug === slug)
+    return access.team.find((listed) => listed.slug === slug)
 }
 
 /**
@@ -90,12 +90,12 @@ export function listedAs(access: Access, row: { slug: string; email: string }) {
 }
 
 /** A listed person's name, as the app shows it. */
-export function nameOf(listed: InternalUser) {
+export function nameOf(listed: TeamEntry) {
     return `${listed.first_name.trim()} ${listed.last_name.trim()}`.trim()
 }
 
 /** A listed person's role. */
-export function roleOf(listed: InternalUser): TeamRole {
+export function roleOf(listed: TeamEntry): TeamRole {
     return listed.role ?? "member"
 }
 
@@ -110,7 +110,7 @@ export function permissionsOf(access: Access, role: TeamRole) {
  * member carries these from the list, so a change to it holds from the
  * next request.
  */
-export function listing(listed: InternalUser) {
+export function listing(listed: TeamEntry) {
     return {
         name: nameOf(listed),
         first_name: listed.first_name.trim(),
@@ -130,7 +130,7 @@ export function problemsWith(access: Access) {
     const problems: string[] = []
     const slugs = new Set<string>()
     const emails = new Set<string>()
-    for (const listed of access.internal_users) {
+    for (const listed of access.team) {
         const email = listed.email.trim().toLowerCase()
         if (!user_slug.safeParse(listed.slug).success) {
             problems.push(`"${listed.slug}" isn't a slug`)

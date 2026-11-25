@@ -30,7 +30,7 @@ const ADA = {
     email: "Ada@Example.com",
     role: "owner" as const
 }
-const TEAM: Access = { internal_users: [ADA], roles: ACCESS.roles }
+const TEAM: Access = { team: [ADA], roles: ACCESS.roles }
 
 // The whole API with Ada on the team, and anything in `replacing`
 function teamApi(replacing: Parameters<typeof testApi>[0] = {}) {
@@ -276,7 +276,7 @@ test("why Infra failed reaches the business's own people and a dev server, never
             { ok: false, error: { reason: "unavailable", message: cause } }
         ),
         access: {
-            internal_users: [
+            team: [
                 {
                     slug: "grace",
                     first_name: "Grace",
@@ -521,7 +521,7 @@ test("only the list lets anyone in: taken off it, someone is logged out at their
     expect((await api.client.api.users.$get({}, headers)).status).toBe(200)
 
     // Taken off the list: the same session is no one's at once
-    const listed = api.internal_users.splice(0)
+    const listed = api.team.splice(0)
     expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
     const session = await api.client.api.auth.session.$get({}, headers)
     if (session.status !== 200) {
@@ -533,13 +533,13 @@ test("only the list lets anyone in: taken off it, someone is logged out at their
     })
 
     // Listed again, with the same slug: the same session counts again
-    api.internal_users.push(...listed)
+    api.team.push(...listed)
     expect((await api.client.api.users.$get({}, headers)).status).toBe(200)
 })
 
 // Ada's entry with another address, as an owner edits it in place
 function movedTo(api: Awaited<ReturnType<typeof testApi>>, email: string) {
-    api.internal_users.splice(0, 1, { ...ADA, email })
+    api.team.splice(0, 1, { ...ADA, email })
 }
 
 // Logs in with the emailed code, and answers the verify's response
@@ -700,7 +700,7 @@ test("the session says what its person may do in each area", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const api = await teamApi({
         access: {
-            internal_users: [{ ...ADA, role: "member" }],
+            team: [{ ...ADA, role: "member" }],
             roles: { owner: "everything", member: { workflows: "read" } }
         }
     })

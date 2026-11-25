@@ -16,7 +16,7 @@ import type { Seeder } from "./seed"
 
 // The team, made from the list, so the seed's team is the one the code
 // says, and the server's start changes none of them
-const TEAM = ACCESS.internal_users.map((person, index) => ({
+const TEAM = ACCESS.team.map((person, index) => ({
     slug: person.slug,
     email: person.email.trim().toLowerCase(),
     name: nameOf(person),
@@ -25,7 +25,7 @@ const TEAM = ACCESS.internal_users.map((person, index) => ({
 }))
 
 // The first two of them, whose sample sessions follow
-const [FIRST_INTERNAL, SECOND_INTERNAL] = TEAM
+const [FIRST_ON_TEAM, SECOND_ON_TEAM] = TEAM
 
 const SAMPLE_USERS = [
     ...TEAM,
@@ -49,30 +49,30 @@ const SAFARI_ON_AN_IPHONE =
 // Each session by its user, with the token its cookie would hold: its
 // SHA-256 is what's kept, as a real session's is (backend/auth/tokens.ts)
 const SAMPLE_SESSIONS = [
-    ...(FIRST_INTERNAL === undefined
+    ...(FIRST_ON_TEAM === undefined
         ? []
         : [
               {
-                  email: FIRST_INTERNAL.email,
-                  token: "sample-session-internal",
+                  email: FIRST_ON_TEAM.email,
+                  token: "sample-session-team",
                   user_agent: CHROME_ON_A_MAC,
                   created_at: fromNow(-12 * DAY),
                   expires_at: fromNow(28 * DAY)
               },
               {
-                  email: FIRST_INTERNAL.email,
-                  token: "sample-session-internal-phone",
+                  email: FIRST_ON_TEAM.email,
+                  token: "sample-session-team-phone",
                   user_agent: SAFARI_ON_AN_IPHONE,
                   created_at: fromNow(-31 * DAY),
                   expires_at: fromNow(20 * DAY)
               }
           ]),
-    ...(SECOND_INTERNAL === undefined
+    ...(SECOND_ON_TEAM === undefined
         ? []
         : [
               {
-                  email: SECOND_INTERNAL.email,
-                  token: "sample-session-internal-expired",
+                  email: SECOND_ON_TEAM.email,
+                  token: "sample-session-team-expired",
                   user_agent: null,
                   created_at: fromNow(-60 * DAY),
                   expires_at: fromNow(-15 * DAY)
@@ -170,13 +170,13 @@ const SAMPLE_API_TOKENS = [
 /** The first on the team's API tokens, in place of every token there was. */
 export const seedApiTokens: Seeder = async (transaction: Database) => {
     await transaction.delete(api_tokens)
-    if (FIRST_INTERNAL === undefined) {
+    if (FIRST_ON_TEAM === undefined) {
         return { table: "auth.api_tokens", rows: 0 }
     }
     const [owner] = await transaction
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.email, FIRST_INTERNAL.email))
+        .where(eq(users.email, FIRST_ON_TEAM.email))
     if (owner === undefined) {
         throw new Error("The sample tokens' user wasn't seeded")
     }

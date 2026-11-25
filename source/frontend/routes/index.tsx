@@ -87,7 +87,7 @@ function LineHome() {
                     ))}
                 </ul>
                 <a
-                    href="https://github.com/superforge-studio/starter-template"
+                    href="https://github.com/superforge-studio/foundation"
                     className="inline-flex shrink-0 items-center gap-1 underline-offset-4 hover:text-foreground hover:underline"
                 >
                     Superforge Foundation

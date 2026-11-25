@@ -52,7 +52,7 @@ export const seedFolders: Seeder = async (transaction) => {
     // The files first: a folder's row can't go while a file's is in it
     await transaction.delete(files)
     await transaction.delete(file_folders)
-    const by = await firstInternal(transaction)
+    const by = await firstOnTeam(transaction)
     const [contracts, logos, photos, old_quotes] = await transaction
         .insert(file_folders)
         .values([
@@ -94,7 +94,7 @@ export const seedFolders: Seeder = async (transaction) => {
 
 export const seedFiles: Seeder = async (transaction) => {
     await transaction.delete(files)
-    const by = await firstInternal(transaction)
+    const by = await firstOnTeam(transaction)
     const size = (name: string) =>
         new TextEncoder().encode(SAMPLE_BYTES[name] ?? "").length
     // The folders `seedFolders` made, by name
@@ -199,7 +199,7 @@ export async function keepSampleFiles(database: Database, storage: Storage) {
 
 // The first of the team, by when they joined, who made the
 // sample folders and files, or null when none is listed
-async function firstInternal(transaction: Parameters<Seeder>[0]) {
+async function firstOnTeam(transaction: Parameters<Seeder>[0]) {
     const [owner] = await transaction
         .select({ id: users.id })
         .from(users)

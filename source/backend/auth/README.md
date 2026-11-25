@@ -132,7 +132,7 @@ What ends one:
 `app.ts`, the app's own, holds the list, `ACCESS`, with each role's grant,
 which START-HERE.md fills in, apart from the template's code so an update
 never meets it. `access.ts`, the template's, has its shape and what reads
-it: `listedInternal` (by address, trimmed and lowercased, as
+it: `listedByEmail` (by address, trimmed and lowercased, as
 `addressOf` gives a listed person's), `listedBySlug`, `listedAs` (a row,
 by its slug with its address), `roleOf` (a `member` when the role is left
 out), `permissionsOf(access, role)` and `problemsWith`. Every route and
@@ -167,7 +167,7 @@ test hands its own.
   only when it's in `cleared`: the rows Infra has said Claude has no
   connection as (`clearConnections`, from `comingBack`'s rows). Otherwise
   it stays set aside, and `keepListed` answers `not-cleared`.
-- **`syncInternalUsers`** does that for everyone listed, with Infra. It
+- **`syncTeam`** does that for everyone listed, with Infra. It
   asks Infra to end Claude's connections as each row coming back, then, in
   one transaction, sets aside every active row the list doesn't have as
   it is (`listedAs`), so an address handed from one person to another, or
@@ -177,7 +177,7 @@ test hands its own.
   next start or its person's login. It answers how many are listed, made,
   deactivated and waiting, and throws on a list with a mistake in it
   (`problemsWith`: a slug that isn't one, or a slug or an address listed
-  twice), changing nothing. `syncAppInternalUsers` runs it with `ACCESS`
+  twice), changing nothing. `syncAppTeam` runs it with `ACCESS`
   and the app's Infra once the Node server is listening
   (`source/node.ts`), and as a dev server first loads `source/server.ts`;
   never in the build's prerender or the tests, then ends Claude's
@@ -358,8 +358,8 @@ its dry run.
   `/auth/start` and `/auth/verify` with the stand-in's code. It answers
   the user's `id` and the `cookie` header to send:
   `client.api.users.$get({}, { headers: { cookie } })`.
-- **`api.internal_users` is the list the API reads**, so
-  `api.internal_users.splice(0)` takes everyone off it between two
+- **`api.team` is the list the API reads**, so
+  `api.team.splice(0)` takes everyone off it between two
   requests, as `tests/routes.test.ts` here does.
 - **A token**: an API token made through `client.api.account.tokens.$post`
   with the cookie, as `tests/api-tokens.test.ts` does, or Claude's from

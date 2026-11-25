@@ -117,7 +117,7 @@ function ListedDetails({ user }: { user: SessionUser }) {
                     <CopyPrompt
                         look="text"
                         label="Copy a change for Claude Code"
-                        prompt={`I'm ${user.name ?? user.email}, listed on the team in ACCESS.internal_users in source/backend/auth/app.ts with the slug "${user.slug}". Ask me what to change about my first name, last name or login email, change it there, keeping my slug as it is, and open a pull request.`}
+                        prompt={`I'm ${user.name ?? user.email}, listed on the team in ACCESS.team in source/backend/auth/app.ts with the slug "${user.slug}". Ask me what to change about my first name, last name or login email, change it there, keeping my slug as it is, and open a pull request.`}
                     />
                 </div>
             ) : (

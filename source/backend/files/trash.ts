@@ -4,7 +4,7 @@ import { file_folders, files, users } from "@/database/schema"
 import type { Storage } from "@/database/storage"
 import { fromNow, now } from "@/database/time"
 import { DAY } from "@/utilities/primitives/durations"
-import { TRASH_DAYS } from "@/utilities/schemas/files"
+import { KEEP_TRASH_FOR } from "@/utilities/schemas/files"
 import { DEEPEST, file_columns, findFile, folderPath } from "./find"
 
 // Trash: a folder or a file taken out of sight, with everything in it, and
@@ -159,14 +159,14 @@ export async function listTrash(database: Database) {
 }
 
 /**
- * Deletes for good what's been in Trash for `TRASH_DAYS`, and uploads that
+ * Deletes for good what's been in Trash for `KEEP_TRASH_FOR`, and uploads that
  * never finished in a day: each file's bytes from the bucket first, then
  * its row, so a failure part way leaves rows to try again with, never rows
  * whose bytes are gone. At most 5,000 files a run, the rest left for the
  * next, with their folders. Answers how many files went.
  */
 export async function emptyExpired(database: Database, storage: Storage) {
-    const before = fromNow(-TRASH_DAYS * DAY)
+    const before = fromNow(-KEEP_TRASH_FOR)
 
     // The folders gone for good, and every file anywhere inside them
     const expired_folders = await database

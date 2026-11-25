@@ -324,7 +324,7 @@ an update: the pages and their look, `PRODUCT.md` and `DESIGN.md`.
 
 ### The team and what each role may do
 
-**Only the team logs in, and the team is listed in code**: `internal_users`
+**Only the team logs in, and the team is listed in code**: `team`
 in `ACCESS`, `source/backend/auth/app.ts`, the app's own, each with a slug
 that never changes, a first name, a last name, the address they log in
 with and their role, an `owner` or a `member` (`TEAM_ROLES`), a member

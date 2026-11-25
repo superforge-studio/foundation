@@ -4,7 +4,7 @@ import { users } from "@/database/schema"
 import { now } from "@/database/time"
 import type { Infra } from "../infra"
 import { clearConnections, comingBack, keepListed } from "../users/sync"
-import { type Access, listedInternal, listing } from "./access"
+import { type Access, listedByEmail, listing } from "./access"
 import { startSession, TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 
 /**
@@ -12,7 +12,7 @@ import { startSession, TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
  * only someone on the team, as ./app.ts lists them.
  */
 export function mayLogIn(access: Access, email: string) {
-    return listedInternal(access, email) !== undefined
+    return listedByEmail(access, email) !== undefined
 }
 
 /**
@@ -45,7 +45,7 @@ export async function logIn(
     { user: TeamMember; token: string },
     "not-listed" | "unavailable"
 > {
-    const listed = listedInternal(access, email)
+    const listed = listedByEmail(access, email)
     if (listed === undefined) {
         return { ok: false, error: "not-listed" }
     } else {

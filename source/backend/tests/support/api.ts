@@ -1,6 +1,6 @@
 import { testClient } from "hono/testing"
 import { apiWith } from "@/backend"
-import type { Access, InternalUser } from "@/backend/auth/access"
+import type { Access, TeamEntry } from "@/backend/auth/access"
 import { ACCESS } from "@/backend/auth/app"
 import type { ApiEnvironment } from "@/backend/context"
 import { standInInfra } from "@/backend/infra"
@@ -16,7 +16,7 @@ import { appTestVariables } from "./app"
 // Who can log in, in a test unless it says otherwise: no one, whatever this
 // app's ACCESS lists, until the test logs someone in (login.ts), each role
 // with what this app gives it
-const NOBODY: Access = { internal_users: [], roles: ACCESS.roles }
+const NOBODY: Access = { team: [], roles: ACCESS.roles }
 
 // Whom the site remembers, in a test unless it says otherwise: the mode
 // the template ships with, whatever this app's settings say
@@ -48,7 +48,7 @@ export async function testApi(
     // The test's own team, which `logInAs` adds to, so logging someone in
     // lists them, as the code would
     const given = replacing.access ?? NOBODY
-    const internal_users: InternalUser[] = [...given.internal_users]
+    const team: TeamEntry[] = [...given.team]
     const own = appTestVariables(replacing)
     const variables: ApiEnvironment["Variables"] = {
         database: replacing.database ?? (await testDatabase()),
@@ -56,7 +56,7 @@ export async function testApi(
         workflows: replacing.workflows ?? recorded.workflows,
         infra: replacing.infra ?? standInInfra(),
         infra_using: replacing.infra_using ?? "stand-in",
-        access: { internal_users, roles: given.roles },
+        access: { team, roles: given.roles },
         visitor_mode: replacing.visitor_mode ?? REMEMBER,
         locate: replacing.locate ?? NOWHERE,
         webhook_sources: replacing.webhook_sources ?? [],
@@ -74,7 +74,7 @@ export async function testApi(
         // retried, the runs the workflows list, which a test can add to, and
         // the runs their writes queued (queueWorkflow, queueEvent)
         files: store.files,
-        internal_users,
+        team,
         started: recorded.started,
         retried: recorded.retried,
         runs: recorded.runs,

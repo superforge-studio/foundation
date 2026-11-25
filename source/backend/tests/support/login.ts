@@ -16,11 +16,11 @@ export async function logInAs(
     role: TeamRole = "owner"
 ) {
     const [local = email, domain = ""] = email.split("@")
-    const listed = api.internal_users.some(
+    const listed = api.team.some(
         (each) => each.email.toLowerCase() === email.toLowerCase()
     )
     if (!listed) {
-        api.internal_users.push({
+        api.team.push({
             slug: local.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
             first_name: capitalized(local),
             last_name: capitalized(domain.split(".")[0] ?? ""),

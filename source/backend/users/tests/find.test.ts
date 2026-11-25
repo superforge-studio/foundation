@@ -1,7 +1,7 @@
 import { expect, test } from "vitest"
 import { users } from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
-import { findUser, internalEmails } from "../find"
+import { findUser, teamEmails } from "../find"
 
 // What the sign-up notices' steps read (users/workflows.ts): whom one is
 // about, and whom it goes to
@@ -24,13 +24,11 @@ test("the team is everyone active, but the one a notice is about", async () => {
         throw new Error("The users weren't made")
     }
 
-    expect(await internalEmails(database)).toEqual([
+    expect(await teamEmails(database)).toEqual([
         "ada@example.com",
         "grace@example.com"
     ])
-    expect(await internalEmails(database, ada.id)).toEqual([
-        "grace@example.com"
-    ])
+    expect(await teamEmails(database, ada.id)).toEqual(["grace@example.com"])
 })
 
 test("someone removed is found as no one", async () => {

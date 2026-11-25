@@ -4,26 +4,26 @@ import { api } from "./backend"
 import { oauth } from "./backend/agents/oauth"
 import { mcp } from "./backend/mcp"
 import { logFailure, logMiss } from "./backend/misses/log"
-import { syncAppInternalUsers } from "./backend/users/sync"
+import { syncAppTeam } from "./backend/users/sync"
 import { startWorkflows } from "./backend/workflows/engine"
 import { MCP_PATH } from "./utilities/schemas/agents"
 import { nameRequest } from "./utilities/tracing"
 
 // What the Node server runs once it's listening (source/node.ts): the
-// internal users made to follow the list in backend/auth/app.ts
+// team made to follow the list in backend/auth/app.ts
 // (backend/users/sync.ts), and the workflows' start, with their stop as
 // Railway stops the deployment (backend/workflows/engine.ts)
 // And the hosts whose every path comes here, past the build's files, which
 // the app lists (./app.ts)
 export { HOSTS_WITHOUT_FILES } from "./app"
-export { syncAppInternalUsers } from "./backend/users/sync"
+export { syncAppTeam } from "./backend/users/sync"
 export { startWorkflows, stopWorkflows } from "./backend/workflows/engine"
 
 // A dev server does both as it first loads this, once for its life,
 // however many times it loads it again. The build's prerender loads it
 // too, and never does, and the tests never load it.
 if (import.meta.env.DEV) {
-    syncAppInternalUsers()
+    syncAppTeam()
     startWorkflows()
 }
 
