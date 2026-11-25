@@ -16,6 +16,7 @@
         "test": "vitest run",
         "check": "workbench/scripts/check.sh",
         "smoke-test": "node workbench/scripts/smoke-test.mjs",
+        "github:ruleset": "workbench/scripts/ruleset.sh",
         "database:generate": "drizzle-kit generate",
         "database:check": "workbench/scripts/check-migrations.sh",
         "database:upgrade-test": "workbench/scripts/upgrade-test.sh",
