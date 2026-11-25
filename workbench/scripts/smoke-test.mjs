@@ -380,7 +380,7 @@ async function expectCredit(base, path) {
     )
     if (credit === null) {
         problems.push(
-            `${path} has no <meta name="generator"> naming Superforge in its head: it's the one thing Superforge asks of a site built on its templates (source/utilities/template.ts)`
+            `${path} has no <meta name="generator"> naming Superforge in its head, which the template's license asks every site built on it to keep (LICENSE, source/utilities/template.ts)`
         )
     } else {
         console.info(`  ✓ ${path} credits ${credit[1]}`)
