@@ -1,21 +1,49 @@
-MIT License
+Superforge Foundation License
 
-Copyright (c) 2026 Superforge
+Copyright (c) 2026 VITALIZE DIGITAL LLC, a Washington limited liability
+company doing business as Superforge ("Superforge")
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Superforge Foundation ("Foundation") is the template Superforge publishes
+at https://github.com/superforge-studio/starter-template, its code and
+documents, and every copy of it or of a part of it, apart from what came
+from others, which THIRD-PARTY-NOTICES.md lists and which stays under its
+own licenses.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. A business may use, copy and change Foundation, and build on it, to
+   make and run software for itself, free of charge. "The business",
+   below, is the business whose software it is; a person building for
+   themselves is one too.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. The business makes its own copy of Foundation, in a repository it
+   owns, and holds it. It may have people it hires, like a developer or
+   an agency, work on that copy for it, under these same terms. They
+   work on the business's copy, never on one of their own, and keep
+   nothing of it for any other use.
+
+3. What the business adds to Foundation is its own. It may run what it
+   builds as its own website, app or service, and sell what that does
+   to its own customers. Running it is not handing it over.
+
+4. Apart from what term 2 allows, nobody may hand Foundation, or
+   anything made from it, to anyone else: not as a template, starter
+   kit, boilerplate or other base for other people's software, and not
+   as software built for someone else from a copy of their own.
+
+5. Every copy of Foundation, or of a substantial part of it, keeps this
+   license with it. Software built on Foundation keeps the line in its
+   pages' source that names Superforge, the "generator" tag that
+   source/utilities/template.ts sets, unless Superforge has agreed in
+   writing that it may go.
+
+6. These terms cover release 0.33.0 of Foundation and every release
+   after it; the releases before 0.33.0 were published under the MIT
+   license. They pass to whoever takes over the business, and last as
+   long as the business keeps to them.
+
+7. FOUNDATION IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL SUPERFORGE BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+   FOUNDATION OR THE USE OR OTHER DEALINGS IN IT.

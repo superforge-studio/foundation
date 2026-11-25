@@ -6,7 +6,10 @@ repository, deployed on Railway, made to be changed with Claude.
 **Make your own copy first, and make it private**: on GitHub, Use this
 template → Create a new repository, set to Private. Your copy will list
 your team's names and login addresses in its code, so it never belongs in
-a public repository, or in a fork of this one.
+a public repository, or in a fork of this one. If a developer or an
+agency is building it for you, make the copy yourself, under your
+business's account or organization, and invite them to it: the license
+has the business hold its own copy ([License](#license)).
 
 **New here? Open your copy with Claude Code and say "start here".** It
 follows [START-HERE.md](START-HERE.md): it asks about the business, then
@@ -91,8 +94,17 @@ merge.
 
 ## License
 
-The template's code is under the MIT license ([LICENSE](LICENSE)): it's
-yours to keep, change and build on. What you add to it is your own.
+Foundation is free for a business to build its own software on. Make
+your copy in a repository of your own, change it and build on it, and
+what you add is yours: run it, and sell what it does. A developer or an
+agency you hire may work on your copy for you. Nobody may build on
+Foundation for someone else from a copy of their own, or sell, give
+away or publish it, or anything made from it, as a template, starter kit
+or boilerplate. Keep the line in your pages' source that credits
+Superforge. The full terms are in [LICENSE](LICENSE), and what came from
+others, under its own licenses, is in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Releases before 0.33.0
+were published under the MIT license.
 
 ## This template
 

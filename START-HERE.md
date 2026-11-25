@@ -17,8 +17,10 @@ which points here.
 Before anything else, run `git remote get-url origin`. This codebase is
 about to hold the team's names and login addresses, in code
 (`source/backend/auth/app.ts`), and the business's own description
-(`PRODUCT.md`), so it must live in a repository of the owner's own, and
-a private one.
+(`PRODUCT.md`), so it must live in a repository of the business's own,
+and a private one. The license says so too (`LICENSE`, term 2): the
+business whose software this is holds its copy, and anyone it hires
+works on that copy, never on one of their own.
 
 - **`origin` is `superforge-studio/starter-template`** (or there's no
   `origin`): this is a clone of Superforge's public template, not a copy.
@@ -28,10 +30,15 @@ a private one.
   organization, set to **Private**. Then clone that one and start again
   there. Never push to the template, and never fork it: a fork of a public
   repository is public.
-- **`origin` is the owner's own repository**: ask them to confirm it's
-  private (with the `gh` CLI, `gh repo view --json visibility`). If it's
-  public, have them make it private (Settings → General → Danger Zone →
-  Change visibility) before step 1.
+- **`origin` is a developer's or an agency's, for a client's business**
+  (ask whose business the copy is for, and whose account or organization
+  holds it): stop, and have the business make its own copy as above,
+  under its account or organization, then invite the developer to it.
+  Start again there.
+- **`origin` is the business's own repository**: ask the owner to
+  confirm it's private (with the `gh` CLI, `gh repo view --json
+  visibility`). If it's public, have them make it private (Settings →
+  General → Danger Zone → Change visibility) before step 1.
 
 ## 1. Ask about the business
 
@@ -218,10 +225,12 @@ Leave `.superforge/` as it is: `superforge.json`'s `starter-template` is
 the template this codebase came from, which updates read
 (`workbench/updating.md`) and every page's `<meta name="generator">`
 names, not this codebase's name, and `releases/` holds the notes of the
-template's releases. Keep `CHANGELOG.md` and `LICENSE` too, and that
-generator tag (`source/utilities/template.ts`): it credits Superforge in
-the pages' source, never on the page, and it's the one thing Superforge
-asks a site built on its templates to keep.
+template's releases. Keep `CHANGELOG.md`, `LICENSE` and
+`THIRD-PARTY-NOTICES.md` too: `LICENSE` is the terms this codebase is
+under, the Superforge Foundation License. And keep that generator tag
+(`source/utilities/template.ts`): it credits Superforge in the pages'
+source, never on the page, and the license asks every site built on
+Foundation to keep it.
 
 ## 6. Check it, and ship it
 
