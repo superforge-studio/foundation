@@ -4,7 +4,9 @@ import { verifyStandardWebhook } from "./standard"
 
 // The services that post the app webhooks, each at /api/webhooks/<name>
 // (README.md): how a delivery is checked to be theirs, and the events it
-// queues once it is, which the workflows on them take from there. A source
+// queues once it is, which the workflows on them take from there. The
+// template has none of its own; this app's are listed in ./app.ts
+// (`APP_SOURCES`). A source
 // reads only what its delivery says, and never writes: the workflows do
 // the work, with their retries.
 
@@ -50,16 +52,6 @@ export type WebhookSource = {
     // source sends
     events: (delivery: Delivery) => OperationResult<WebhookEvent[], string>
 }
-
-/**
- * Every source that posts the app webhooks: none, as the template ships.
- * A copy adds one the day it wires up a service, in a file of its own here
- * (stripe.ts), with its secret in a Railway variable (README.md, "Adding a
- * source"):
- *
- *   export const SOURCES: WebhookSource[] = [stripe]
- */
-export const SOURCES: WebhookSource[] = []
 
 /**
  * A source that signs its webhooks as Standard Webhooks says

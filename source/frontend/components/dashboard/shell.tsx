@@ -315,7 +315,7 @@ export function NotPermitted({ name }: { name: string }) {
                 </h1>
                 <p className="max-w-prose text-pretty text-muted-foreground">
                     Each role on the team sees what the app's code gives it, in
-                    backend/auth/access.ts. Ask the owner if you need this.
+                    backend/auth/app.ts. Ask the owner if you need this.
                 </p>
                 <Link
                     to="/admin/account"

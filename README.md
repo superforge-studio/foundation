@@ -55,7 +55,7 @@ Docker and no credentials. `pnpm dev` and the tests run a Postgres of the
 checkout's own, from npm (`workbench/writing-code.md`, "Local
 development"), and logging in at `/login` shows its code on the page
 rather than emailing it. After `pnpm database:seed`, log in as the
-team's owner, the first `source/backend/auth/access.ts` lists
+team's owner, the first `source/backend/auth/app.ts` lists
 (`ada@example.com` as the template ships), to see the whole admin at
 `/admin`: the Overview, where your own sections go, and Settings.
 

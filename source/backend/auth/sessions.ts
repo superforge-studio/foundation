@@ -45,7 +45,7 @@ export function sessionId(token_hash: string) {
 
 /**
  * One of the team as their row has them: who they are, by their row and
- * their slug in access.ts, their address, their name, and when their row
+ * their slug in ./app.ts, their address, their name, and when their row
  * was made.
  */
 export type TeamRow = {
@@ -59,7 +59,7 @@ export type TeamRow = {
 /**
  * One of the team, logged in, as every route that needs them sees them:
  * their row, with the name, the first and last names and the role
- * access.ts lists them with (`listing()`), which the middleware adds.
+ * ./app.ts lists them with (`listing()`), which the middleware adds.
  */
 export type TeamMember = TeamRow & {
     first_name: string

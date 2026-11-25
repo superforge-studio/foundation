@@ -116,10 +116,10 @@ export async function revokeApiToken(
 }
 
 /**
- * Whom a token acts as, with the names and role access.ts lists them with,
+ * Whom a token acts as, with the names and role ./app.ts lists them with,
  * and what it may do, or undefined when it isn't a live token, or its
  * person is no longer on the team: they must still be listed in
- * access.ts, by their slug with their address (`listedAs`), as Claude's
+ * ./app.ts, by their slug with their address (`listedAs`), as Claude's
  * person must, so a token stops working the moment they're taken off, or
  * listed with another address. Notes that it was used.
  */

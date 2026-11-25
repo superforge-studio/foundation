@@ -32,7 +32,7 @@ import { PIN_NAMES } from "./pins"
 import { usePlacement } from "./placement"
 
 // The toolbar on every page for the business's own people, listed in code
-// (backend/auth/access.ts), on a computer with a mouse, wherever Infra
+// (backend/auth/app.ts), on a computer with a mouse, wherever Infra
 // keeps what they file: Comment picks an element, and what's written about it goes to
 // Superforge Infra through the app's own /api/comments, for Claude to fix
 // later. Its handle moves it to the middle of the bottom or a corner.

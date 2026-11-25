@@ -2,7 +2,7 @@ import { inArray, lt } from "drizzle-orm"
 import type { Database } from "@/database"
 import { webhook_deliveries } from "@/database/schema"
 import { fromNow } from "@/database/time"
-import { DAY } from "@/utilities/primitives/durations"
+import { SETTINGS } from "@/utilities/settings"
 
 // How long the webhooks other services posted are kept, and what deletes
 // what's older, which the `prune-webhook-deliveries` workflow runs each
@@ -10,11 +10,10 @@ import { DAY } from "@/utilities/primitives/durations"
 // why it was refused; what it meant is in the runs it queued.
 
 /**
- * How long a delivery is kept after it came, or `"forever"`: long enough
- * to find one a sender says it sent, since Stripe retries for three days
- * and most give up sooner.
+ * How long a delivery is kept after it came, or `"forever"`, as the app's
+ * settings say (`keep_webhook_deliveries_for`, utilities/settings/).
  */
-export const KEEP_DELIVERIES_FOR: number | "forever" = 30 * DAY
+export const KEEP_DELIVERIES_FOR = SETTINGS.keep_webhook_deliveries_for
 
 // How many rows one statement deletes, and how many statements a turn runs
 // at most, so a turn is short: what's left goes on the next turn

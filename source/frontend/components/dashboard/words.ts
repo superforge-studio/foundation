@@ -1,7 +1,7 @@
 // How the dashboard says times, browsers and roles, in words a person
 // reads at a glance, with the exact moment for a title or a detail
 
-import type { TeamRole } from "@/backend/auth/access"
+import { ROLE_NAMES, type TeamRole } from "@/utilities/permissions"
 import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 
 /**
@@ -99,14 +99,10 @@ export function isHandheld(user_agent: string | null) {
 }
 
 /**
- * What each role is called on screen, the one list of them: a role a
- * business adds (`TEAM_ROLES`, backend/auth/access.ts) goes here, and the
- * typecheck fails until it does.
+ * What each role is called on screen: the template's and this app's own
+ * (utilities/permissions/).
  */
-export const ROLE_NAMES: Record<TeamRole, string> = {
-    owner: "Owner",
-    member: "Member"
-}
+export { ROLE_NAMES }
 
 /** A team member's role, as the dashboard names it. */
 export function roleName(role: TeamRole) {

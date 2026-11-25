@@ -171,7 +171,7 @@ const server = serve(
 )
 
 // The internal users, made to follow the list in code
-// (source/backend/auth/access.ts), and the workflows, once the server is
+// (source/backend/auth/app.ts), and the workflows, once the server is
 // answering: while a deploy goes out the workflows wait for the old
 // deployment's gate, and the healthcheck has to answer meanwhile for
 // Railway to stop the old one (source/backend/workflows/)

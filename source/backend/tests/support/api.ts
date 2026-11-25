@@ -1,6 +1,7 @@
 import { testClient } from "hono/testing"
 import { apiWith } from "@/backend"
-import { ACCESS, type Access, type InternalUser } from "@/backend/auth/access"
+import type { Access, InternalUser } from "@/backend/auth/access"
+import { ACCESS } from "@/backend/auth/app"
 import type { ApiEnvironment } from "@/backend/context"
 import { standInInfra } from "@/backend/infra"
 import type { Locate } from "@/backend/visits/location"
@@ -18,7 +19,7 @@ import { appTestVariables } from "./app"
 const NOBODY: Access = { internal_users: [], roles: ACCESS.roles }
 
 // Whom the site remembers, in a test unless it says otherwise: the mode
-// the template ships with, whatever this app's VISITOR_MODE says
+// the template ships with, whatever this app's settings say
 const REMEMBER: VisitorMode = "remember"
 
 // Where a visitor is, in a test unless it says otherwise: nowhere the

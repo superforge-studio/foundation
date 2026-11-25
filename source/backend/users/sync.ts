@@ -3,7 +3,6 @@ import { appDatabase, type Database } from "@/database"
 import { api_tokens, sessions, users } from "@/database/schema"
 import { now } from "@/database/time"
 import {
-    ACCESS,
     type Access,
     addressOf,
     type InternalUser,
@@ -11,10 +10,11 @@ import {
     nameOf,
     problemsWith
 } from "../auth/access"
+import { ACCESS } from "../auth/app"
 import { appInfra, type Infra } from "../infra"
 import { queueEvent } from "../workflows/queue"
 
-// The team's rows, following how access.ts lists them. A row is one
+// The team's rows, following how auth/app.ts lists them. A row is one
 // person's slug and the address they log in with, together: a row the list
 // no longer has as it is, taken off it or listed with another address, is
 // set aside (deactivated), and every way in it had ends, since what was
@@ -25,7 +25,7 @@ import { queueEvent } from "../workflows/queue"
 // before anyone listed takes it.
 
 /**
- * Makes the team member's row follow how access.ts lists them, found by
+ * Makes the team member's row follow how auth/app.ts lists them, found by
  * their slug alone, and answers it, with whether this made it and whether
  * it came back. Their address and name are the list's. A row that has to
  * come back, deactivated or with another address, does only when it's in
@@ -105,7 +105,7 @@ export async function keepListed(
 }
 
 /**
- * Makes `users` follow the people access.ts lists, all together: first
+ * Makes `users` follow the people auth/app.ts lists, all together: first
  * anyone it doesn't have as they are, off the list or listed with another
  * address, is set aside, with their sessions ended and their API tokens
  * revoked; then each listed person is a user, with the slug, address and
@@ -129,7 +129,9 @@ export async function syncInternalUsers(
 ) {
     const problems = problemsWith(access)
     if (problems.length > 0) {
-        throw new Error(`access.ts's list has mistakes: ${problems.join("; ")}`)
+        throw new Error(
+            `auth/app.ts's list has mistakes: ${problems.join("; ")}`
+        )
     }
     const cleared = await clearConnections(
         infra,
@@ -285,9 +287,9 @@ export async function syncAppInternalUsers() {
     const infra = appInfra()
     try {
         const synced = await syncInternalUsers(database, infra, ACCESS)
-        console.info("The team follows access.ts", synced)
+        console.info("The team follows auth/app.ts", synced)
     } catch (error) {
-        console.error("The team didn't sync with access.ts", { error })
+        console.error("The team didn't sync with auth/app.ts", { error })
         return
     }
     try {

@@ -22,7 +22,7 @@ const api_token_path = z.object({ id: z.uuid() })
  * The logged-in person's own account, under /api/account, whatever their
  * role: the browsers they're logged in on, with logging out of the others,
  * and their API tokens. Their name and address are the ones they're listed
- * with in code (auth/access.ts), so they change there, not here. Where
+ * with in code (auth/app.ts), so they change there, not here. Where
  * they're logged in, and their tokens, are a browser's to see and change,
  * never a token's (`inBrowser`), so a token that leaks can't make another.
  */

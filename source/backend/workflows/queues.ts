@@ -1,4 +1,5 @@
 import type { DBOS } from "@dbos-inc/dbos-sdk"
+import { APP_QUEUES } from "./app-events"
 
 /**
  * The queues workflows run on, each registered with DBOS as it launches
@@ -9,14 +10,16 @@ import type { DBOS } from "@dbos-inc/dbos-sdk"
  * own calls.
  *
  * A workflow that needs its own limits (one run at a time per customer, at
- * most so many a minute) gets a queue of its own here, with DBOS's options:
+ * most so many a minute) gets a queue of its own, with DBOS's options:
  * `partitionConcurrency` with a partition key, `rateLimit`,
- * `globalConcurrency`.
+ * `globalConcurrency`. The template's are here, and this app's own in
+ * ./app-events.ts (`APP_QUEUES`), never here.
  */
 export const QUEUES = {
     // Anything that doesn't need its own: at most five running at once in
     // this process
-    background: { workerConcurrency: 5 }
+    background: { workerConcurrency: 5 },
+    ...APP_QUEUES
 } satisfies Record<string, Parameters<typeof DBOS.registerQueue>[1]>
 
 export type QueueName = keyof typeof QUEUES

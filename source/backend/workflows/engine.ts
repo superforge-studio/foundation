@@ -10,6 +10,7 @@ import { z } from "zod"
 import { appDatabase, appDatabaseUrl } from "@/database"
 import { appStorage } from "@/database/storage"
 import { HOUR, MINUTE } from "@/utilities/primitives/durations"
+import { SETTINGS } from "@/utilities/settings"
 import { tracingOn } from "@/utilities/tracing"
 import { register, type Workflow, type Workflows } from "./define"
 import { RUNNERS, WORKFLOWS } from "./index"
@@ -38,12 +39,11 @@ const CLIENT_POOL_SIZE = 2
 // its own on `postgres`, database/local/idle.ts)
 const GATE: [number, number] = [1689, 0]
 
-// How long finished runs are kept, for reading back what one did: for
-// good, as the template ships, since a run and its steps are the record of
-// what the business's background work did. A copy whose runs grow too many
-// for its database sets a duration instead (`90 * DAY`), and the runs that
-// finished longer ago than that are then pruned about once an hour
-const KEEP_FINISHED_FOR: number | "forever" = "forever"
+// How long finished runs are kept, for reading back what one did, as the
+// app's settings say (`keep_finished_runs_for`, utilities/settings/): for
+// good, as the template ships. With a duration, the runs that finished
+// longer ago than that are pruned about once an hour
+const KEEP_FINISHED_FOR = SETTINGS.keep_finished_runs_for
 const PRUNE_EVERY = HOUR
 const PRUNE_PAGE = 1000
 

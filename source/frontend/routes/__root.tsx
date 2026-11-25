@@ -11,6 +11,7 @@ import { ConsentBanner } from "@/frontend/components/site/consent-banner"
 import { Toolbar } from "@/frontend/components/toolbar/toolbar"
 import appCss from "@/frontend/styles.css?url"
 import { startVisitors } from "@/frontend/visitors"
+import { SETTINGS } from "@/utilities/settings"
 import { GENERATOR } from "@/utilities/template"
 
 export const Route = createRootRouteWithContext<{
@@ -27,13 +28,11 @@ export const Route = createRootRouteWithContext<{
                 name: "viewport",
                 content: "width=device-width, initial-scale=1"
             },
-            // The business's name and what it does, set by START-HERE.md
-            { title: "Your business, in one codebase" },
-            {
-                name: "description",
-                content:
-                    "A website, an API and a database in one codebase, made to be changed with Claude."
-            }
+            // The business's name and what it does, for a page that sets
+            // neither: the app's settings (utilities/settings/), which
+            // START-HERE.md sets
+            { title: SETTINGS.site_title },
+            { name: "description", content: SETTINGS.site_description }
         ],
         links: [
             { rel: "stylesheet", href: appCss },

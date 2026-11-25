@@ -5,7 +5,7 @@ import type { testApi } from "./api"
  * Logs `email` in through the whole API, as a person does, with Infra's
  * stand-in, which answers the code, as one of the team in `role`, an
  * `owner` unless it says: what a route's test calls to act as someone.
- * They're listed first, unless they already are, as access.ts would list
+ * They're listed first, unless they already are, as auth/app.ts would list
  * them, named for their address (`ada@example.com` is Ada Example, slug
  * `ada`). Answers their
  * user's id and the `cookie` header their browser would send.

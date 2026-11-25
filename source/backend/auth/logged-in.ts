@@ -29,7 +29,7 @@ import {
 // them. This is the one place that decides who's logged in, so a route
 // that needs them takes `permitted` (or `loggedIn`, or `maybeLoggedIn`) and
 // reads `context.var.user`; nothing else reads the cookie or the tokens.
-// Only the team logs in, and someone counts only while access.ts lists
+// Only the team logs in, and someone counts only while ./app.ts lists
 // them, by their slug with their address (`listedAs`), whatever the
 // database says; their role, and so what they may do, is the one the list
 // gives them.
@@ -276,7 +276,7 @@ export const maybeLoggedIn = createFactory<{
 
 // Who's asking: a browser's session, by its cookie, or a token's holder: an
 // API token's, by its `api_` prefix (api-tokens.ts), or else Claude's
-// (agents.ts), each one of the team, with the names and the role access.ts
+// (agents.ts), each one of the team, with the names and the role ./app.ts
 // lists them with. A request with a token is the token's whatever cookie it
 // carries, and one with a bad token is nobody's.
 type Asking =
@@ -431,7 +431,7 @@ async function letThrough(
 }
 
 // The live session behind this token, if it still counts: its person's
-// while access.ts lists them by their slug with their address, with the
+// while ./app.ts lists them by their slug with their address, with the
 // names and the role it lists them with. One that doesn't count answers as
 // no session, so they're logged out.
 async function currentSession(

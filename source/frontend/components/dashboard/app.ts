@@ -36,10 +36,10 @@ export const APP_NAVIGATION: Navigation = []
  * to a role that may read its area, and the gear to anyone who may read
  * one of them:
  *
- *   export const APP_SETTINGS: readonly SettingsPart[] = [
+ *   export const APP_SETTINGS_PARTS: readonly SettingsPart[] = [
  *       { key: "payments", area: "payments", Part: Payments }
  *   ]
  *
  * A part is a component of its own, which asks the API for what it shows.
  */
-export const APP_SETTINGS: readonly SettingsPart[] = []
+export const APP_SETTINGS_PARTS: readonly SettingsPart[] = []

@@ -1,7 +1,7 @@
 import type { ComponentType } from "react"
 import { useSession } from "@/frontend/queries/auth"
 import { type Area, allows, type Permissions } from "@/utilities/permissions"
-import { APP_SETTINGS } from "../app"
+import { APP_SETTINGS_PARTS } from "../app"
 import { NotPermitted } from "../shell"
 import { Team } from "./team"
 
@@ -25,7 +25,7 @@ export type SettingsPart = {
 // Settings' parts, in order: the template's, then this app's own
 const SETTINGS: readonly SettingsPart[] = [
     { key: "team", area: "team", Part: Team },
-    ...APP_SETTINGS
+    ...APP_SETTINGS_PARTS
 ]
 
 /**

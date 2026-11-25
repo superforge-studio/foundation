@@ -3,13 +3,13 @@ import type { ApiEnvironment } from "../context"
 import { failure } from "../failures"
 
 // Who else logs in, besides the team. As the template ships, no one does
-// (`NO_ONE_ELSE`): access.ts lists the team, and an address it doesn't have
+// (`NO_ONE_ELSE`): ./app.ts lists the team, and an address it doesn't have
 // is refused. An app whose customers or members log in too gives a second
 // kind of person a way in, in ./app.ts (`OTHERS`), from a feature of its
 // own, with a table of its own for their sessions, never `auth.sessions`,
 // which is the team's.
 //
-// The team always comes first: an address access.ts lists logs in as one of
+// The team always comes first: an address ./app.ts lists logs in as one of
 // the team, and only one it doesn't have is asked of these. They share the
 // login page, the code and the link Infra emails, and the `session` cookie
 // (logged-in.ts), whose token is looked for among the team's sessions

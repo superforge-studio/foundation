@@ -1,14 +1,21 @@
-import { type Grant, granted } from "@/utilities/permissions"
+import {
+    type Grant,
+    granted,
+    TEAM_ROLES,
+    type TeamRole
+} from "@/utilities/permissions"
 import { user_slug } from "@/utilities/schemas/users"
 
+export { TEAM_ROLES, type TeamRole }
+
 /**
- * Who can log in, and what each of them may do: the team, the business's
- * own people, whom START-HERE.md asks the owner for, and what each role on
- * it is given. They're code rather than Railway variables or rows someone
- * adds on a screen, so a dev server logs in the way production does, and
- * the team only changes with a commit. Every route sees them on
- * `context.var.access`, and a test can hand its own
- * (backend/tests/support/api.ts).
+ * The template's: what the team and its roles are, and the checks on them.
+ * Who's on it, and what each role may do, are this app's own, in ./app.ts
+ * (`ACCESS`), which START-HERE.md fills in. They're code rather than
+ * Railway variables or rows someone adds on a screen, so a dev server logs
+ * in the way production does, and the team only changes with a commit.
+ * Every route sees them on `context.var.access`, and a test can hand its
+ * own (backend/tests/support/api.ts).
  */
 export type Access = {
     /**
@@ -30,15 +37,6 @@ export type Access = {
     roles: Readonly<Record<TeamRole, Grant>>
 }
 
-/**
- * The roles on the team: an `owner`, who may do everything, and a
- * `member`, who may do what `roles` gives them. A business that needs
- * another, like `technician`, adds it here and gives it its areas in
- * `roles`.
- */
-export const TEAM_ROLES = ["owner", "member"] as const
-export type TeamRole = (typeof TEAM_ROLES)[number]
-
 /** One of the business's own people, as ACCESS lists them. */
 export type InternalUser = {
     /**
@@ -57,40 +55,6 @@ export type InternalUser = {
     email: string
     /** Their role (`TEAM_ROLES`): a `member` when it's left out. */
     role?: TeamRole
-}
-
-/**
- * This app's. START-HERE.md sets them: the people below are placeholders,
- * at example.com, which reaches nobody, so no one can log in as them until
- * they're replaced, and the seed's team is made from them.
- */
-export const ACCESS: Access = {
-    internal_users: [
-        {
-            slug: "ada",
-            first_name: "Ada",
-            last_name: "Lovelace",
-            email: "ada@example.com",
-            role: "owner"
-        },
-        {
-            slug: "grace",
-            first_name: "Grace",
-            last_name: "Hopper",
-            email: "grace@example.com"
-        }
-    ],
-    roles: {
-        owner: "everything",
-        // Everything there is as the template ships, area by area, so an
-        // area the business adds is the owner's alone until it's given here
-        member: {
-            team: "read",
-            workflows: "write",
-            jobs: "write",
-            files: "write"
-        }
-    }
 }
 
 /** A listed person's address, as their row keeps it: trimmed and lowercased. */

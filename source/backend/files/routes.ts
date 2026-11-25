@@ -9,6 +9,7 @@ import {
     folder_creation,
     folder_id,
     LARGEST_FILE,
+    LARGEST_FILE_WORDS,
     LINK_DAYS,
     upload_start
 } from "@/utilities/schemas/files"
@@ -283,7 +284,12 @@ export const fileRoutes = new Hono<ApiEnvironment>()
         bodyLimit({
             maxSize: LARGEST_FILE,
             onError: (context) =>
-                failure(context, 413, "too-large", "A file is at most 100 MB")
+                failure(
+                    context,
+                    413,
+                    "too-large",
+                    `A file is at most ${LARGEST_FILE_WORDS}`
+                )
         }),
         async (context) => {
             const { file_id } = context.req.valid("param")

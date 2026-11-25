@@ -33,7 +33,7 @@ events, and answers:
 | `remembered: false`   | Clears a `visitor` cookie they had                           |
 | `ask`                 | Answers the page `{ ask }`, which shows the banner when true |
 
-Whom the site remembers is `VISITOR_MODE` (`utilities/visitors.ts`),
+Whom the site remembers is the app's `visitor_mode` (`utilities/settings/`),
 applied by what the visitor answered the banner (their `visitor_consent`
 cookie) and the country of their address (`whomToRemember` in
 `visitors.ts`):
@@ -206,13 +206,14 @@ app's service (`.railway/railway.ts`):
 
 ## How long it's kept
 
-| Rows                 | Kept                                       | Set by                  |
-| -------------------- | ------------------------------------------ | ----------------------- |
-| Events               | 90 days after they happened                | `KEEP_EVENTS_FOR`       |
-| A visit's IP address | 90 days after the visit started, then null | `KEEP_IP_ADDRESSES_FOR` |
-| Visits               | 25 months after they started               | `KEEP_VISITS_FOR`       |
+| Rows                 | Kept, as the template ships                | The setting             | Read by `prune.ts` as   |
+| -------------------- | ------------------------------------------ | ----------------------- | ----------------------- |
+| Events               | 90 days after they happened                | `keep_events_for`       | `KEEP_EVENTS_FOR`       |
+| A visit's IP address | 90 days after the visit started, then null | `keep_ip_addresses_for` | `KEEP_IP_ADDRESSES_FOR` |
+| Visits               | 25 months after they started               | `keep_visits_for`       | `KEEP_VISITS_FOR`       |
 
-All three are in `prune.ts`, and any can be `"forever"`. The events are
+All three are the app's settings, which a copy changes in
+`utilities/settings/app.ts`, and any can be `"forever"`. The events are
 the bulk of it, and say the most about one visitor, so they go first,
 with the addresses, which are as long as the events unless a copy says
 otherwise; a visit, with what its events came to, stays for the reports

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { eq, inArray, isNull } from "drizzle-orm"
-import { ACCESS, nameOf } from "@/backend/auth/access"
+import { nameOf } from "@/backend/auth/access"
+import { ACCESS } from "@/backend/auth/app"
 import type { Database } from "@/database"
 import { api_tokens, sessions, users } from "@/database/schema"
 import { fromNow } from "@/database/time"
@@ -8,7 +9,7 @@ import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 import type { Seeder } from "./seed"
 
 // Sample users, their sessions and their API tokens: the team, as
-// backend/auth/access.ts lists them, the first logged in now, with three
+// backend/auth/app.ts lists them, the first logged in now, with three
 // tokens, and the second with a session that has run out, and someone
 // taken off the list, deactivated, whose row stays. Their addresses are
 // example.com's, which reach nobody.

@@ -2,7 +2,7 @@
 
 Everything behind login is drawn from this folder: the admin, `/admin`,
 the business's own dashboard, for the team listed in code
-(`backend/auth/access.ts`). This is how a screen is built in it: the frame
+(`backend/auth/app.ts`). This is how a screen is built in it: the frame
 it sits in, what the template's own screens are, what stands in front of
 them, the steps that add a section, and the pieces already made.
 
@@ -22,7 +22,7 @@ by a screen. A screen is what goes in its `<main>`.
   logged in, as their initials alone, and under it every section in one
   row that scrolls sideways, without the groups.
 - **Who's logged in** is their initials, their name and their role
-  (`ROLE_NAMES`, `words.ts`), and opens `/admin/account`. **The gear**
+  (`roleName`, `words.ts`), and opens `/admin/account`. **The gear**
   opens `/admin/settings`, for a role that may read some part of it
   (`settingsShownTo`, `settings/screen.tsx`).
 - **The frame is the window's height and never scrolls.** A screen
@@ -59,7 +59,7 @@ and its `area`.
 - **Settings**, `/admin/settings` (`routes/admin/settings.tsx`,
   `settings/`): what the app runs on, a part each (`SettingsPart`), each
   shown to a role that may read its area. The template's part is the team
-  (`settings/team.tsx`), then this app's own, `APP_SETTINGS` (`app.ts`).
+  (`settings/team.tsx`), then this app's own, `APP_SETTINGS_PARTS` (`app.ts`).
   A role that reads none has no gear, and Settings draws `NotPermitted`.
 - **Your account**, `/admin/account` (`routes/admin/account.tsx`,
   `account.tsx`), everyone's own: who they're listed as, what their role
@@ -67,7 +67,7 @@ and its `area`.
   Claude in (`connections.tsx`) and their API tokens (`api-tokens.tsx`).
 
 **The team is listed in code, so Settings changes no one.** It lists
-everyone `access.ts` has listed, owners first, and those taken off last,
+everyone `auth/app.ts` has listed, owners first, and those taken off last,
 with how to bring them back, and what each role may do in each area
 (`RoleLevels`, `permissions.tsx`). Add someone, for a role that may write
 the `team` area, the owner's as the template ships, writes the prompt
@@ -75,7 +75,7 @@ that has Claude Code list them, in a pull request (`prompt.tsx`).
 
 **A part of Settings** is a component of its own, with no props, which
 asks the API for what it shows and draws a `<section>` under an `h2`
-(`sectionHeading`), as `Team` does. It goes in `APP_SETTINGS` with its
+(`sectionHeading`), as `Team` does. It goes in `APP_SETTINGS_PARTS` with its
 `key` and the `area` its routes name.
 
 ## In front of a screen
@@ -167,17 +167,17 @@ the right.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `shell.tsx`       | The frame, `Navigation`, `shownTo`, `Panes`, `BackToList`, `NotPermitted`, `AdminNotFound`, `SinglePane`, `ListLoading`, `CouldNotLoad`, and the classes `textButton` and `sectionHeading` |
 | `navigation.ts`   | The admin's sections, `ADMIN_NAVIGATION`, the Overview's and then this app's own, and `adminSectionAt`, the section an address is in                                                       |
-| `app.ts`          | This app's own sections (`APP_NAVIGATION`) and parts of Settings (`APP_SETTINGS`), which no update from the template changes                                                               |
+| `app.ts`          | This app's own sections (`APP_NAVIGATION`) and parts of Settings (`APP_SETTINGS_PARTS`), which no update from the template changes                                                         |
 | `gate.tsx`        | What stands in front of the frame (above)                                                                                                                                                  |
 | `prompt.tsx`      | A change only the code can make, for Claude Code: `CopyPrompt`, a button that copies one, `PromptChip`, a prompt in quotes that copies itself, and `Step`                                  |
 | `marks.tsx`       | `RoleMark`, a role as a small mark, and `useNow()`, which draws a screen again every 15 seconds so "4 min ago" stays true                                                                  |
-| `words.ts`        | How the dashboard says a time (`since`, `day`, `moment`), a browser (`describeBrowser`) and a role (`ROLE_NAMES`, `roleName`)                                                              |
+| `words.ts`        | How the dashboard says a time (`since`, `day`, `moment`), a browser (`describeBrowser`) and a role (`ROLE_NAMES`, from `utilities/permissions/`, and `roleName`)                           |
 | `permissions.tsx` | What a role may do, area by area: `AreaLevels` for one, `RoleLevels` for each role side by side                                                                                            |
 
 - **`words.ts`** is where a screen gets its words, never a
-  `toLocaleString` of its own. **A new role's name** goes in `ROLE_NAMES`,
-  the one list every screen names a role from, and the typecheck fails
-  until it does.
+  `toLocaleString` of its own. **A new role's name** goes in `APP_ROLES`
+  (`utilities/permissions/app.ts`), which `ROLE_NAMES`, the one list every
+  screen names a role from, takes after the template's.
 
 ## Before it's done
 

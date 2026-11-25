@@ -16,7 +16,7 @@ import { CouldNotLoad, initials, sectionHeading, textButton } from "../shell"
 import { ROLE_NAMES, since } from "../words"
 
 // Settings' Team: who logs in to the admin, as the app's code lists them
-// (backend/auth/access.ts), each with their role and when they last logged
+// (backend/auth/app.ts), each with their role and when they last logged
 // in, everyone it once listed, taken off, and what each role may do. Nobody
 // is added or changed here: Add someone writes the prompt that has Claude
 // Code list them, in a pull request, for a role that may change the team.
@@ -107,9 +107,9 @@ export function Team() {
                             What each role can do
                         </h3>
                         <p className="max-w-prose text-pretty text-muted-foreground text-sm">
-                            As the app's code gives it, in
-                            backend/auth/access.ts. The API checks it on every
-                            route, for Claude and API tokens too.
+                            As the app's code gives it, in backend/auth/app.ts.
+                            The API checks it on every route, for Claude and API
+                            tokens too.
                         </p>
                     </div>
                     <RoleLevels roles={roles} />
@@ -190,7 +190,7 @@ function TeamRow({
     )
 }
 
-// A slug from someone's names, as access.ts wants one: lowercase words
+// A slug from someone's names, as auth/app.ts wants one: lowercase words
 // joined by hyphens, their first name, with their last name's first letter
 // when the first is taken
 function slugFor(first: string, last: string, taken: string[]) {
@@ -220,7 +220,7 @@ const CHOICES = [
 ]
 
 // Adding someone, which only the code can do: the prompt that has Claude
-// Code list them in access.ts, then merging its pull request
+// Code list them in auth/app.ts, then merging its pull request
 function AddSomeone({
     taken,
     onClose
@@ -237,7 +237,7 @@ function AddSomeone({
     const name =
         `${first.trim() || "[first name]"} ${last.trim() || "[last name]"}`.trim()
     const address = email.trim() || "[their email]"
-    const prompt = `Add ${name} (${address}) to the team, in ACCESS.internal_users in source/backend/auth/access.ts, with the slug "${slug}"${role === "member" ? "" : ` and the role "${role}"`}, so they can log in to the admin. Open a pull request.`
+    const prompt = `Add ${name} (${address}) to the team, in ACCESS.internal_users in source/backend/auth/app.ts, with the slug "${slug}"${role === "member" ? "" : ` and the role "${role}"`}, so they can log in to the admin. Open a pull request.`
 
     return (
         <section

@@ -13,7 +13,7 @@ template lists no source: a copy adds one the day it wires up a service.
 `routes.ts` answers each one, and `deliveries.ts`'s `takeDelivery` does
 the work:
 
-1. **The source**, by the path's last part, from `SOURCES` (`sources.ts`),
+1. **The source**, by the path's last part, from `APP_SOURCES` (`app.ts`),
    which the API hands every route as `context.var.webhook_sources`. One
    that isn't listed is 404 `not-found`, and nothing is kept, but it's
    logged as a miss (`backend/misses/`), as a warning when it's signed
@@ -55,7 +55,9 @@ again rather than making the sender send it again.
 
 ## Adding a source
 
-A source is a file of its own here, listed in `SOURCES`:
+A source is a file of its own here, listed in `app.ts`'s `APP_SOURCES`,
+the app's own, which no update from the template changes (the template
+has no source of its own):
 
 ```typescript
 // backend/webhooks/stripe.ts
@@ -85,7 +87,7 @@ export const stripe: WebhookSource = {
 }
 ```
 
-1. **Its events**, in `backend/workflows/events.ts`'s `EVENTS`, each
+1. **Its events**, in `backend/workflows/app-events.ts`'s `APP_EVENTS`, each
    `<source>-<what happened>` (`stripe-checkout-completed`), carrying the
    IDs a workflow needs to read the rest from the service.
 2. **Its signature.** A source that signs as Standard Webhooks says, as
@@ -99,7 +101,7 @@ export const stripe: WebhookSource = {
    like `whsec_` alone, is `unconfigured`, 503, since anyone could sign
    with it.
 3. **Its secret**, a Railway variable on the app's service
-   (`STRIPE_WEBHOOK_SECRET`), in `.railway/railway.ts`, whose value the
+   (`STRIPE_WEBHOOK_SECRET`), in `.railway/app.ts`'s `env`, whose value the
    owner sets in Railway's dashboard. Until it's set, its deliveries are
    refused with 503, which the sender tries again.
 4. **Its body**, read with `readJson(delivery, schema)`, a zod schema of
@@ -113,8 +115,9 @@ export const stripe: WebhookSource = {
 
 ## What's kept
 
-`internal.webhook_deliveries` is a log of what came, for 30 days
-(`KEEP_DELIVERIES_FOR`, `prune.ts`), deleted each hour by the
+`internal.webhook_deliveries` is a log of what came, for 30 days as the
+template ships (`keep_webhook_deliveries_for` in the app's settings,
+`utilities/settings/`, read by `prune.ts` as `KEEP_DELIVERIES_FOR`), deleted each hour by the
 `prune-webhook-deliveries` workflow, on a schedule and quiet
 (`workflows.ts`). What a delivery meant is in the runs
 it queued (`/api/workflows/runs`). Its outcome is one of

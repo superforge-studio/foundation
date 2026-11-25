@@ -13,7 +13,7 @@ import {
  * they accept, the site sets no lasting cookie on them. Both answers are
  * the same size, and the server keeps either in a cookie, so they aren't
  * asked again. It shows only in a browser, when the server's latest answer
- * to the page's events said to ask: by VISITOR_MODE (utilities/visitors.ts),
+ * to the page's events said to ask: by `visitor_mode` (utilities/settings/),
  * and where the visitor is, for a visitor who hasn't answered. Never in
  * the prerender, where it's always hidden. The root route draws it on
  * every page, the dashboard's too.
