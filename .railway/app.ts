@@ -12,7 +12,9 @@ export const APP = {
     // This repository on GitHub, as `git remote get-url origin` shows it
     repository: "superforge-studio/foundation",
     // Railway's address for the app, `<name>.up.railway.app`, which has to
-    // be free across all of Railway. The first apply makes it
+    // be free across all of Railway. The first apply makes it, and needs
+    // it. Once the app has a domain of its own, an address that's gone
+    // from Railway is left out (workbench/commit-and-deploy.md, "Domains")
     address: "superforge-foundation.up.railway.app",
     // Where the app, its database and its buckets all run: the region
     // nearest the business's customers (`REGIONS`, ./railway.ts). Choose it

@@ -33,7 +33,11 @@ const REGIONS = {
 export type AppRailway = {
     project: string
     repository: string
-    address: string
+    // Railway's own address for the app, `<name>.up.railway.app`, which the
+    // first apply needs, since the CDN needs a public domain to start on.
+    // An app whose address has gone, and has a domain of its own, leaves it
+    // out
+    address?: string
     region: keyof typeof REGIONS
     domains: readonly string[]
     env: Record<string, string | VariableValue>
@@ -43,6 +47,11 @@ export type AppRailway = {
 // A bucket can't move after it's made, and a database with rows in it moves
 // only by hand
 const REGION = REGIONS[APP.region]
+
+// Railway's address for the app, or `undefined` if ./app.ts leaves it out.
+// Read through the type, since an app.ts without one has no `address` for
+// TypeScript to find
+const { address: RAILWAY_ADDRESS }: AppRailway = APP
 
 /**
  * The Railway project, as code. `railway config plan` shows what applying
@@ -178,10 +187,13 @@ export default defineRailway(() => {
     // Railway's own address for the app, which the first apply makes with
     // the service, since the CDN needs a public domain to start on. After
     // that the file doesn't keep it: if it's deleted, the plan doesn't
-    // notice. The app's own domains join it, once it has any
+    // notice, and an app with a domain of its own can leave it out of
+    // ./app.ts. The app's own domains join it, once it has any
     // (workbench/commit-and-deploy.md, "Domains").
     app.networking = {
-        serviceDomains: { [APP.address]: {} },
+        ...(RAILWAY_ADDRESS !== undefined && {
+            serviceDomains: { [RAILWAY_ADDRESS]: {} }
+        }),
         ...(APP.domains.length > 0 && {
             customDomains: Object.fromEntries(
                 APP.domains.map((domain) => [domain, {}])
