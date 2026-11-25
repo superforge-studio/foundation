@@ -1,4 +1,4 @@
-import { agent_scope } from "@superforge/infra/contract"
+import { AGENT_SCOPES } from "@superforge/infra/contract"
 import { z } from "zod"
 
 /**
@@ -17,13 +17,13 @@ export const MCP_PATH = "/admin/mcp"
  * enforces both on every call Claude makes (backend/auth/logged-in.ts).
  * Infra's contract defines them, since its tokens carry them.
  */
-export {
-    AGENT_SCOPES,
-    type AgentScope,
-    agent_scope
-} from "@superforge/infra/contract"
+export { AGENT_SCOPES, type AgentScope } from "@superforge/infra/contract"
 
-/** What the Allow page sends: what Claude may do, of what it asked */
+/**
+ * What the Allow page sends: what Claude may do, of what it asked. Built
+ * with the app's own zod from the package's list, since the package's
+ * schemas are made with its own zod, which can be another version.
+ */
 export const agent_allow = z.object({
-    scopes: z.array(agent_scope).min(1)
+    scopes: z.array(z.enum(AGENT_SCOPES)).min(1)
 })
