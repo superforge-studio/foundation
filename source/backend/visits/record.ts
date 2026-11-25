@@ -31,6 +31,14 @@ import {
 /** How long a visit lasts with nothing happening. */
 export const VISIT_GAP = 30 * MINUTE
 
+/**
+ * The most events one visit holds: the next starts a new visit, so a visit
+ * that's never left, like one a script keeps sending to under one ID, never
+ * costs more than this to work out again with each batch. A visitor would
+ * need an event every six seconds for eight hours without a break.
+ */
+export const EVENTS_A_VISIT = 5000
+
 /** How old a page's event can be and still be kept. */
 export const OLDEST_PAGE_EVENT = 7 * DAY
 
@@ -144,7 +152,8 @@ export async function recordVisit(
         )
 
         // Their latest visit, which the first of these events joins when
-        // the two are 30 minutes apart or less
+        // the two are 30 minutes apart or less, and it holds fewer events
+        // than the most a visit may
         const [latest] = await transaction
             .select({
                 id: analytics_visits.id,
@@ -156,21 +165,30 @@ export async function recordVisit(
             .limit(1)
 
         // Each event's visit: the one of the event before it, theirs
-        // already kept or one of these, or a new one after a gap
+        // already kept or one of these, or a new one after a gap, or once
+        // that one holds the most a visit may
         const started: { id: string; at: Date }[] = []
         const rows: (typeof analytics_events.$inferInsert)[] = []
         let joins_latest = false
         let current =
             latest === undefined
                 ? null
-                : { id: latest.id, at: latest.ended_at.getTime() }
+                : {
+                      id: latest.id,
+                      at: latest.ended_at.getTime(),
+                      held: await eventsHeld(transaction, latest.id)
+                  }
         for (const event of timed) {
             const at = event.occurred_at.getTime()
-            if (current !== null && Math.abs(at - current.at) <= VISIT_GAP) {
-                current = { id: current.id, at }
+            if (
+                current !== null &&
+                Math.abs(at - current.at) <= VISIT_GAP &&
+                current.held < EVENTS_A_VISIT
+            ) {
+                current = { id: current.id, at, held: current.held + 1 }
                 joins_latest ||= current.id === latest?.id
             } else {
-                current = { id: randomUUID(), at }
+                current = { id: randomUUID(), at, held: 1 }
                 started.push({ id: current.id, at: event.occurred_at })
             }
             rows.push({
@@ -227,6 +245,22 @@ export async function recordVisit(
         ])
     })
     return { kept: timed.length, ...answer }
+}
+
+// How many events `visit_id` holds, counted no further than the most a
+// visit may, by the index on a visit's events, so it costs the same
+// however many a script tried to give it
+async function eventsHeld(database: Database, visit_id: string) {
+    const counted = database
+        .select({ one: sql`1`.as("one") })
+        .from(analytics_events)
+        .where(eq(analytics_events.visit_id, visit_id))
+        .limit(EVENTS_A_VISIT)
+        .as("counted")
+    const [held] = await database
+        .select({ count: sql<number>`count(*)::integer` })
+        .from(counted)
+    return held?.count ?? 0
 }
 
 /**

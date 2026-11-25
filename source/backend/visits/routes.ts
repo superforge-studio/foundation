@@ -6,6 +6,7 @@ import { maybeLoggedIn } from "../auth/logged-in"
 import { visitorIp, visitorUserAgent } from "../auth/visitor"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
+import { isBot } from "./browsers"
 import {
     followAnswer,
     forgetVisitor,
@@ -13,6 +14,7 @@ import {
     keptConsent,
     keptVisitorId
 } from "./cookies"
+import { countPageEvents } from "./limit"
 import { recordVisit } from "./record"
 
 /**
@@ -30,7 +32,8 @@ export const visitRoutes = new Hono<ApiEnvironment>()
     // the page asks the visitor, and sets, renews or clears their
     // `visitor` cookie by whether the site remembers them. A database
     // that's down fails the batch (500), which the page sends again: it's
-    // kept whole or not at all.
+    // kept whole or not at all. A network past what a day allows is
+    // refused (429 `too-many`, limit.ts), which the page drops.
     .post(
         "/visits",
         bodyLimit({
@@ -47,6 +50,30 @@ export const visitRoutes = new Hono<ApiEnvironment>()
         maybeLoggedIn,
         async (context) => {
             const { sent_at, events } = context.req.valid("json")
+            const ip = visitorIp(context)
+            const user_agent = visitorUserAgent(context)
+
+            // Counted against the network's day, before anything is kept,
+            // unless one of the team sent it, or a bot, whose events are
+            // dropped
+            if (context.var.user === null && !isBot(user_agent)) {
+                const counted = await countPageEvents(context.var.database, {
+                    ip,
+                    events
+                })
+                if (!counted.ok) {
+                    const { retry_after } = counted.error
+                    context.header("Retry-After", String(retry_after))
+                    return failure(
+                        context,
+                        429,
+                        "too-many",
+                        "This network has sent all the page events a day allows",
+                        { retry_after }
+                    )
+                }
+            }
+
             const mode = context.var.visitor_mode
             const kept_id = keptVisitorId(context)
             // The ID the cookie holds, or a new one, which the cookie holds
@@ -59,8 +86,8 @@ export const visitRoutes = new Hono<ApiEnvironment>()
                     id,
                     consent: keptConsent(context),
                     user_id: context.var.user?.id ?? null,
-                    ip: visitorIp(context),
-                    user_agent: visitorUserAgent(context)
+                    ip,
+                    user_agent
                 },
                 sent_at,
                 events

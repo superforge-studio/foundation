@@ -40,6 +40,35 @@ test("attempts count up to the most a window allows, then wait for it to end", a
     ).toEqual({ ok: true, data: { count: 1 } })
 })
 
+test("an attempt can count as more than one, and a refused one adds to the count too", async () => {
+    const database = await testDatabase()
+    const limited = {
+        bucket: "visits",
+        key: networkKey("203.0.113.9"),
+        most: 10,
+        window: DAY
+    }
+
+    expect(await countAttempt(database, { ...limited, amount: 4 })).toEqual({
+        ok: true,
+        data: { count: 4 }
+    })
+    expect(await countAttempt(database, { ...limited, amount: 6 })).toEqual({
+        ok: true,
+        data: { count: 10 }
+    })
+    const refused = await countAttempt(database, { ...limited, amount: 3 })
+    expect(refused).toMatchObject({ ok: false, error: { count: 13 } })
+    if (!refused.ok) {
+        expect(refused.error.retry_after).toBeGreaterThan(DAY / 1000 - 60)
+        expect(refused.error.retry_after).toBeLessThanOrEqual(DAY / 1000)
+    }
+    expect(await countAttempt(database, limited)).toMatchObject({
+        ok: false,
+        error: { count: 14 }
+    })
+})
+
 test("a window that has ended starts again, and one ended a day ago is deleted", async () => {
     const database = await testDatabase()
     const key = networkKey("203.0.113.9")

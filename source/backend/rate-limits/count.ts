@@ -23,6 +23,9 @@ import { networkOf } from "../visits/visitors"
 //       context.header("Retry-After", String(counted.error.retry_after))
 //       return failure(context, 429, "too-many", "Too many forms; try again later")
 //   }
+//
+// An attempt can count as more than one, by its `amount`, as a batch of a
+// page's events counts as its events (visits/limit.ts).
 
 /**
  * What `ip`'s network is counted by: a hash of it, as visitors.ts counts a
@@ -36,10 +39,12 @@ export function networkKey(ip: string) {
 }
 
 /**
- * Counts one more of `bucket`, what's limited, from `key`, who did it, in
- * the window it's in, `window` from its first (an hour unless it says), and
- * refuses it past `most`, with how many seconds until the window ends.
- * Windows that ended a day ago are deleted as it goes.
+ * Counts `amount` more of `bucket`, what's limited (one unless it says),
+ * from `key`, who did it, in the window it's in, `window` from its first
+ * (an hour unless it says), and refuses it once the count is past `most`,
+ * with how many seconds until the window ends and the count, which a
+ * refused attempt adds to as well. Windows that ended a day ago are
+ * deleted as it goes.
  */
 export async function countAttempt(
     database: Database,
@@ -47,17 +52,27 @@ export async function countAttempt(
         bucket,
         key,
         most,
-        window = HOUR
-    }: { bucket: string; key: string; most: number; window?: number }
-): AsyncOperationResult<{ count: number }, { retry_after: number }> {
+        window = HOUR,
+        amount = 1
+    }: {
+        bucket: string
+        key: string
+        most: number
+        window?: number
+        amount?: number
+    }
+): AsyncOperationResult<
+    { count: number },
+    { retry_after: number; count: number }
+> {
     const ended = sql`${rate_limits.window_started_at} <= ${fromNow(-window)}`
     const [counted] = await database
         .insert(rate_limits)
-        .values({ bucket, key, window_started_at: sql`now()`, count: 1 })
+        .values({ bucket, key, window_started_at: sql`now()`, count: amount })
         .onConflictDoUpdate({
             target: [rate_limits.bucket, rate_limits.key],
             set: {
-                count: sql`case when ${ended} then 1 else ${rate_limits.count} + 1 end`,
+                count: sql`case when ${ended} then ${amount}::integer else ${rate_limits.count} + ${amount}::integer end`,
                 window_started_at: sql`case when ${ended} then now() else ${rate_limits.window_started_at} end`
             }
         })
@@ -74,7 +89,10 @@ export async function countAttempt(
     } else if (counted.count > most) {
         return {
             ok: false,
-            error: { retry_after: Math.max(1, counted.ends_in) }
+            error: {
+                retry_after: Math.max(1, counted.ends_in),
+                count: counted.count
+            }
         }
     } else {
         return { ok: true, data: { count: counted.count } }

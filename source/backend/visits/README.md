@@ -80,13 +80,44 @@ future. One more than a week old isn't kept.
 that's down fails it (500), and the page sends it again
 (`frontend/visitors/README.md`).
 
+## How much one network may send
+
+`/api/visits` is the one route anyone may write through, so each batch is
+counted against its network's day before anything is kept (`limit.ts`,
+with `countAttempt` from `backend/rate-limits/`), by its network as login
+counts one: an IPv4 address, or an IPv6 address's /64.
+
+| What                   | How much                                                                 |
+| ---------------------- | ------------------------------------------------------------------------ |
+| A network's day        | 20,000 (`PAGE_EVENTS_A_DAY`), a day from its first batch                 |
+| What a batch counts as | Its events, or its kilobytes when that's more (`batchCost`)              |
+| Not counted            | The team, logged in, and a bot, whose batch is dropped anyway            |
+| Past it                | 429 `too-many`, with `Retry-After` and `retry_after`; nothing of it kept |
+| Logged                 | Once, as a network goes past, with nothing of who it is                  |
+
+A visit is a few dozen events, so a day is hundreds of visits from one
+address, a café's or an office's, and the team, who use the site most,
+aren't counted at all. A page that's refused drops the batch, as it does
+any 4xx, and the visitor sees nothing. A script, though, can add at most
+about 20 MB of events from one address a day, where without it each
+request could carry 64 KB. What it doesn't stop is a script on many
+addresses at once, which only a ceiling for the whole site would, at the
+cost of the site's analytics going dark for everyone. A business that
+needs more for one address, like a campus café's, raises the constant.
+
 ## A visit
 
 A visit is one visitor's events until 30 minutes pass without one
-(`VISIT_GAP`). Each event joins the visit of the one before it, already
-kept or in the same batch, or starts a new one. One visitor's batches are
-taken in turn (an advisory lock on the visitor), so two tabs' join one
-visit.
+(`VISIT_GAP`), or until it holds 5,000 (`EVENTS_A_VISIT`). Each event
+joins the visit of the one before it, already kept or in the same batch,
+or starts a new one. One visitor's batches are taken in turn (an advisory
+lock on the visitor), so two tabs' join one visit.
+
+The 5,000 is for a visit that's never left: a visitor's ID is whatever
+their cookie says, so a script can send to one ID from anywhere, and
+every batch works its visit out again from all of its events (below).
+Past 5,000 a batch costs no more than that, and a visitor would need an
+event every six seconds for eight hours without a break to reach it.
 
 Each time a visit gets more events it's worked out from all of them again
 (`summarize.ts`), in the same transaction, so it says what its events do
@@ -199,6 +230,8 @@ goes null).
 
 - `routes.ts`: `/api/visits`, a page's batch, and `/api/visits/consent`,
   the banner's answer.
+- `limit.ts`: how much of the pages' events one network may send in a
+  day.
 - `cookies.ts`: the `visitor` and `visitor_consent` cookies.
 - `record.ts`: `recordVisit`, a visitor's page events, each in its visit,
   and `recordEvents`, the server's own.

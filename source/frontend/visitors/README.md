@@ -57,7 +57,9 @@ most 100 events and 32 KB a call, and as the page hides, what's left goes
 with `keepalive`, which outlives the page. A batch the app's server
 couldn't take (no network, or a 5xx while it's down or deploying) is
 tried again, waiting longer each time, up to five minutes, and once more
-with `keepalive` as the page hides; one it refused (a 4xx) is dropped. A
+with `keepalive` as the page hides; one it refused (a 4xx, like the 429
+a network past what a day allows is answered, `backend/visits/README.md`)
+is dropped. A
 page holds at most 500 waiting, in its memory, and drops the oldest past
 them: what hasn't gone when the page closes is lost. The server keeps a
 batch whole or not at all, so one it couldn't keep, like while its

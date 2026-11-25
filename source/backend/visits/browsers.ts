@@ -14,11 +14,19 @@ export type BrowserFacts = {
 }
 
 /**
+ * Whether `user_agent` is a bot's, or none at all, which no real browser
+ * sends: a batch of events from either is answered and dropped.
+ */
+export function isBot(user_agent: string) {
+    return user_agent.trim() === "" || isbot(user_agent)
+}
+
+/**
  * What `user_agent` says, or null for a bot's, or for none at all, which
  * no real browser sends.
  */
 export function describeBrowser(user_agent: string): BrowserFacts | null {
-    if (user_agent.trim() === "" || isbot(user_agent)) {
+    if (isBot(user_agent)) {
         return null
     }
     const parsed = Bowser.parse(user_agent)
