@@ -1,4 +1,9 @@
-import { mutationOptions, queryOptions, useQuery } from "@tanstack/react-query"
+import {
+    matchQuery,
+    mutationOptions,
+    queryOptions,
+    useQuery
+} from "@tanstack/react-query"
 import type { InferResponseType } from "hono/client"
 import { client } from "@/backend/client"
 import type { Permissions } from "@/utilities/permissions"
@@ -136,8 +141,18 @@ export const logOut = mutationOptions({
         }
     },
     onSuccess: async (_data, _input, _result, context) => {
-        await context.client.cancelQueries()
-        context.client.removeQueries()
+        // Who's logged in is set to no one, never removed: a screen watching
+        // a query that's removed is never told, so the admin's frame would
+        // go on drawing the user. Set, it draws the way in, and the screens
+        // behind login go with it. A session fetched before this logout,
+        // and answered after it, would put the user back
+        const session = { queryKey: sessionQuery.queryKey, exact: true }
+        await context.client.cancelQueries(session)
         context.client.setQueryData(sessionQuery.queryKey, null)
+        // Then everything else goes, with anything still being fetched for
+        // them, whose answer is dropped when it comes
+        context.client.removeQueries({
+            predicate: (query) => !matchQuery(session, query)
+        })
     }
 })
