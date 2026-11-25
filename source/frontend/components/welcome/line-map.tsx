@@ -23,8 +23,7 @@ import {
 // color: you, the website, the API with login, the admin, Storage and
 // the workflows on branches, and the database. The health check runs down it as a pulse each
 // time it's asked; a stop it passes through fills in, and where it can't
-// get through, the line turns red and the stop says what to do. The parts
-// still to come are stops on a dashed line.
+// get through, the line turns red and the stop says what to do.
 
 type Station = {
     name: string
@@ -34,15 +33,10 @@ type Station = {
     status?: Status
     // A page of the app's that shows this part working
     page?: { to: "/login" | "/admin"; label: string }
-    shape: "origin" | "stop" | "branch" | "planned"
+    shape: "origin" | "stop" | "branch"
     // Which part this is, when a failed check can be about it
     checks?: Recovery["part"]
 }
-
-// The parts coming to Foundation, in the order they're expected to ship, as
-// dashed stops at the end of the line. None, for now: each part on the line
-// is built.
-const PLANNED: Station[] = []
 
 // Where the API's stop and the database's are on the line: the first the
 // check can find broken, and the last it runs to
@@ -183,35 +177,14 @@ export function LineMap({ className }: { className?: string }) {
                                 : null
                         }
                         stretch={
-                            // The line ends at the database, unless there
-                            // are parts still to come after it
-                            index < DATABASE_POSITION || PLANNED.length > 0 ? (
+                            // The line ends at the database
+                            index < DATABASE_POSITION ? (
                                 <Stretch
                                     index={index}
                                     run={run}
-                                    live={index < DATABASE_POSITION}
-                                    planned={index >= DATABASE_POSITION}
+                                    live
                                     broken={index >= brokenFrom(seen)}
                                 />
-                            ) : null
-                        }
-                    />
-                ))}
-                {PLANNED.length > 0 && (
-                    <li className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 pb-6">
-                        <Stretch index={-1} run={run} planned />
-                        <p className="col-start-2 font-medium text-muted-foreground text-xs">
-                            Coming to Foundation
-                        </p>
-                    </li>
-                )}
-                {PLANNED.map((station, index) => (
-                    <StationRow
-                        key={station.name}
-                        station={station}
-                        stretch={
-                            index < PLANNED.length - 1 ? (
-                                <Stretch index={-1} run={run} planned />
                             ) : null
                         }
                     />
@@ -268,31 +241,22 @@ function brokenFrom(found: Finding): number {
     }
 }
 
-// The line from this stop's dot to the next one's, solid where it's built,
-// dashed where it isn't and red where the check couldn't get through, with
+// The line from this stop's dot to the next one's, solid, and red where the
+// check couldn't get through, with
 // the pulse running down it when a check starts. A branch's row carries the
 // main line straight past it.
 function Stretch({
     index,
     run,
     live = false,
-    planned = false,
     broken = false
 }: {
     index: number
     run: number
     live?: boolean
-    planned?: boolean
     broken?: boolean
 }) {
-    let track: string
-    if (planned) {
-        track = "border-muted-foreground/40 border-l-4 border-dashed"
-    } else if (broken) {
-        track = "bg-destructive"
-    } else {
-        track = "bg-primary"
-    }
+    const track = broken ? "bg-destructive" : "bg-primary"
     return (
         <span
             aria-hidden
@@ -355,9 +319,7 @@ function StationRow({
                     <h3
                         className={cn(
                             "font-heading font-semibold tracking-tight",
-                            branch ? "text-sm leading-6" : "text-base",
-                            station.shape === "planned" &&
-                                "text-muted-foreground"
+                            branch ? "text-sm leading-6" : "text-base"
                         )}
                     >
                         {station.name}
@@ -397,7 +359,7 @@ function StationRow({
 
 // A stop is a ring on the line, filled once the check has passed through it
 // and red where it couldn't; the origin is a filled dot, a branch a smaller
-// ring off the line, and a stop still to come a dashed ring
+// ring off the line
 function StationDot({
     shape,
     tone
@@ -422,9 +384,7 @@ function StationDot({
                 shape === "stop" &&
                     cn("col-start-1 mt-1 size-4 border-[3px]", stop),
                 shape === "branch" &&
-                    "col-start-2 mt-1.5 size-3 border-[2.5px] border-primary/60 bg-background",
-                shape === "planned" &&
-                    "col-start-1 mt-1 size-4 border-[3px] border-muted-foreground/45 border-dashed bg-background"
+                    "col-start-2 mt-1.5 size-3 border-[2.5px] border-primary/60 bg-background"
             )}
         />
     )

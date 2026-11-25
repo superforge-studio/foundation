@@ -14,11 +14,7 @@ export const EVENTS = {
     // Someone new is on the team: the server's start, or their first
     // login, made their user, as access.ts lists them
     // (backend/users/sync.ts). With their address, for the run's title.
-    "user-added": z.object({ user_id: z.uuid(), email: z.string() }),
-    // Someone new logged in for the first time, from before only the team
-    // could. Nothing queues it now: it's here while tell-team-of-sign-up is
-    // listed for its runs, and goes with it in the next release.
-    "user-signed-up": z.object({ user_id: z.uuid(), email: z.string() })
+    "user-added": z.object({ user_id: z.uuid(), email: z.string() })
 } satisfies Record<string, z.ZodType>
 
 /** An event's name. */

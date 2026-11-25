@@ -356,7 +356,12 @@ export const dbosWorkflows: Workflows = {
 
     async retry(id) {
         const run = await dbosWorkflows.run(id)
-        if (run === null) {
+        // A run of a workflow no longer listed has nothing to run it: DBOS
+        // would leave it pending for good, so it's answered as not there
+        if (
+            run === null ||
+            !knownWorkflows().some((workflow) => workflow.name === run.workflow)
+        ) {
             return { ok: false, error: "not-found" }
         } else if (run.status !== "failed" && run.status !== "canceled") {
             return { ok: false, error: "not-stopped" }
@@ -547,7 +552,12 @@ export async function takeGate(
 ): Promise<void> {
     const gate = new pg.Client({
         connectionString: url,
-        application_name: "app workflows gate"
+        application_name: "app workflows gate",
+        // So a connection that dies without a word fails, which frees the
+        // lock, rather than leaving this process running the workflows
+        // while another takes the gate
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10_000
     })
     // Once it holds the lock, losing it is the workflows' to recover from;
     // a failure before then fails the start, which tries again
@@ -558,7 +568,11 @@ export async function takeGate(
             error
         })
         if (taken && workflowsProcess().gate === gate) {
-            restartWorkflows()
+            restartWorkflows().catch((restart_error: unknown) => {
+                console.error("The workflows didn't start again", {
+                    error: restart_error
+                })
+            })
         }
     })
     holding(gate)

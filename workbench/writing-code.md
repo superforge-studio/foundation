@@ -638,7 +638,8 @@ statement.
 ### By hand
 
 - **`pnpm database:sql "<query>"`** runs one query against the checkout's
-  database, in a read-only session, and prints the rows. For anything
+  database, in a session that's read-only by default (a query that turns
+  that off can still write), and prints the rows. For anything
   more, a `psql` of your own reaches it at
   `node source/database/local/server.ts url`. Write only to your own
   checkout's database.

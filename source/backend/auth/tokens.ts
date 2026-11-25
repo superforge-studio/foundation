@@ -1,7 +1,6 @@
 /**
- * 32 random bytes, in base64url: a session's token, for its cookie, or the
- * stand-in's link (@superforge/infra's stand-in). Only a token's SHA-256 is
- * ever stored (`sha256()`).
+ * 32 random bytes, in base64url: a session's token, for its cookie. Only a
+ * token's SHA-256 is ever stored (`sha256()`).
  */
 export function randomToken() {
     const bytes = crypto.getRandomValues(new Uint8Array(32))

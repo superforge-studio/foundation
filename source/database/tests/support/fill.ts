@@ -86,7 +86,7 @@ const key_row = z.object({
 /**
  * Fills every table in `SCHEMAS`, and says how many rows each got, by its
  * name: bare in `public`, and after its schema in another, like
- * `internal.pit_uses` (`tableName()`).
+ * `internal.webhook_deliveries` (`tableName()`).
  */
 export async function fill(client: pg.ClientBase) {
     const tables = await tablesInOrder(client)

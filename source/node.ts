@@ -138,6 +138,9 @@ built.startWorkflows()
 // exit. Once, however many signals come: pnpm
 // passes its own on, so a signal to both is two here, and a second stop
 // mustn't exit while the first is still shutting DBOS down.
+// How long the stop takes at most, under Railway's 30 seconds
+const STOP_DEADLINE_MS = 25_000
+
 let stopping = false
 process.on("SIGTERM", async () => {
     if (stopping) {
@@ -145,6 +148,13 @@ process.on("SIGTERM", async () => {
     }
     stopping = true
     console.info("Server stopping")
+    // Railway kills the process 30 seconds after the signal
+    // (`drainingSeconds`, .railway/railway.ts): give up a little before,
+    // so what's left is logged rather than cut off
+    setTimeout(() => {
+        console.error("The server didn't stop in time, so it's exiting")
+        process.exit(1)
+    }, STOP_DEADLINE_MS).unref()
     try {
         await built.stopWorkflows()
     } catch (error) {

@@ -49,6 +49,8 @@ export const SAMPLE_BYTES: Record<string, string> = {
 
 /** The folders, then the files in them, and what's in Trash. */
 export const seedFolders: Seeder = async (transaction) => {
+    // The files first: a folder's row can't go while a file's is in it
+    await transaction.delete(files)
     await transaction.delete(file_folders)
     const by = await firstInternal(transaction)
     const [contracts, logos, photos, old_quotes] = await transaction

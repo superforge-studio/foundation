@@ -31,7 +31,6 @@ export const VISITOR_MODE: VisitorMode = "remember"
  * itself, which records what only it knows, like a sign-up.
  */
 export const EVENT_SOURCES = ["browser", "server"] as const
-export type EventSource = (typeof EVENT_SOURCES)[number]
 
 /** The kinds of device a visitor's browser says it's on. */
 export const DEVICES = ["mobile", "tablet", "desktop"] as const

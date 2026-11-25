@@ -296,7 +296,11 @@ next apply keeps it rather than deleting it.
 the apex, `@`, for a bare domain; most DNS hosts flatten it) to the
 service's `*.up.railway.app` target, and a TXT record at `_railway-verify`.
 On Cloudflare, make the CNAME **DNS only (gray cloud), not proxied**, so
-Railway's CDN is the one cache in front of the app. Railway issues the
+Railway's CDN is the one cache in front of the app. A proxy in front of
+Railway also hides each visitor's address: the app reads it from
+`X-Real-IP`, which is whatever connected to Railway's edge, so behind
+Cloudflare's proxy every visitor would share Cloudflare's addresses, one
+country and one rate limit. Railway issues the
 certificate within minutes; `railway domain status <id>` shows it.
 
 **(The human)** adds the custom domain to the app's project on

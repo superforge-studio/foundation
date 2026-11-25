@@ -48,6 +48,3 @@ export async function listUsers(database: Database, access: Access) {
         }
     })
 }
-
-/** Someone on the Team screen, as `listUsers` answers them. */
-export type ListedUser = Awaited<ReturnType<typeof listUsers>>[number]

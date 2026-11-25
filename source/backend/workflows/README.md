@@ -211,7 +211,7 @@ order, and DBOS refuses one whose step names don't match (it fails with
   turns on, for a run started before it to skip.
 - **Anything bigger is a new workflow** with a new name. The old one stays
   in `WORKFLOWS` until its runs have finished. Once it's gone, its runs
-  stay on the Workflows screen under its name.
+  stay on the Workflows screen under its name, and can't be started again.
 
 Never delete DBOS's rows by hand, nor write to its tables.
 
@@ -324,9 +324,7 @@ of the team, and send the notice, which goes to the logs until
 Superforge Infra can send email. `pnpm database:seed` puts real runs of
 it on the queue, for a dev server to run, rather than writing DBOS's
 rows. A copy keeps it, or deletes it with its line in `index.ts` (the
-sync's event then queues nothing). `tell-team-of-sign-up`, the example
-before only the team logged in, is listed beside it until the next
-release, for the runs a copy had in flight, and nothing starts it.
+sync's event then queues nothing).
 
 ## When not to use one
 

@@ -79,7 +79,21 @@ export async function startLocalServer() {
     const owner = serverOwner()
     const tools = binaries(directory, owner)
 
-    if (!existsSync(join(data, "PG_VERSION"))) {
+    // Data from another major version of Postgres, after an update moved
+    // the binaries on, can't start: it's only the seed and the tests'
+    // copies, so it's made again rather than left to `database:reset`
+    const version_file = join(data, "PG_VERSION")
+    if (existsSync(version_file)) {
+        const kept = readFileSync(version_file, "utf8").trim()
+        const binaries_major = majorOf(tools, owner)
+        if (kept !== binaries_major && !isRunning(data, tools, owner)) {
+            console.info(
+                `This checkout's Postgres data is from Postgres ${kept}, and its binaries are ${binaries_major}: making it again`
+            )
+            rmSync(data, { recursive: true, force: true })
+        }
+    }
+    if (!existsSync(version_file)) {
         initialize(directory, data, tools, owner)
     }
 
@@ -386,6 +400,17 @@ function run(command: string, args: string[], owner: Owner) {
     const result = spawnSync(command, args, options)
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim()
     return { ok: result.status === 0, output, error: result.error }
+}
+
+// The binaries' major version, as PG_VERSION names it: `18` of
+// `pg_ctl (PostgreSQL) 18.4`
+function majorOf(tools: ReturnType<typeof binaries>, owner: Owner) {
+    const version = required(run(tools.pg_ctl, ["--version"], owner))
+    const major = /\) (\d+)/.exec(version)?.[1]
+    if (major === undefined) {
+        throw new Error(`Postgres's version wasn't in "${version}"`)
+    }
+    return major
 }
 
 function required(result: ReturnType<typeof run>) {

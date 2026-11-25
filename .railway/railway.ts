@@ -99,7 +99,18 @@ export default defineRailway(() => {
         // the deploy. The timeout sits above the migrations' own statement
         // limit, so a slow one rolls back rather than being killed.
         preDeploy: "pnpm database:migrate",
-        deploy: { preDeployTimeoutSeconds: 300 },
+        //
+        // On a deploy, Railway sends the old deployment SIGTERM, and kills it
+        // `drainingSeconds` later: long enough for source/node.ts to stop
+        // the workflows, finish the requests in flight and send its last
+        // spans, which it gives up on a little before. A server that
+        // crashes starts again, up to ten times in a row.
+        deploy: {
+            preDeployTimeoutSeconds: 300,
+            drainingSeconds: 30,
+            restartPolicyType: "ON_FAILURE",
+            restartPolicyMaxRetries: 10
+        },
         // Traffic moves to a new deployment only once the server reaches
         // the database
         healthcheck: "/api/health",

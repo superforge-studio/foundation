@@ -71,6 +71,13 @@
             "when": 1795461145278,
             "tag": "0009_files-rate-limits-and-no-role",
             "breakpoints": true
+        },
+        {
+            "idx": 10,
+            "version": "7",
+            "when": 1795565627627,
+            "tag": "0010_cleanup-checks-and-file-sizes",
+            "breakpoints": true
         }
     ]
 }

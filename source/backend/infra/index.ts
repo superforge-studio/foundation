@@ -16,24 +16,16 @@ import { chooseInfra, type Infra } from "@superforge/infra"
 
 export {
     type AgentConnection,
-    type AgentRefused,
-    type AgentRequest,
     type AgentToken,
     APP_PATHS,
-    type CommentRefused,
     type FiledComment,
     type Infra,
-    type InfraUnavailable,
     infraClient,
-    type KeptComment,
     OAUTH_CALLS,
     type OAuthCall,
     requestOrigin,
-    type StartedLogin,
-    type StartRefused,
     standInAgentToken,
-    standInInfra,
-    type VerifyRefused
+    standInInfra
 } from "@superforge/infra"
 
 let shared: Infra | undefined

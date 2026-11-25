@@ -44,18 +44,6 @@ export type EventProperties = z.infer<typeof event_properties>
  */
 export const browser_id = z.string().regex(/^[\w-]{8,64}$/)
 
-/**
- * The app's own ID for whoever is logged in, as Superforge Infra takes one
- * with a comment (@superforge/infra's `filed_comment`): at most 128 characters, and
- * never an email, since Infra keeps no app's users.
- */
-export const app_user_id = z
-    .string()
-    .trim()
-    .min(1)
-    .max(128)
-    .refine((id) => !id.includes("@"), { message: "An email, not an ID" })
-
 /** A page's path, starting `/`, without its query or fragment. */
 export const page_path = z
     .string()

@@ -18,8 +18,7 @@ const UNKEPT_HEADERS = new Set([
 
 /**
  * The events a delivery queued, as its `events` column keeps them: each
- * by its name, with the runs it queued. Read back through this, since an
- * older version may have written it.
+ * by its name, with the runs it queued.
  */
 export const queued_events = z.array(
     z.object({ name: z.string(), runs: z.array(z.string()) })
