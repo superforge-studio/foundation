@@ -192,8 +192,9 @@ from its file, step 5) or touch DNS: the steps marked
    Account Settings → GitHub).
 2. Name things for the business in `.railway/app.ts` (`START-HERE.md`,
    step 5): the project, the repository, the service's Railway address,
-   `<name>.up.railway.app`, which has to be free across all of Railway,
-   and the region nearest its customers, which the app, the database and
+   `<name>.up.railway.app`, which has to be free across all of Railway
+   (the first apply needs it, so a new copy always has one: "Domains",
+   below), and the region nearest its customers, which the app, the database and
    the buckets share. The service is `app`, in
    every copy.
 3. Make the project, from the repository's root, logged in with `railway
@@ -301,6 +302,12 @@ doesn't keep it**: if it's deleted, the plan doesn't notice, and it comes
 back only from the service's Settings → Networking → Generate Domain. A
 custom domain joins it in `domains`, in the same `.railway/app.ts`, which
 `railway.ts` makes its `customDomains`.
+
+**`address` is optional, but only after the first apply.** An app whose
+Railway address has gone, and has a custom domain, leaves `address` out of
+`.railway/app.ts`, so the file declares no `serviceDomains` and says
+nothing Railway doesn't serve. A new copy keeps it until the first apply
+has run, which needs a public domain to make the service.
 
 **The file can keep a custom domain but can't create one**: `railway
 config plan` refuses a new name under `customDomains`. Add it first with
