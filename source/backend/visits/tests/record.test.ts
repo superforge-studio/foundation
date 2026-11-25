@@ -35,14 +35,28 @@ async function setup(locate: Locate = () => null) {
     }
 }
 
-// A page's event, this long ago
+// The moment a test's events count back from: the first `event` in a test
+// reads the clock, and every other one in it counts back from that same
+// moment, so a test's events are exactly as far apart as their `ago`s say,
+// however slowly it runs
+let clock: { test: string | undefined; now: number } | null = null
+
+function testsNow() {
+    const test = expect.getState().currentTestName
+    if (clock === null || clock.test !== test) {
+        clock = { test, now: Date.now() }
+    }
+    return clock.now
+}
+
+// A page's event, this long before the test's now
 function event(
     name: string,
     ago: number,
     path = "/",
     properties: PageEvent["properties"] = {}
 ): PageEvent {
-    return { name, at: Date.now() - ago, path, properties }
+    return { name, at: testsNow() - ago, path, properties }
 }
 
 // A batch of a remembered visitor's, sent now, with anything in `visitor`
