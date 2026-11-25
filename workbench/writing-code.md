@@ -33,6 +33,18 @@ request-time logic (auth, redirects, headers) in front of one and expect it
 to run. A page that needs to change per request is client-rendered (`ssr:
 false` on its route) and left out of the prerender.
 
+**A prerendered page's first draw in the browser is the one the prerender
+made**, for a visitor, or React logs a hydration error and draws it
+again. React hydrates the root's part of a page first, and each route's
+part in a later pass, so a route's components can hydrate after the
+browser has learned more, like who's logged in, which the toolbar asks at
+once. `useSession()` answers `loading` on any render that hydrates,
+whatever the browser knows by then. Anything else only the browser knows,
+like the window's address, is read with `useSyncExternalStore` and a
+server snapshot of what the prerender drew, as the consent banner reads
+whether to ask, or once `useHydrated()` (`@tanstack/react-router`) says
+the page has hydrated.
+
 ### Headless
 
 **Every database read and write goes through `backend/`'s operations, and

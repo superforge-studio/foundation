@@ -4,6 +4,7 @@ import {
     queryOptions,
     useQuery
 } from "@tanstack/react-query"
+import { useHydrated } from "@tanstack/react-router"
 import type { InferResponseType } from "hono/client"
 import { client } from "@/backend/client"
 import type { Permissions } from "@/utilities/permissions"
@@ -52,13 +53,20 @@ export type Session =
 
 /**
  * Which of the team is logged in, for any component. A prerendered page is
- * drawn for a visitor, so it's "loading" until the browser asks: treat
- * that like a visitor, and hide only what would jump. Anyone who isn't one
- * of the team is "logged-out" here.
+ * drawn for a visitor, so it's "loading" until the browser asks, and on
+ * any render that hydrates that page, whatever the browser knows by then:
+ * React hydrates a route's part of the page in a pass of its own, after
+ * the root's, whose toolbar may have its answer already, and a page drawn
+ * logged in over a visitor's HTML doesn't match it. Treat "loading" like a
+ * visitor, and hide only what would jump. Anyone who isn't one of the team
+ * is "logged-out" here.
  */
 export function useSession(): Session {
     const session = useQuery(sessionQuery)
-    if (session.isPending) {
+    // False while React draws over the HTML the server drew, and true from
+    // then on, for anything drawn after it too
+    const hydrated = useHydrated()
+    if (!hydrated || session.isPending) {
         return { status: "loading" }
     } else if (
         session.isError ||
