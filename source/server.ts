@@ -10,7 +10,7 @@ import { MCP_PATH } from "./utilities/schemas/agents"
 import { nameRequest } from "./utilities/tracing"
 
 // What the Node server runs once it's listening (source/node.ts): the
-// internal users made to follow the list in backend/auth/access.ts
+// internal users made to follow the list in backend/auth/app.ts
 // (backend/users/sync.ts), and the workflows' start, with their stop as
 // Railway stops the deployment (backend/workflows/engine.ts)
 // And the hosts whose every path comes here, past the build's files, which

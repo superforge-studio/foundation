@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm"
 import { beforeEach, expect, test, vi } from "vitest"
-import { ACCESS } from "@/backend/auth/access"
+import { ACCESS } from "@/backend/auth/app"
 import { testApi } from "@/backend/tests/support/api"
 import { logInAs } from "@/backend/tests/support/login"
 import { users } from "@/database/schema"
 import { api_failure } from "@/utilities/schemas/failures"
 
 // The team, through the whole API: whoever's role may read the team sees
-// it, as access.ts lists it, and nothing here changes anyone
+// it, as auth/app.ts lists it, and nothing here changes anyone
 
 beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})

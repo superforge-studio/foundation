@@ -109,9 +109,12 @@ export const reindexContact = defineWorkflow({
 })
 ```
 
-- **Each event is declared once** in `events.ts`'s `EVENTS`, by its
-  name, `<record>-<verb>`, with a zod schema of what it carries, when the
-  first workflow needs it. `on` takes only the events whose data fits the
+- **Each event is declared once**, by its name, `<record>-<verb>`, with a
+  zod schema of what it carries, when the first workflow needs it: the
+  template's in `events.ts`'s `EVENTS`, and this app's own in
+  `app-events.ts`'s `APP_EVENTS`, which `EVENTS` takes after them. It's a
+  file of its own, not `app.ts`, since `app.ts` imports the app's
+  workflows, and what they import reads the events as it loads. `on` takes only the events whose data fits the
   workflow's input, and each run gets the event's data as its input,
   checked as it's queued.
 - **An event carries IDs**, and little else. A run may start seconds
@@ -249,7 +252,8 @@ Never delete DBOS's rows by hand, nor write to its tables.
   queues through a DBOS client, for whichever process runs them.
 - **Every run goes on a queue**, `background` unless its workflow names
   another, which meters how many run at once. A workflow that needs its own
-  limits gets a queue of its own in `queues.ts`.
+  limits gets a queue of its own, in `app-events.ts`'s `APP_QUEUES`, which
+  `queues.ts`'s `QUEUES` takes after the template's.
 - **DBOS's tables** are made and migrated by `pnpm database:migrate`
   (`DBOS.migrate`, `source/database/migrate.ts`) before each deploy, so
   they're there before any process starts, and a DBOS upgrade's migrations
@@ -260,8 +264,9 @@ Never delete DBOS's rows by hand, nor write to its tables.
   outputs, so the API opens one from months ago as it does one from
   today. DBOS never deletes a run on its own, and its tables gain
   a row with every step, which steps that return little keep small. A
-  copy whose runs grow too many for its database sets `KEEP_FINISHED_FOR`
-  (`engine.ts`) to a duration, like `90 * DAY`, and the runs that finished
+  copy whose runs grow too many for its database sets
+  `keep_finished_runs_for` in its settings (`utilities/settings/app.ts`)
+  to a duration, like `90 * DAY`, and the runs that finished
   longer ago than that are then pruned about once an hour
   (`pruneFinishedRuns`).
 - **Connections**, of the 500 Railway's Postgres allows: the app's pool

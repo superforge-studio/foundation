@@ -91,8 +91,8 @@ database is down, comes back as a 5xx and is sent again.
 
 ## Remembering a visitor
 
-**`VISITOR_MODE` in `source/utilities/visitors.ts` is the owner's
-choice**, which `START-HERE.md` asks about. The server applies it to
+**`visitor_mode`, in the app's settings (`source/utilities/settings/`),
+is the owner's choice**, which `START-HERE.md` asks about. The server applies it to
 every batch, by what the visitor answered and the country of their IP
 address, and decides whether the site remembers them and whether the
 page asks them:

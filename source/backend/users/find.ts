@@ -13,7 +13,7 @@ export async function findUser(database: Database, id: string) {
 
 /**
  * The addresses of the team, whom a notice about the business goes to:
- * everyone access.ts lists, as the server's start and each login keep
+ * everyone auth/app.ts lists, as the server's start and each login keep
  * the database (sync.ts), and no one deactivated, but `except`'s, when
  * the notice is about one of them.
  */

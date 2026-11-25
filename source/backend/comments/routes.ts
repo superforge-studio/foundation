@@ -14,7 +14,7 @@ import { findBoard } from "./board"
  * on an element here, never to Infra, and the server sends it on with the
  * key and who filed it, for Superforge Infra to keep
  * (backend/infra/README.md, "Comments"). Anyone on the team, listed in
- * code (auth/access.ts), can file one, whatever their role, and a visitor
+ * code (auth/app.ts), can file one, whatever their role, and a visitor
  * can't reach the owner's list.
  */
 export const commentRoutes = new Hono<ApiEnvironment>()

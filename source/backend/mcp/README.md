@@ -84,7 +84,7 @@ never handles a token.
   a `GET` itself for a connection that may only read, before the API
   would, so a read-only connection can't reach a route anyone may call.
 - **Only the team can connect**, and a token stops working the moment
-  its person is taken off the team in `backend/auth/access.ts`, since
+  its person is taken off the team in `backend/auth/app.ts`, since
   every request checks.
 - **Its failures take the API's one shape**, `{ error: { reason,
   message } }`: 401 `logged-out` with the `WWW-Authenticate` above, 503

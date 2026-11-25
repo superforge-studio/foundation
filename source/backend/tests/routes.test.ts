@@ -1,7 +1,8 @@
 import { Hono } from "hono"
 import { beforeEach, expect, test, vi } from "vitest"
 import { withVariables } from "@/backend"
-import { ACCESS, type Access } from "@/backend/auth/access"
+import type { Access } from "@/backend/auth/access"
+import { ACCESS } from "@/backend/auth/app"
 import {
     loggedIn,
     maybeLoggedIn,

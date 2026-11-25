@@ -32,7 +32,7 @@ import { auth, internal } from "./namespaces"
 // ./app.ts can use them whichever of the two files loads first
 export { auth, internal }
 
-// The team, the business's own people, as backend/auth/access.ts lists
+// The team, the business's own people, as backend/auth/app.ts lists
 // them: the only people who log in. The server's start makes a row for
 // everyone listed, and deactivates anyone taken off the list, keeping
 // their row so what they did still points at them (backend/users/sync.ts).
@@ -41,7 +41,7 @@ export const users = pgTable(
     "users",
     {
         id: id(),
-        // Who they are to the code, as access.ts lists them: lowercase words
+        // Who they are to the code, as auth/app.ts lists them: lowercase words
         // joined by hyphens (`ada`, `nick-r`), which never changes, and is
         // never anyone else's, so a row follows its person through a new
         // address, and a slug listed again brings its row back
@@ -179,8 +179,9 @@ export const files = pgTable(
         name: text().notNull(),
         content_type: text().notNull(),
         // In bytes: what was declared until it's `ready`, then what the
-        // bucket has. A file is at most 100 MB (utilities/schemas/files.ts),
-        // and a bigint, so a copy can raise that past 2 GB
+        // bucket has. A file is at most 100 MB as the template ships
+        // (`largest_file`, utilities/settings/), and a bigint, so a copy can
+        // raise that past 2 GB
         size: bigint({ mode: "number" }).notNull(),
         // Text with a check, as `users.slug` has one
         state: text({ enum: FILE_STATES }).notNull().default("uploading"),

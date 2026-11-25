@@ -5,7 +5,7 @@ Infra emails an address a code and a link, and says whose address it is
 when either comes back (`backend/infra/README.md`, "Login", has Infra's
 side: how long they work, its limits and its keys). The app keeps the
 rest: its users, their sessions, and the one place that decides who a
-request is from, `logged-in.ts`. **Only the team logs in**, as `access.ts`
+request is from, `logged-in.ts`. **Only the team logs in**, as `app.ts`
 lists them. `workbench/writing-code.md`, "The team and what each role may
 do", has that rule, the roles and the areas; this guide has how it's
 carried out.
@@ -129,8 +129,10 @@ What ends one:
 
 ## The team, in code and in `users`
 
-`access.ts` holds the list, `ACCESS`, with each role's grant, and what
-reads it: `listedInternal` (by address, trimmed and lowercased, as
+`app.ts`, the app's own, holds the list, `ACCESS`, with each role's grant,
+which START-HERE.md fills in, apart from the template's code so an update
+never meets it. `access.ts`, the template's, has its shape and what reads
+it: `listedInternal` (by address, trimmed and lowercased, as
 `addressOf` gives a listed person's), `listedBySlug`, `listedAs` (a row,
 by its slug with its address), `roleOf` (a `member` when the role is left
 out), `permissionsOf(access, role)` and `problemsWith`. Every route and
@@ -141,7 +143,7 @@ test hands its own.
   `id`, `slug`, `email`, `name` and `created_at` (`TEAM_ROW_COLUMNS`),
   with the `name`, `first_name`, `last_name` and `role` the list gives
   them (`listing()`), which the middleware adds on every request. `users`
-  has no column for a role. So a name or a role changed in `access.ts`
+  has no column for a role. So a name or a role changed in `app.ts`
   holds from the first request after the deploy, whatever the row says.
 - **A row is a slug with an address.** The slug is who someone is to the
   code, and never changes, so a new address changes their row rather than
@@ -180,8 +182,9 @@ test hands its own.
   (`source/node.ts`), and as a dev server first loads `source/server.ts`;
   never in the build's prerender or the tests, then ends Claude's
   connections as everyone deactivated (`endConnectionsOfGone`). It never
-  rejects: it logs what it did (`The team follows access.ts`), or that it
-  failed (`The team didn't sync with access.ts`), and the server goes on.
+  rejects: it logs what it did (`The team follows auth/app.ts`), or that
+  it failed (`The team didn't sync with auth/app.ts`), and the server goes
+  on.
 - **The list decides, not the sync.** The middleware counts someone only
   while the list has their row as it is, their slug with the row's
   address (`listedAs`), so the sync is what keeps the database telling the
@@ -376,9 +379,14 @@ its dry run.
 - `sessions.ts`: the sessions' operations, with `TeamRow` and
   `TeamMember`.
 - `logged-in.ts`: the cookie and the four checks.
-- `access.ts`: `ACCESS`, the team and its roles, which START-HERE.md sets.
+- `app.ts`: the app's own: `ACCESS`, the team and what each role may do,
+  which START-HERE.md sets, and `OTHERS`, whoever else logs in.
+- `access.ts`: the template's: what the team and a role are, and the
+  checks on the list (`listedAs`, `problemsWith`, …). A role's name, and a
+  role of the app's own, are in `utilities/permissions/` (`ROLE_NAMES`,
+  `APP_ROLES`).
 - `agents.ts` and `api-tokens.ts`: the two kinds of token.
-- `others.ts` and `app.ts`: whoever else logs in.
+- `others.ts`: what's asked of whoever else logs in.
 - `jobs.ts`: `prune-sessions`.
 - `tokens.ts`: `randomToken`, `randomCharacters` and `sha256`.
 - `visitor.ts`: what's read of a request: `visitorIp`, `visitorBrowser`,
@@ -392,7 +400,7 @@ its dry run.
   again.
 - **An owner can't see or end another person's** sessions, API tokens or
   Claude's connections, short of taking them off the list in
-  `access.ts` and deploying, which ends every one of them.
+  `app.ts` and deploying, which ends every one of them.
 - **Whether `/auth/start` says an address isn't on the team.** It does
   (403 `not-listed`, which the login page shows in the same words), counted
   per network so a list can't be walked. Answering every well-formed

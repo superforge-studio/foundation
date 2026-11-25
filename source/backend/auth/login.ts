@@ -9,7 +9,7 @@ import { startSession, TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 
 /**
  * Whether `email` may start logging in, before Infra is asked to email it:
- * only someone on the team, as access.ts lists them.
+ * only someone on the team, as ./app.ts lists them.
  */
 export function mayLogIn(access: Access, email: string) {
     return listedInternal(access, email) !== undefined

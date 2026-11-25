@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm"
-import { ACCESS } from "@/backend/auth/access"
+import { ACCESS } from "@/backend/auth/app"
 import { summarizeVisits } from "@/backend/visits/summarize"
 import type { Database } from "@/database"
 import { analytics_events, analytics_visits, users } from "@/database/schema"

@@ -134,7 +134,7 @@ matters:
     workflows/      DBOS, for background work (its README has the rules)
     infra/          Superforge Infra, the one wrapper for calling it
     auth/           logging in through Infra, the sessions, loggedIn and
-                    permitted, and the team and its roles (access.ts)
+                    permitted, and the team and its roles (app.ts)
     <feature>/      one folder per feature, like health/, account/ and
                     users/
       routes.ts     Hono: check the input, call an operation, answer
@@ -168,32 +168,37 @@ anything of the business's written into one meets the next update as a
 conflict. Most of what an app adds is a file of its own already: a
 feature's folder in `backend/`, a page's route, a component, a query. The
 exception is a list the template keeps that an app adds to, like the
-tables or the routes. Each of those has a file of the app's beside it,
-named `app.ts`, which the template's reads. The template made each once,
-empty, and no update changes it:
+tables or the routes, and what a business decides, like who's on its team
+or what its Railway project is called. Each of those has a file of the
+app's beside the template's, named `app.ts` (`app-events.ts` for the
+events and queues), which the template's reads. The template made each
+once, and no update changes it:
 
-| The app's own                             | go in                                         | beside the template's                  |
-| ----------------------------------------- | --------------------------------------------- | -------------------------------------- |
-| Tables                                    | `source/database/schema/app.ts`               | `schema/foundation.ts`                 |
-| Seeders, and tables that get none         | `source/database/seed/app.ts`                 | `seed/seed.ts`                         |
-| Kinds of file in the bucket               | `source/database/storage/app.ts`              | `storage/files.ts`                     |
-| Routes, and what they see on `context`    | `source/backend/app.ts`                       | `index.ts`, `context.ts`               |
-| Workflows and runners                     | `source/backend/workflows/app.ts`             | `workflows/index.ts`                   |
-| Jobs                                      | `source/backend/jobs/app.ts`                  | `jobs/index.ts`                        |
-| Whoever logs in besides the team          | `source/backend/auth/app.ts`                  | `auth/others.ts`                       |
-| Checks before the app says it's healthy   | `source/backend/health/app.ts`                | `health/routes.ts`                     |
-| Areas of the app                          | `source/utilities/permissions/app.ts`         | `permissions/index.ts`                 |
-| The admin's sections, and Settings' parts | `source/frontend/components/dashboard/app.ts` | `navigation.ts`, `settings/screen.tsx` |
-| Answers of its own, asked before the rest | `source/app.ts`                               | `source/server.ts`                     |
-| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts`         | `tests/support/api.ts`                 |
-| The upgrade test's samples of its columns | `source/database/tests/support/app.ts`        | `tests/support/fill.ts`                |
+| The app's own                                                                               | go in                                         | beside the template's                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------- |
+| Tables                                                                                      | `source/database/schema/app.ts`               | `schema/foundation.ts`                 |
+| Seeders, and tables that get none                                                           | `source/database/seed/app.ts`                 | `seed/seed.ts`                         |
+| Kinds of file in the bucket                                                                 | `source/database/storage/app.ts`              | `storage/files.ts`                     |
+| Routes, and what they see on `context`                                                      | `source/backend/app.ts`                       | `index.ts`, `context.ts`               |
+| Workflows and runners                                                                       | `source/backend/workflows/app.ts`             | `workflows/index.ts`                   |
+| Jobs                                                                                        | `source/backend/jobs/app.ts`                  | `jobs/index.ts`                        |
+| The team, what each role may do, and whoever else logs in                                   | `source/backend/auth/app.ts`                  | `auth/access.ts`, `auth/others.ts`     |
+| Checks before the app says it's healthy                                                     | `source/backend/health/app.ts`                | `health/routes.ts`                     |
+| Areas of the app, and roles of its own                                                      | `source/utilities/permissions/app.ts`         | `permissions/index.ts`                 |
+| Settings: the site's title, whom it remembers, how long things are kept, Your files' limits | `source/utilities/settings/app.ts`            | `settings/index.ts`                    |
+| Events, and queues                                                                          | `source/backend/workflows/app-events.ts`      | `events.ts`, `queues.ts`               |
+| Services that post it webhooks                                                              | `source/backend/webhooks/app.ts`              | `webhooks/sources.ts`                  |
+| Its Railway project's names, region, domains and variables                                  | `.railway/app.ts`                             | `.railway/railway.ts`                  |
+| The admin's sections, and Settings' parts                                                   | `source/frontend/components/dashboard/app.ts` | `navigation.ts`, `settings/screen.tsx` |
+| Answers of its own, asked before the rest                                                   | `source/app.ts`                               | `source/server.ts`                     |
+| Stand-ins a test gets for the app's own                                                     | `source/backend/tests/support/app.ts`         | `tests/support/api.ts`                 |
+| The upgrade test's samples of its columns                                                   | `source/database/tests/support/app.ts`        | `tests/support/fill.ts`                |
 
 **Never add the app's own to a file the template owns.** When the
 template has no place for what the app needs, change the template's file
 and say so in the PR, so the conflict the next update brings there is
 expected. What the business is meant to make its own stays its own through
-an update: the pages and their look, the team and its roles (`ACCESS`),
-`.railway/railway.ts`, `PRODUCT.md` and `DESIGN.md`.
+an update: the pages and their look, `PRODUCT.md` and `DESIGN.md`.
 
 - **A new page** → a route file under `source/frontend/routes/`. Link to
   it from somewhere reachable from `/`: the prerenderer crawls links, and an
@@ -302,12 +307,14 @@ an update: the pages and their look, the team and its roles (`ACCESS`),
   nightly digest, is a workflow with a cron `schedule`, which DBOS fires.
   Something short that's just due at a time is a timestamp in Postgres
   that a runner checks, not a workflow. A second service in the Railway
-  project (`.railway/railway.ts`), started from this same package with its
+  project (`.railway/railway.ts`, the one change a copy makes there),
+  started from this same package with its
   own start command, or a cron service with a `cronSchedule`, only when
   something must deploy or scale on its own. Not a second package: one
   database means one package.
-- **A webhook from another service** → a source in
-  `backend/webhooks/sources.ts`'s `SOURCES`, posting to
+- **A webhook from another service** → a source, in a file of its own in
+  `backend/webhooks/`, listed in `APP_SOURCES` (`backend/webhooks/app.ts`),
+  posting to
   `/api/webhooks/<source>`, whose deliveries are kept as they came,
   checked, and turned into events for the workflows on them
   (`source/backend/webhooks/README.md`, "Adding a source"). Never a route
@@ -318,10 +325,11 @@ an update: the pages and their look, the team and its roles (`ACCESS`),
 ### The team and what each role may do
 
 **Only the team logs in, and the team is listed in code**: `internal_users`
-in `ACCESS`, `source/backend/auth/access.ts`, each with a slug that never
-changes, a first name, a last name, the address they log in with and
-their role, an `owner` or a `member` (`TEAM_ROLES`), a member when it's
-left out. They're the only users there are, and nobody else logs in: an
+in `ACCESS`, `source/backend/auth/app.ts`, the app's own, each with a slug
+that never changes, a first name, a last name, the address they log in
+with and their role, an `owner` or a `member` (`TEAM_ROLES`), a member
+when it's left out. `auth/access.ts`, the template's, has what a team
+member is and the checks on the list. They're the only users there are, and nobody else logs in: an
 address the list doesn't have is refused before Infra is asked to email
 it. It's code, not a Railway variable or a screen, so a dev server logs in
 the way production does, and the team only changes with a commit.
@@ -378,10 +386,13 @@ the way production does, and the team only changes with a commit.
   it, and each role in `roles` is given it: the `owner` has it already,
   and a `member` doesn't until it's given a level there. Its screen's
   section names it in `APP_NAVIGATION` (`components/dashboard/app.ts`).
-- **A new role**, like `technician`, goes in `TEAM_ROLES`, with its
-  areas in `roles` and its name on screen in `ROLE_NAMES`
-  (`components/dashboard/words.ts`); then someone is listed with it
+- **A new role**, like `technician`, goes in `APP_ROLES`
+  (`utilities/permissions/app.ts`), with its name on screen, and its areas
+  in `roles` (`auth/app.ts`); then someone is listed with it
   (`role: "technician"`). Nothing in the database changes.
+- **An area a release of the template adds** is the owner's alone in a
+  copy until its `roles` give it, since the copy's `roles` are its own: the
+  release's notes say which role the template would give it.
 - **In a test**, routes read the team from `context.var.access`, and a
   test hands its own (`testApi({ access })`), with its own `roles` when it
   tests one, or logs someone in with `logInAs(api, email, role)`, which
@@ -1146,7 +1157,8 @@ anything there, and keep it current in the same change:
 | The Railway project                            | `.railway/README.md`                           |
 
 A feature the app adds gets a README of its own when its context can't be
-read from its code, and a line here.
+read from its code, and a line under "This app's own" in `CLAUDE.md`,
+never in this table, which is the template's.
 
 ## Before you call it done
 

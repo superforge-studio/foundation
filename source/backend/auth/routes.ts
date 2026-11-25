@@ -25,7 +25,7 @@ const UNAVAILABLE = "Login isn't working right now. Try again soon."
  * Logging in, under /api/auth, with no password: Infra emails a six-digit
  * code and a link, and says whose email the code or the link is when the
  * visitor brings one back (backend/infra/). Only the team logs in, as
- * access.ts lists them, and the app keeps their user and their session,
+ * ./app.ts lists them, and the app keeps their user and their session,
  * unless the app gives someone else a way in (./others.ts), who's asked
  * only of an address the team doesn't have. Starting and verifying take JSON, which a form on another site
  * can't send; logging out takes no body, and the API refuses a request
@@ -234,7 +234,7 @@ export const authRoutes = new Hono<ApiEnvironment>()
 /**
  * Why login failed, in Infra's words or its package's, as `cause`, for
  * whoever can act on it: one of the business's own people, by the address
- * they typed (`internal_users`, access.ts), or anyone on a dev server. A
+ * they typed (`internal_users`, ./app.ts), or anyone on a dev server. A
  * visitor gets the plain message alone, since the cause can name the app's
  * keys and settings, which aren't theirs to read.
  */

@@ -2,6 +2,7 @@ import { expect, test } from "vitest"
 import { analytics_events, analytics_visits } from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
 import { DAY } from "@/utilities/primitives/durations"
+import { SETTINGS, TEMPLATE_SETTINGS } from "@/utilities/settings"
 import {
     deleteOldEvents,
     forgetOldAddresses,
@@ -66,10 +67,25 @@ function descending(one: number, other: number) {
 }
 
 test("events and addresses go after 90 days and visits after 25 months, as the template ships", () => {
-    expect(KEEP_EVENTS_FOR).toBe(90 * DAY)
-    expect(KEEP_IP_ADDRESSES_FOR).toBe(90 * DAY)
-    expect(KEEP_VISITS_FOR).toBe(760 * DAY)
+    expect(TEMPLATE_SETTINGS.keep_events_for).toBe(90 * DAY)
+    expect(TEMPLATE_SETTINGS.keep_ip_addresses_for).toBeUndefined()
+    expect(TEMPLATE_SETTINGS.keep_visits_for).toBe(760 * DAY)
 })
+
+test("they're kept as this app's settings say, the addresses as long as the events unless they say", () => {
+    expect(KEEP_EVENTS_FOR).toBe(SETTINGS.keep_events_for)
+    expect(KEEP_IP_ADDRESSES_FOR).toBe(
+        SETTINGS.keep_ip_addresses_for ?? SETTINGS.keep_events_for
+    )
+    expect(KEEP_VISITS_FOR).toBe(SETTINGS.keep_visits_for)
+})
+
+// As the template ships, whatever this app's settings say
+const SHIPPED = {
+    events: 90 * DAY,
+    addresses: 90 * DAY,
+    visits: 760 * DAY
+}
 
 test("deletes the events and blanks the addresses older than they're kept, and leaves their visits", async () => {
     const database = await testDatabase()
@@ -77,7 +93,7 @@ test("deletes the events and blanks the addresses older than they're kept, and l
         await visitFrom(database, days)
     }
 
-    expect(await pruneAnalytics(database)).toEqual({
+    expect(await pruneAnalytics(database, SHIPPED)).toEqual({
         events: 4,
         addresses: 2,
         visits: 0
@@ -88,7 +104,7 @@ test("deletes the events and blanks the addresses older than they're kept, and l
         events: [89, 89, 1, 1]
     })
     // Nothing left to delete or blank
-    expect(await pruneAnalytics(database)).toEqual({
+    expect(await pruneAnalytics(database, SHIPPED)).toEqual({
         events: 0,
         addresses: 0,
         visits: 0

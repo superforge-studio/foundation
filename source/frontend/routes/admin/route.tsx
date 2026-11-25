@@ -19,7 +19,7 @@ import { allows } from "@/utilities/permissions"
 
 /**
  * The admin, behind login, for the team listed in code
- * (backend/auth/access.ts), the only people who log in: a sidebar down the
+ * (backend/auth/app.ts), the only people who log in: a sidebar down the
  * left (a bar across the top on a phone) with the sections someone's role
  * may read, and the screen beside it, each with its own address so Back,
  * refresh and a shared link keep it. It opens on the Overview (index.tsx).

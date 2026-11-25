@@ -190,11 +190,11 @@ from its file, step 5) or touch DNS: the steps marked
 1. **(The human)** A Railway account on the Hobby or Pro plan, with
    Railway's GitHub app allowed to read this repository (railway.com →
    Account Settings → GitHub).
-2. Name things for the business in `.railway/railway.ts` (`START-HERE.md`,
-   step 5): the project, `github("<owner>/<repository>")`, the service's
-   Railway address, `<name>.up.railway.app`, which has to be free across
-   all of Railway, and the region nearest its customers, `REGION`, which
-   the app, the database and the buckets share. The service is `app`, in
+2. Name things for the business in `.railway/app.ts` (`START-HERE.md`,
+   step 5): the project, the repository, the service's Railway address,
+   `<name>.up.railway.app`, which has to be free across all of Railway,
+   and the region nearest its customers, which the app, the database and
+   the buckets share. The service is `app`, in
    every copy.
 3. Make the project, from the repository's root, logged in with `railway
    login`:
@@ -292,18 +292,20 @@ own Postgres, which `pnpm install` brings.
 
 ## Domains
 
-The app answers at Railway's address for it, named in
-`.railway/railway.ts` as the app's `networking.serviceDomains`. The first
+The app answers at Railway's address for it, `address` in
+`.railway/app.ts`, which `.railway/railway.ts` makes the app's
+`networking.serviceDomains`. The first
 apply makes it with the service, since Railway's CDN needs a public domain
 to start on (an apply without one fails, saying so). **After that the file
 doesn't keep it**: if it's deleted, the plan doesn't notice, and it comes
 back only from the service's Settings → Networking → Generate Domain. A
-custom domain joins it under `customDomains`.
+custom domain joins it in `domains`, in the same `.railway/app.ts`, which
+`railway.ts` makes its `customDomains`.
 
 **The file can keep a custom domain but can't create one**: `railway
 config plan` refuses a new name under `customDomains`. Add it first with
 `railway domain <name> --service app`, which prints the two DNS
-records it needs, then declare it in the file in the same change, so the
+records it needs, then list it in `domains` in the same change, so the
 next apply keeps it rather than deleting it.
 
 **(The human)** adds those records where the domain's DNS is: a CNAME (at
@@ -382,9 +384,11 @@ login's key ("Setting up Railway", step 6). Railway provides its own
 beside them, which the file doesn't name: the `RAILWAY_*` ones, and, while
 the service is traced (`tracing` in the file), the `OTEL_*` ones that say
 where its collector is, which turn the server's tracing on
-(`source/tracing.ts`). A new one goes in the file first,
-since the file owns every variable on the service (above), and a new
-secret is named in the PR so the human sets it before the merge. Never put a secret's value in the
+(`source/tracing.ts`). A new one of the app's own goes in `env` in
+`.railway/app.ts` first, never in `railway.ts`, which is the template's,
+since the two own every variable on the service between them (above),
+and a new secret is named in the PR so the human sets it before the
+merge. Never put a secret's value in the
 file, and never commit one: `.env*` is ignored for that reason.
 
 A dev server needs none of them: it uses the checkout's own Postgres,

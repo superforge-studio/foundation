@@ -206,10 +206,10 @@ that's `open`.
 
 | What                              | Is                            | Set in                                                        |
 | --------------------------------- | ----------------------------- | ------------------------------------------------------------- |
-| A file's size                     | 100 MB at most                | `LARGEST_FILE`, `source/utilities/schemas/files.ts`           |
-| How long something is in Trash    | 30 days                       | `TRASH_DAYS`, the same file                                   |
-| How long a link to send works     | 7 days                        | `LINK_DAYS`, the same file                                    |
-| A file's or a folder's name       | 1 to 255 characters, no slash | `item_name`, the same file                                    |
+| A file's size                     | 100 MB at most                | `largest_file`, the app's settings (`utilities/settings/`)    |
+| How long something is in Trash    | 30 days                       | `trash_days`, the same settings                               |
+| How long a link to send works     | 7 days                        | `link_days`, the same settings                                |
+| A file's or a folder's name       | 1 to 255 characters, no slash | `item_name`, `source/utilities/schemas/files.ts`              |
 | An upload's form                  | 15 minutes                    | `UPLOAD_FORM_SECONDS`, `routes.ts`                            |
 | A download's link                 | 5 minutes                     | `DOWNLOAD_LINK_SECONDS`, `send.ts`                            |
 | An upload never finished          | Deleted after a day           | `emptyExpired`, `trash.ts`                                    |

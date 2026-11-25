@@ -12,7 +12,7 @@ import { TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 // in on the Allow page (agents/), naming them by their user's ID, which
 // never changes. Infra proves who allowed it; the app decides what that
 // person may do, here, on every request: they must still be on the team,
-// as access.ts lists them, by their slug with their address (`listedAs`),
+// as ./app.ts lists them, by their slug with their address (`listedAs`),
 // and Claude acts as them, with what their role and what they allowed both
 // let it do. logged-in.ts calls this when a request has a token.
 
@@ -27,7 +27,7 @@ export function bearerToken(header: string | undefined) {
 
 /**
  * The team member Claude's token acts as, with the names and the role
- * access.ts lists them with, and what it may do; `"unavailable"` when
+ * ./app.ts lists them with, and what it may do; `"unavailable"` when
  * Infra's keys couldn't be fetched to check it, which isn't the token's
  * fault (answered 503, so Claude tries again rather than logging in
  * again); or undefined when the token isn't one Infra signed for this

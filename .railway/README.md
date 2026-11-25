@@ -1,7 +1,10 @@
 # Railway
 
-`railway.ts` is the Railway project as code: its region (`REGION`, which
-the app, the database and the buckets share), the app service, its build,
+`railway.ts` is the Railway project as code, the template's, which a copy
+never edits, and `app.ts` is the app's own part of it: the project's
+name, the repository, the app's addresses, its region (which the app, the
+database and the buckets share) and its own variables. `railway.ts` has
+the app service, its build,
 pre-deploy migrations, start, healthcheck, CDN and variables, the
 Postgres database with its point-in-time recovery bucket, and the
 `Storage` bucket for the app's files. CI applies it on each push to

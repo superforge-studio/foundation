@@ -6,8 +6,10 @@ import {
     preserve,
     project,
     ref,
-    service
+    service,
+    type VariableValue
 } from "railway/iac"
+import { APP } from "./app.ts"
 
 // Railway's four regions, each named as its services and databases name it
 // and as its buckets do, by the nearest airport's code (iad is Washington
@@ -25,12 +27,22 @@ const REGIONS = {
 } as const
 
 /**
- * Where the app, its database and its buckets all run: the region nearest
- * the business's customers, which START-HERE.md sets before the first
- * apply. Choose it once. A bucket can't move after it's made, and a
- * database with rows in it moves only by hand.
+ * What this app says of its own Railway, in ./app.ts: the template's file
+ * is this one, and that one is the app's.
  */
-const REGION = REGIONS["us-east"]
+export type AppRailway = {
+    project: string
+    repository: string
+    address: string
+    region: keyof typeof REGIONS
+    domains: readonly string[]
+    env: Record<string, string | VariableValue>
+}
+
+// Where the app, its database and its buckets all run, as ./app.ts chose.
+// A bucket can't move after it's made, and a database with rows in it moves
+// only by hand
+const REGION = REGIONS[APP.region]
 
 /**
  * The Railway project, as code. `railway config plan` shows what applying
@@ -41,9 +53,11 @@ const REGION = REGIONS["us-east"]
  * dashboard and missing here is a deletion, which CI's apply refuses: a
  * secret goes in as `preserve()`, which keeps Railway's value.
  *
- * START-HERE.md names the project, the service and the repository below
- * for the business, and makes the project with the first apply
- * (workbench/commit-and-deploy.md, "Setting up Railway").
+ * The project's name, the repository, the app's addresses, its region and
+ * its own variables are the app's, in ./app.ts, which START-HERE.md fills
+ * in before the first apply makes the project
+ * (workbench/commit-and-deploy.md, "Setting up Railway"). The rest is the
+ * template's, which updates change: a copy never edits this file.
  */
 export default defineRailway(() => {
     // The database, reachable only on the private network
@@ -81,9 +95,9 @@ export default defineRailway(() => {
 
     // The app: one Node server (source/node.ts), which deploys each push to
     // `main` once its CI passes (`checkSuites`). Named for what it is, so a
-    // copy keeps the name; the project and the repository are the business's.
+    // copy keeps the name; the project and the repository are the app's.
     const app = service("app", {
-        source: github("superforge-studio/starter-template", {
+        source: github(APP.repository, {
             branch: "main",
             checkSuites: true
         }),
@@ -156,16 +170,23 @@ export default defineRailway(() => {
             // memory. `dbip-city-lite` adds the region and the city, for
             // 120 MB in memory. Without the variable, as in a dev server,
             // no visitor is placed.
-            LOCATION_DATABASE: "dbip-country-lite"
+            LOCATION_DATABASE: "dbip-country-lite",
+            // The app's own (./app.ts)
+            ...APP.env
         }
     })
     // Railway's own address for the app, which the first apply makes with
     // the service, since the CDN needs a public domain to start on. After
     // that the file doesn't keep it: if it's deleted, the plan doesn't
-    // notice. A custom domain joins it under `customDomains`
+    // notice. The app's own domains join it, once it has any
     // (workbench/commit-and-deploy.md, "Domains").
     app.networking = {
-        serviceDomains: { "superforge-starter.up.railway.app": {} }
+        serviceDomains: { [APP.address]: {} },
+        ...(APP.domains.length > 0 && {
+            customDomains: Object.fromEntries(
+                APP.domains.map((domain) => [domain, {}])
+            )
+        })
     }
 
     // `variables` is what the CLI reads to manage them, but the SDK's type
@@ -175,5 +196,5 @@ export default defineRailway(() => {
         variables: { managed: true },
         resources: [app, database, recoveryArchive, storage]
     }
-    return project("superforge-starter", definition)
+    return project(APP.project, definition)
 })

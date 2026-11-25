@@ -1,12 +1,8 @@
 import { asc, eq } from "drizzle-orm"
 import { expect, test, vi } from "vitest"
-import {
-    type Access,
-    ACCESS as APP_ACCESS,
-    problemsWith,
-    roleOf
-} from "@/backend/auth/access"
+import { type Access, problemsWith, roleOf } from "@/backend/auth/access"
 import { makeApiToken } from "@/backend/auth/api-tokens"
+import { ACCESS as APP_ACCESS } from "@/backend/auth/app"
 import { type Infra, standInInfra } from "@/backend/infra"
 import { queuedRuns } from "@/backend/workflows/tests/support/queued"
 import { api_tokens, sessions, users } from "@/database/schema"
@@ -15,7 +11,7 @@ import { fromNow } from "@/database/time"
 import { DAY } from "@/utilities/primitives/durations"
 import { endConnectionsOfGone, syncInternalUsers } from "../sync"
 
-// What the server's start does with the list in backend/auth/access.ts:
+// What the server's start does with the list in backend/auth/app.ts:
 // makes `users` the listed people, found by their slugs, and sets aside
 // anyone the list doesn't have as they are, ending every way in they had
 
@@ -455,7 +451,7 @@ test("a list with a mistake in it changes nothing", async () => {
         listing({ ...ADA, slug: "Ada Lovelace" })
     ]) {
         await expect(sync(database, mistaken)).rejects.toThrow(
-            /access.ts's list has mistakes/
+            /auth\/app\.ts's list has mistakes/
         )
     }
     expect(await database.select().from(users)).toEqual([])

@@ -16,7 +16,7 @@ which points here.
 
 Before anything else, run `git remote get-url origin`. This codebase is
 about to hold the team's names and login addresses, in code
-(`source/backend/auth/access.ts`), and the business's own description
+(`source/backend/auth/app.ts`), and the business's own description
 (`PRODUCT.md`), so it must live in a repository of the owner's own, and
 a private one.
 
@@ -119,8 +119,10 @@ pass.
 Replace `source/frontend/routes/index.tsx`'s placeholder with the
 business's own page: its name, the line from step 1, and what visitors
 should do next. Keep it one page for now; more pages are routes under
-`source/frontend/routes/`, linked from the home page. Then set the page's
-title and description in `source/frontend/routes/__root.tsx`'s `head`.
+`source/frontend/routes/`, linked from the home page. Then set the site's
+title and description, `site_title` and `site_description` in
+`APP_SETTINGS`, `source/utilities/settings/app.ts`, the app's own
+settings, which every page shows unless it sets its own.
 The placeholder's line map, with the health check running down it, is
 there to show the owner what the codebase has and that it runs; it isn't
 for visitors. Delete `source/frontend/components/welcome/`, which only it
@@ -137,7 +139,7 @@ Keep the admin too, `source/frontend/routes/admin/`, behind login: its
 Overview says the dashboard is the business's to build, a section at a
 time, and its Settings shows who's on the team, each as their role allows.
 Then say who's on the team, from step 1's answers, in `ACCESS` in
-`source/backend/auth/access.ts`:
+`source/backend/auth/app.ts`, the app's own, which no update changes:
 
 - **`internal_users`**: the team, the owner first, each with a slug
   (their first name, lowercase, like `ada`, or with a letter after it
@@ -153,15 +155,16 @@ Then say who's on the team, from step 1's answers, in `ACCESS` in
 - **`roles`**: what each role may do, area by area. As it ships, a
   member may do everything the owner may. If someone should see or
   change less, from step 1's answer, give `member` less, or add a role
-  of their own, like `technician`, to `TEAM_ROLES` with its areas here,
-  and list them with it (`workbench/writing-code.md`, "The team and what
+  of their own, like `technician`: its name in `APP_ROLES`
+  (`source/utilities/permissions/app.ts`), its areas here, and someone
+  listed with it (`workbench/writing-code.md`, "The team and what
   each role may do").
 
-Then say whom the site remembers, from step 1's answer, in
-`VISITOR_MODE` in `source/utilities/visitors.ts`:
+Then say whom the site remembers, from step 1's answer, as
+`visitor_mode` in the same `APP_SETTINGS`:
 
-- **`"remember"`**, as it ships: everyone, with no banner. Keep it when
-  the owner has no other answer.
+- **`"remember"`**, as it ships: everyone, with no banner. Keep it, and
+  leave `visitor_mode` out, when the owner has no other answer.
 - **`"ask"`**: for a business based in the EU. The banner asks everyone,
   and only those who accept are remembered.
 - **`"ask-in-eu"`**: for a business based elsewhere that wants visitors
@@ -193,12 +196,13 @@ The codebase is called `starter-template` in a few places. Rename it to a
 short, lowercase name for the business (like `acme-plumbing`):
 
 - `name` in `package.json`.
-- In `.railway/railway.ts`: the project, the repository
-  (`github("<owner>/<repository>", …)` is this repository on GitHub, as
-  `git remote get-url origin` shows it), and the service's Railway address
+- In `.railway/app.ts`, the app's own, which no update changes: the
+  project, the repository (this repository on GitHub, as `git remote
+  get-url origin` shows it), and the service's Railway address
   (`<name>.up.railway.app`, which has to be free across all of Railway).
-  The service itself is `app`, which stays.
-- The region, `REGION` at the top of `.railway/railway.ts`: ask where most
+  The service itself is `app`, which stays, in `.railway/railway.ts`,
+  the template's, which a copy never edits.
+- The region, `region` in `.railway/app.ts`: ask where most
   of the business's customers are, and pick the nearest of Railway's four
   (`us-west`, California; `us-east`, Virginia; `europe-west`, Amsterdam;
   `asia-southeast`, Singapore). The app, its database and its buckets all

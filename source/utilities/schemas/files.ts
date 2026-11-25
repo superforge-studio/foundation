@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { SETTINGS } from "../settings"
 import { isStorable } from "./text"
 // Relative, since drizzle-kit reads this file through schema.ts, without
 // the app's `@/` paths
@@ -10,14 +11,20 @@ import { isStorable } from "./text"
 /** Whether a file's bytes have reached the bucket yet. */
 export const FILE_STATES = ["uploading", "ready"] as const
 
-/** The largest file anyone uploads: 100 MB. */
-export const LARGEST_FILE = 100 * 1024 * 1024
+/**
+ * The largest file anyone uploads, in bytes, as the app's settings say
+ * (`largest_file`, utilities/settings/): 100 MB, as the template ships.
+ */
+export const LARGEST_FILE = SETTINGS.largest_file
 
-/** How long a file stays in Trash before it's deleted for good. */
-export const TRASH_DAYS = 30
+/** The largest file, as a person reads it: "100 MB". */
+export const LARGEST_FILE_WORDS = `${Math.round(LARGEST_FILE / (1024 * 1024))} MB`
+
+/** How long a file stays in Trash before it's deleted for good, in days. */
+export const TRASH_DAYS = SETTINGS.trash_days
 
 /** How long a link from "Copy a link" works, in days. */
-export const LINK_DAYS = 7
+export const LINK_DAYS = SETTINGS.link_days
 
 /**
  * A file's or a folder's name: trimmed, something, at most 255 characters,
@@ -73,5 +80,5 @@ export const upload_start = z.object({
         .number()
         .int()
         .min(0)
-        .max(LARGEST_FILE, "A file can be at most 100 MB")
+        .max(LARGEST_FILE, `A file can be at most ${LARGEST_FILE_WORDS}`)
 })

@@ -2,11 +2,13 @@ import { and, inArray, isNotNull, lt } from "drizzle-orm"
 import type { Database } from "@/database"
 import { analytics_events, analytics_visits } from "@/database/schema"
 import { fromNow } from "@/database/time"
-import { DAY, HOUR } from "@/utilities/primitives/durations"
+import { HOUR } from "@/utilities/primitives/durations"
+import { SETTINGS } from "@/utilities/settings"
 import type { Runner } from "../workflows/runners"
 
-// How long the site's analytics is kept, and the runner that deletes what's
-// older. The events are the bulk of it, and say the most about one
+// How long the site's analytics is kept, as the app's settings say
+// (`keep_events_for`, `keep_ip_addresses_for` and `keep_visits_for`,
+// utilities/settings/), and the runner that deletes what's older. The events are the bulk of it, and say the most about one
 // visitor, so they go first, with the IP addresses kept on the visits; a
 // visit, a row with what its events came to, stays for the reports that
 // look back a year or two.
@@ -15,22 +17,18 @@ import type { Runner } from "../workflows/runners"
  * How long an event is kept after it happened, or `"forever"`. Every
  * report over events reads this far back at most.
  */
-export const KEEP_EVENTS_FOR: number | "forever" = 90 * DAY
+export const KEEP_EVENTS_FOR = SETTINGS.keep_events_for
 
 /**
  * How long a remembered visitor's IP address is kept on their visit after
- * it started, or `"forever"`: as long as the events, after which it's
- * blanked and the visit stays.
+ * it started, or `"forever"`: as long as the events unless the settings
+ * say, after which it's blanked and the visit stays.
  */
-export const KEEP_IP_ADDRESSES_FOR: number | "forever" = KEEP_EVENTS_FOR
+export const KEEP_IP_ADDRESSES_FOR =
+    SETTINGS.keep_ip_addresses_for ?? KEEP_EVENTS_FOR
 
-/**
- * How long a visit is kept after it started, or `"forever"`: 25 months,
- * enough to set a month beside the same one two years before, and the
- * longest France's regulator (CNIL) says to keep what a site measures of
- * its audience.
- */
-export const KEEP_VISITS_FOR: number | "forever" = 760 * DAY
+/** How long a visit is kept after it started, or `"forever"`. */
+export const KEEP_VISITS_FOR = SETTINGS.keep_visits_for
 
 // How many rows one statement deletes, and how many statements a turn runs
 // at most, so a turn is short and holds no lock for long: what's left

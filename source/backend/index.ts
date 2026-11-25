@@ -3,12 +3,12 @@ import { bodyLimit } from "hono/body-limit"
 import { createMiddleware } from "hono/factory"
 import { appDatabase } from "@/database"
 import { appStorage } from "@/database/storage"
+import { SETTINGS } from "@/utilities/settings"
 import { traceRoutes } from "@/utilities/tracing"
-import { VISITOR_MODE } from "@/utilities/visitors"
 import { accountRoutes } from "./account/routes"
 import { agentRoutes } from "./agents/routes"
 import { appRoutes, appVariables, takesFormsFromOtherSites } from "./app"
-import { ACCESS } from "./auth/access"
+import { ACCESS } from "./auth/app"
 import { authRoutes } from "./auth/routes"
 import { commentRoutes } from "./comments/routes"
 import type { ApiEnvironment } from "./context"
@@ -20,8 +20,8 @@ import { jobRoutes } from "./jobs/routes"
 import { userRoutes } from "./users/routes"
 import { appLocate } from "./visits/location"
 import { visitRoutes } from "./visits/routes"
+import { APP_SOURCES } from "./webhooks/app"
 import { webhookRoutes } from "./webhooks/routes"
-import { SOURCES } from "./webhooks/sources"
 import { dbosWorkflows } from "./workflows/engine"
 import { workflowRoutes } from "./workflows/routes"
 
@@ -221,11 +221,11 @@ function fromThisHost(origin: string, context: Context) {
 /**
  * What the server's own API sees on `context`: its database, bucket,
  * workflows and Infra, and which Infra that is, with who can log in as
- * auth/access.ts says, whom
- * the site remembers as utilities/visitors.ts says, visitors placed by the
- * database Railway names (visits/location.ts), the webhook sources
- * webhooks/sources.ts lists, and this app's own (./app.ts). Whatever else
- * the server answers with the same things takes this too.
+ * auth/app.ts lists them, whom the site remembers as the app's settings
+ * say (utilities/settings/), visitors placed by the database Railway names
+ * (visits/location.ts), the webhook sources webhooks/app.ts lists, and this
+ * app's own (./app.ts). Whatever else the server answers with the same
+ * things takes this too.
  */
 export function serverVariables(): ApiEnvironment["Variables"] {
     return {
@@ -235,9 +235,9 @@ export function serverVariables(): ApiEnvironment["Variables"] {
         infra: appInfra(),
         infra_using: appInfraUsing(),
         access: ACCESS,
-        visitor_mode: VISITOR_MODE,
+        visitor_mode: SETTINGS.visitor_mode,
         locate: appLocate(),
-        webhook_sources: SOURCES,
+        webhook_sources: APP_SOURCES,
         ...appVariables()
     }
 }

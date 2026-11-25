@@ -43,7 +43,7 @@ export function AccountPanel({
 }
 
 /**
- * Who they are, as the app's code lists them (backend/auth/access.ts), so
+ * Who they are, as the app's code lists them (backend/auth/app.ts), so
  * nothing here changes: their names, their slug, the address they log in
  * with, and their role. An owner gets a prompt that has Claude Code change
  * them; anyone else asks an owner.
@@ -110,14 +110,14 @@ function ListedDetails({ user }: { user: SessionUser }) {
                     <p className="max-w-prose text-pretty text-muted-foreground text-sm">
                         You're listed in{" "}
                         <span className="font-mono text-foreground">
-                            backend/auth/access.ts
+                            backend/auth/app.ts
                         </span>
                         , so these change there, with a pull request.
                     </p>
                     <CopyPrompt
                         look="text"
                         label="Copy a change for Claude Code"
-                        prompt={`I'm ${user.name ?? user.email}, listed on the team in ACCESS.internal_users in source/backend/auth/access.ts with the slug "${user.slug}". Ask me what to change about my first name, last name or login email, change it there, keeping my slug as it is, and open a pull request.`}
+                        prompt={`I'm ${user.name ?? user.email}, listed on the team in ACCESS.internal_users in source/backend/auth/app.ts with the slug "${user.slug}". Ask me what to change about my first name, last name or login email, change it there, keeping my slug as it is, and open a pull request.`}
                     />
                 </div>
             ) : (
@@ -132,7 +132,7 @@ function ListedDetails({ user }: { user: SessionUser }) {
 
 /**
  * What their role lets them do in each area of the app, as the code gives
- * it (backend/auth/access.ts): what the admin shows them, and what Claude
+ * it (backend/auth/app.ts): what the admin shows them, and what Claude
  * and their API tokens may do as them, at most.
  */
 function WhatYouCanDo({
