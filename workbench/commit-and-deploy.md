@@ -21,11 +21,15 @@ git commit -F - -- source/frontend/routes/index.tsx README.md
 ```
 
 Merging a PR is shipping it (below), so a ruleset on `main` keeps a broken
-build off production: it requires a pull request and a passing `check`,
-with no approvals (a solo developer can't approve their own PR). Setting
-it is the human's, once, in the repository's Settings → Rules → New
-branch ruleset: target `main`, and turn on "Require a pull request before
-merging" (0 approvals) and "Require status checks to pass" with `check`.
+build off production: `main` can't be deleted or force-pushed, and it
+changes only through a pull request with a passing `check`, with no
+approvals (a solo developer can't approve their own PR). The ruleset is
+in the codebase, `.github/rulesets/main.json`, as Railway is in
+`.railway/railway.ts`, and `pnpm github:ruleset` puts it on the
+repository on GitHub: it makes the ruleset, or makes the one there match
+the file, as whoever `gh` is logged in as. Change the file, never the
+ruleset in GitHub's settings, then run it again. Nothing else depends on
+the ruleset: CI runs and Railway deploys the same without it.
 
 ## The two gates
 
@@ -161,14 +165,16 @@ code with it.
 ## Setting up Railway
 
 Once per copy of this codebase, before its first deploy. Agents don't
-create tokens, change repository settings or touch DNS: the steps marked
+create tokens, change repository settings (but for the `main` ruleset,
+from its file, step 5) or touch DNS: the steps marked
 **(the human)** are the owner's, and an agent says what's needed and waits.
 
 **What you'll need**, before step 1:
 
 - **Accounts**: GitHub, holding this repository, private (`START-HERE.md`,
-  step 0); a ruleset on a private repository (step 5) needs a paid GitHub
-  plan (Pro, Team or Enterprise). Railway, on the Hobby or Pro plan. And
+  step 0). GitHub has rulesets on a private repository only on a paid
+  plan (Pro, Team or Enterprise): on a free one step 5 says so and goes
+  on, and the copy runs without its ruleset. Railway, on the Hobby or Pro plan. And
   Superforge, on superforge.studio, for the app's project on Superforge
   Infra, which sends the login emails: production's login doesn't work
   without it (step 6). Infra is Superforge's hosted service; its price and
@@ -238,7 +244,15 @@ create tokens, change repository settings or touch DNS: the steps marked
    fails on every push, so Railway deploys nothing** (Wait for CI): set a
    new one, then re-run the failed job (`gh run rerun <id> --failed`) and
    the push deploys.
-5. **(The human)** The `main` ruleset (above).
+5. The `main` ruleset (above), from its file:
+
+   ```bash
+   pnpm github:ruleset
+   ```
+
+   An agent runs it, with the owner's `gh` login. On a GitHub plan with
+   no rulesets for a private repository it says so and passes: tell the
+   owner in one line, and go on.
 6. **(The human)** Login, through Superforge Infra
    (`source/backend/infra/README.md`). On superforge.studio's dashboard,
    the Infra tab:

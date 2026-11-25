@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.26.0](.superforge/releases/0.26.0.md) (2026-11-24): the `main` ruleset is in the codebase, `.github/rulesets/main.json`, and `pnpm github:ruleset` puts it on GitHub, an agent's step, no longer the owner's by hand; on a GitHub plan with no rulesets for a private repository it says so and passes.
 - [0.25.1](.superforge/releases/0.25.1.md) (2026-11-24): logging out takes the page with it: the admin draws "Log in to the admin" at once, without a refresh, the toolbar goes, and nothing asked for after the logout is answered 401.
 - [0.25.0](.superforge/releases/0.25.0.md) (2026-11-24): the code fixes ahead of 1.0.0: a megabyte limit on every body, another origin's requests refused by what the browser says, security headers on every answer, logins counted per network, Claude's token held to its scopes and answered 503 when it can't be checked, a failed query's values kept out of the logs, and `@superforge/infra` 0.4.0.
 - [0.24.0](.superforge/releases/0.24.0.md) (2026-11-24): the cleanup ahead of 1.0.0: `tell-team-of-sign-up` and `user-signed-up` gone, with `jose` and exports nothing used, checks on the analytics' fixed lists, `files.size` a bigint and a folder unable to go from under its files, API tokens' scopes the app's own list, 30 seconds for a deploy's stop, and the local Postgres made again after a major version change.
