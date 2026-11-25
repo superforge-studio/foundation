@@ -3,7 +3,7 @@ import type { InferResponseType } from "hono/client"
 import { client } from "@/backend/client"
 import { FailedRequest, readFailure } from "./failures"
 
-// The team (backend/users/routes.ts), for the dashboard's Team screen,
+// The team (backend/users/routes.ts), for Settings' Team in the admin,
 // which whoever may read the team sees
 
 /** Someone on the team, or once on it, as the API answers them. */

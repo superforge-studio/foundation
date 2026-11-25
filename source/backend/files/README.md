@@ -168,8 +168,8 @@ folder's alike.
   statement names more ids than Postgres takes; the rest, and their
   folders, wait for the next run.
 - **The `empty-trash` workflow runs it each hour**, at a quarter past
-  (`workflows.ts`), quiet, so its runs show on the Workflows screen only
-  when one fails, as `prune-webhook-deliveries` does its own prune
+  (`workflows.ts`), quiet, so its runs are listed (`/api/workflows/runs`)
+  only when one fails, as `prune-webhook-deliveries` does its own prune
   (`backend/workflows/README.md`, "On a schedule"). So what has run out
   goes within the hour, whether anyone looks, and no route deletes
   anything for good: listing Trash, a `GET`, only reads.

@@ -128,8 +128,8 @@ export const reindexContact = defineWorkflow({
 
 ### Quiet workflows
 
-**`quiet: true` keeps a workflow's runs off the Workflows screen unless
-one fails**: for plumbing, like sending a webhook on or keeping an index
+**`quiet: true` keeps a workflow's runs out of the list of runs unless
+one fails** (`/api/workflows/runs`, "Reading runs", below): for plumbing, like sending a webhook on or keeping an index
 current, a step or two that only needs its retries, which would bury the
 runs worth reading. A quiet run still opens by its id, and is pruned like
 any other. Workflows that do something a person follows, like the
@@ -211,7 +211,7 @@ order, and DBOS refuses one whose step names don't match (it fails with
   turns on, for a run started before it to skip.
 - **Anything bigger is a new workflow** with a new name. The old one stays
   in `WORKFLOWS` until its runs have finished. Once it's gone, its runs
-  stay on the Workflows screen under its name, and can't be started again.
+  stay in the list of runs under its name, and can't be started again.
 
 Never delete DBOS's rows by hand, nor write to its tables.
 
@@ -257,8 +257,8 @@ Never delete DBOS's rows by hand, nor write to its tables.
   an exact version for that reason: read its release notes before raising
   it.
 - **Finished runs are kept for good**, with their steps, inputs and
-  outputs, so the Workflows screen opens one from months ago as it does
-  one from today. DBOS never deletes a run on its own, and its tables gain
+  outputs, so the API opens one from months ago as it does one from
+  today. DBOS never deletes a run on its own, and its tables gain
   a row with every step, which steps that return little keep small. A
   copy whose runs grow too many for its database sets `KEEP_FINISHED_FOR`
   (`engine.ts`) to a duration, like `90 * DAY`, and the runs that finished
@@ -272,12 +272,16 @@ Never delete DBOS's rows by hand, nor write to its tables.
 
 ## Reading runs
 
-The admin's Workflows screen shows every run but the quiet ones that
-haven't failed, as it runs, with its steps, what went wrong where one failed, and a way to run it again
-(`routes.ts`, under `/api/workflows`, for a role that may read the
-`workflows` area, and run one again for one that may write it). It reads
-them through `context.var.workflows`, which asks DBOS's own functions,
-never its tables, which are DBOS's to change (`engine.ts`):
+The API lists every run but the quiet ones that haven't failed, with
+each one's steps, what went wrong where one failed, and a way to run it
+again (`routes.ts`, under `/api/workflows`, for a role that may read the
+`workflows` area, and run one again for one that may write it). The admin
+has no screen of them as the template ships: a copy that wants one builds
+it on these routes, a section of its own
+(`source/frontend/components/dashboard/README.md`), and a script or
+Claude reads them as they are. They're read through
+`context.var.workflows`, which asks DBOS's own functions, never its
+tables, which are DBOS's to change (`engine.ts`):
 
 - **`runs()`**, the latest hundred worth listing, newest first, through
   `listWorkflows`, with each one's input and, for a failed one, its error.
@@ -301,8 +305,8 @@ never its tables, which are DBOS's to change (`engine.ts`):
 
 **A run's title** is its workflow's `title`, from its input, like "Tell the
 team about ada@example.com", or the workflow's name without one; give a
-new workflow a title, since it's what the screen lists.
-`runs.ts` turns what DBOS says into what the screen shows: a status in
+new workflow a title, since it's what the list of runs names it by.
+`runs.ts` turns what DBOS says into what the API answers: a status in
 words (`queued`, `running`, `succeeded`, `failed`, `canceled`), times as
 ISO strings, and inputs and outputs as JSON text.
 

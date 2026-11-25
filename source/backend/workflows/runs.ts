@@ -6,7 +6,7 @@ type StepInfo = NonNullable<
     Awaited<ReturnType<typeof DBOS.listWorkflowSteps>>
 >[number]
 
-// Runs of the workflows as the dashboard and the API show them: what DBOS
+// Runs of the workflows as the API answers them: what DBOS
 // says of each (engine.ts asks it through its own functions, never its
 // tables), in words a person reads, with times as ISO strings and what went
 // in and out as JSON text.

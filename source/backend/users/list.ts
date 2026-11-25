@@ -10,7 +10,7 @@ import {
 } from "../auth/access"
 
 /**
- * The team, for the dashboard's Team screen: everyone access.ts lists,
+ * The team, for the admin's Settings: everyone access.ts lists,
  * and everyone it once did, who's deactivated, newest first, with their
  * slug, address and name, whether the list has them now, with what role
  * and what it lets them do in each area (both null once they're off it),

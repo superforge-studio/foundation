@@ -8,12 +8,11 @@ import { failure, validated } from "../failures"
 const run_path = z.object({ id: z.string().min(1).max(200) })
 
 /**
- * The workflows' runs, under /api/workflows, for the dashboard's Workflows
- * screen, which asks again every few seconds while it's open: whoever's
- * role may (`permitted("workflows")`), reading them, and retrying one,
- * which writes. They're read through
- * `context.var.workflows`, so through DBOS's own functions, never its
- * tables (engine.ts).
+ * The workflows' runs, under /api/workflows, for whoever's role may
+ * (`permitted("workflows")`): reading them, and retrying one, which
+ * writes, from a screen of the app's own, a script or Claude. They're read
+ * through `context.var.workflows`, so through DBOS's own functions, never
+ * its tables (engine.ts).
  */
 export const workflowRoutes = new Hono<ApiEnvironment>()
     .get("/workflows/runs", permitted("workflows"), async (context) => {

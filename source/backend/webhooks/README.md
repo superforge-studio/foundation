@@ -117,7 +117,7 @@ export const stripe: WebhookSource = {
 (`KEEP_DELIVERIES_FOR`, `prune.ts`), deleted each hour by the
 `prune-webhook-deliveries` workflow, on a schedule and quiet
 (`workflows.ts`). What a delivery meant is in the runs
-it queued, on the Workflows screen. Its outcome is one of
+it queued (`/api/workflows/runs`). Its outcome is one of
 `utilities/webhooks.ts`'s list. A delivery still `received` is one the
 server stopped while handling: the sender, which heard nothing, sends it
 again.

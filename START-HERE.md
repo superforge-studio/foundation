@@ -133,10 +133,11 @@ business's team will log in, and where its emails link,
 in the business's voice (its name is in `business-mark.tsx`, from step
 2). Link to it from the home page only if visitors should see it yet.
 
-Keep the admin too, `source/frontend/routes/admin/`, behind login: the
-team sees the work running in the background and who's on the team, each
-as their role allows. Then say who's on the team, from step 1's answers,
-in `ACCESS` in `source/backend/auth/access.ts`:
+Keep the admin too, `source/frontend/routes/admin/`, behind login: its
+Overview says the dashboard is the business's to build, a section at a
+time, and its Settings shows who's on the team, each as their role allows.
+Then say who's on the team, from step 1's answers, in `ACCESS` in
+`source/backend/auth/access.ts`:
 
 - **`internal_users`**: the team, the owner first, each with a slug
   (their first name, lowercase, like `ada`, or with a letter after it
@@ -227,7 +228,7 @@ http://localhost:3000/admin, logged in as the owner, on a computer's
 width and a phone's, in light and dark, against the checks in
 `workbench/designing.md`. Logging in works there with nothing set up: a
 dev server emails nothing, and shows the code on the page.
-`pnpm database:seed` fills the admin with a sample team and runs. When it's
+`pnpm database:seed` fills the admin with a sample team. When it's
 right, delete this file and `CLAUDE.md`'s first section, commit on a
 branch, and follow `workbench/commit-and-deploy.md` to put it on Railway:
 its "Setting up Railway" section is the one-time setup, which needs the

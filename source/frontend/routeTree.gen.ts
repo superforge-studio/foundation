@@ -14,8 +14,7 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccountRouteImport } from './routes/admin/account'
-import { Route as AdminTeamRouteImport } from './routes/admin/team'
-import { Route as AdminWorkflowsRouteImport } from './routes/admin/workflows'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as ConnectRequest_idRouteImport } from './routes/connect.$request_id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -43,14 +42,9 @@ const AdminAccountRoute = AdminAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminTeamRoute = AdminTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
-  id: '/workflows',
-  path: '/workflows',
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const ConnectRequest_idRoute = ConnectRequest_idRouteImport.update({
@@ -64,8 +58,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/account': typeof AdminAccountRoute
-  '/admin/team': typeof AdminTeamRoute
-  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -73,8 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/admin/account': typeof AdminAccountRoute
-  '/admin/team': typeof AdminTeamRoute
-  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -84,8 +76,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/account': typeof AdminAccountRoute
-  '/admin/team': typeof AdminTeamRoute
-  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/connect/$request_id': typeof ConnectRequest_idRoute
   '/admin/': typeof AdminIndexRoute
 }
@@ -96,8 +87,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/admin/account'
-    | '/admin/team'
-    | '/admin/workflows'
+    | '/admin/settings'
     | '/connect/$request_id'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -105,8 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/admin/account'
-    | '/admin/team'
-    | '/admin/workflows'
+    | '/admin/settings'
     | '/connect/$request_id'
     | '/admin'
   id:
@@ -115,8 +104,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/admin/account'
-    | '/admin/team'
-    | '/admin/workflows'
+    | '/admin/settings'
     | '/connect/$request_id'
     | '/admin/'
   fileRoutesById: FileRoutesById
@@ -165,18 +153,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccountRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/admin/team': {
-      id: '/admin/team'
-      path: '/team'
-      fullPath: '/admin/team'
-      preLoaderRoute: typeof AdminTeamRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/workflows': {
-      id: '/admin/workflows'
-      path: '/workflows'
-      fullPath: '/admin/workflows'
-      preLoaderRoute: typeof AdminWorkflowsRouteImport
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/connect/$request_id': {
@@ -191,15 +172,13 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminAccountRoute: typeof AdminAccountRoute
-  AdminTeamRoute: typeof AdminTeamRoute
-  AdminWorkflowsRoute: typeof AdminWorkflowsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAccountRoute: AdminAccountRoute,
-  AdminTeamRoute: AdminTeamRoute,
-  AdminWorkflowsRoute: AdminWorkflowsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

@@ -105,7 +105,7 @@ export function LineMap({ className }: { className?: string }) {
         {
             name: "Admin",
             kind: "/admin",
-            what: "Your team sees the workflows as they run and who's on the team, each as their role allows.",
+            what: "Your team's dashboard, yours to build a section at a time. It starts with the team, in Settings.",
             path: "source/frontend/routes/admin/",
             page: { to: "/admin", label: "Open the admin" },
             status: adminStatus(),

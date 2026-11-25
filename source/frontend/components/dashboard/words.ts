@@ -1,6 +1,7 @@
-// How the dashboard says times, durations and browsers, in words a person
+// How the dashboard says times, browsers and roles, in words a person
 // reads at a glance, with the exact moment for a title or a detail
 
+import type { TeamRole } from "@/backend/auth/access"
 import { DAY, HOUR, MINUTE } from "@/utilities/primitives/durations"
 
 /**
@@ -52,23 +53,6 @@ export function moment(when: Date | string) {
     })
 }
 
-/** How long something took, from two moments: "412 ms", "1.3 s", "21 min". */
-export function took(from: Date | string, to: Date | string) {
-    const milliseconds = Math.max(
-        0,
-        new Date(to).getTime() - new Date(from).getTime()
-    )
-    if (milliseconds < 1000) {
-        return `${milliseconds} ms`
-    } else if (milliseconds < MINUTE) {
-        return `${(milliseconds / 1000).toFixed(1)} s`
-    } else if (milliseconds < HOUR) {
-        return `${Math.round(milliseconds / MINUTE)} min`
-    } else {
-        return `${(milliseconds / HOUR).toFixed(1)} h`
-    }
-}
-
 // The browsers and systems a browser's description names, in the order
 // they're checked: Edge and Opera say "Chrome" too, and Chrome "Safari"
 const BROWSERS = [
@@ -112,4 +96,19 @@ export function describeBrowser(user_agent: string | null) {
 /** Whether a browser's description is a phone's or a tablet's. */
 export function isHandheld(user_agent: string | null) {
     return user_agent !== null && /iPhone|iPad|Android|Mobile/.test(user_agent)
+}
+
+/**
+ * What each role is called on screen, the one list of them: a role a
+ * business adds (`TEAM_ROLES`, backend/auth/access.ts) goes here, and the
+ * typecheck fails until it does.
+ */
+export const ROLE_NAMES: Record<TeamRole, string> = {
+    owner: "Owner",
+    member: "Member"
+}
+
+/** A team member's role, as the dashboard names it. */
+export function roleName(role: TeamRole) {
+    return ROLE_NAMES[role]
 }

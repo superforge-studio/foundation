@@ -5,16 +5,11 @@ import {
     type Level,
     type Permissions
 } from "@/utilities/permissions"
+import { roleName } from "./words"
 
-// What a role lets someone do, as the admin shows it: on their account, and
-// on each person on the Team screen. The levels are the API's, which it
-// checks on every route whatever this shows (utilities/permissions/).
-
-/** What each role is called on screen. A role a business adds goes here. */
-export const ROLE_NAMES: Record<TeamRole, string> = {
-    owner: "Owner",
-    member: "Member"
-}
+// What a role lets someone do, as the admin shows it: on their account,
+// and each role on the team in Settings. The levels are the API's, which
+// it checks on every route whatever this shows (utilities/permissions/).
 
 /** What each level means, as a person reads it. */
 const LEVEL_WORDS: Record<Level, string> = {
@@ -50,5 +45,67 @@ export function AreaLevels({ permissions }: { permissions: Permissions }) {
                 </div>
             ))}
         </dl>
+    )
+}
+
+/**
+ * Each area of the app, and how much each of these roles may do in it, a
+ * column a role.
+ */
+export function RoleLevels({
+    roles
+}: {
+    roles: readonly { role: TeamRole; permissions: Permissions }[]
+}) {
+    return (
+        <div className="overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full min-w-[20rem] text-sm">
+                <thead>
+                    <tr className="border-b text-left text-muted-foreground text-xs">
+                        <th scope="col" className="px-4 py-2.5 font-medium">
+                            Area
+                        </th>
+                        {roles.map(({ role }) => (
+                            <th
+                                key={role}
+                                scope="col"
+                                className="px-4 py-2.5 font-medium"
+                            >
+                                {roleName(role)}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y">
+                    {AREA_NAMES.map((area) => (
+                        <tr key={area}>
+                            <th
+                                scope="row"
+                                className="px-4 py-3 text-left align-top font-normal"
+                            >
+                                <span className="block font-medium capitalize">
+                                    {area}
+                                </span>
+                                <span className="block text-pretty text-muted-foreground text-xs">
+                                    {AREAS[area]}
+                                </span>
+                            </th>
+                            {roles.map(({ role, permissions }) => (
+                                <td
+                                    key={role}
+                                    className={
+                                        permissions[area] === "none"
+                                            ? "px-4 py-3 align-top text-muted-foreground"
+                                            : "px-4 py-3 align-top"
+                                    }
+                                >
+                                    {LEVEL_WORDS[permissions[area]]}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     )
 }
