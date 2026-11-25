@@ -49,11 +49,10 @@ export type Settings = {
      * `"forever"`: an event after it happened, which every report over
      * events reads this far back at most; a remembered visitor's IP
      * address on their visit, after which it's blanked and the visit
-     * stays, as long as the events unless it's set; and a visit after it
-     * started.
+     * stays; and a visit after it started, with a page's events on it.
      */
     keep_events_for: number | "forever"
-    keep_ip_addresses_for?: number | "forever"
+    keep_ip_addresses_for: number | "forever"
     keep_visits_for: number | "forever"
     /**
      * How long a webhook another service posted is kept after it came, or
@@ -81,11 +80,18 @@ export const TEMPLATE_SETTINGS: Settings = {
     // business's background work did. A copy whose runs grow too many for
     // its database sets a duration instead, like `90 * DAY`
     keep_finished_runs_for: "forever",
-    keep_events_for: 90 * DAY,
-    // 25 months, enough to set a month beside the same one two years
-    // before, and the longest France's regulator (CNIL) says to keep what
-    // a site measures of its audience
-    keep_visits_for: 760 * DAY,
+    // For good, the visits and every event on them, since they're the
+    // record of what people did on the site, which a copy can show beside
+    // what else it keeps of someone, like their messages, for as long as
+    // it keeps that. A copy whose analytics outgrows its database, or that
+    // keeps to the 25 months France's regulator (CNIL) says is the longest
+    // to keep what a site measures of its audience, sets a duration
+    // instead, like `760 * DAY`
+    keep_events_for: "forever",
+    // 90 days: an address says roughly where someone is, so it isn't kept
+    // for good with the rest
+    keep_ip_addresses_for: 90 * DAY,
+    keep_visits_for: "forever",
     // Long enough to find one a sender says it sent, since Stripe retries
     // for three days and most give up sooner
     keep_webhook_deliveries_for: 30 * DAY,

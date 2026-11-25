@@ -208,21 +208,30 @@ app's service (`.railway/railway.ts`):
 
 | Rows                 | Kept, as the template ships                | The setting             | Read by `prune.ts` as   |
 | -------------------- | ------------------------------------------ | ----------------------- | ----------------------- |
-| Events               | 90 days after they happened                | `keep_events_for`       | `KEEP_EVENTS_FOR`       |
+| Events               | For good                                   | `keep_events_for`       | `KEEP_EVENTS_FOR`       |
 | A visit's IP address | 90 days after the visit started, then null | `keep_ip_addresses_for` | `KEEP_IP_ADDRESSES_FOR` |
-| Visits               | 25 months after they started               | `keep_visits_for`       | `KEEP_VISITS_FOR`       |
+| Visits               | For good                                   | `keep_visits_for`       | `KEEP_VISITS_FOR`       |
 
 All three are the app's settings, which a copy changes in
-`utilities/settings/app.ts`, and any can be `"forever"`. The events are
-the bulk of it, and say the most about one visitor, so they go first,
-with the addresses, which are as long as the events unless a copy says
-otherwise; a visit, with what its events came to, stays for the reports
-that look back a year or two, its address blanked. 25 months is the longest France's regulator (CNIL) says to
-keep what a site measures of its audience. A runner deletes what's older,
-and blanks the addresses, each hour, a batch at a time
-(`pruneAnalyticsRunner`, listed in
-`backend/workflows/index.ts`'s `RUNNERS`). A report over events reads 90
-days back at most; one over visits, 25 months.
+`utilities/settings/app.ts`, each a duration or `"forever"`. The visits
+and their events are kept for good: they're the record of what people
+did on the site, which a copy can show beside what else it keeps of
+someone, like their messages, for as long as it keeps that, and a report
+over them reads back as far as they go. An event is about 250 bytes with
+its indexes, so a site with 5,000 visits a month, of about eight
+events each, adds roughly 120 MB a year. Only the addresses go, since an address says roughly where someone
+is, and the visit keeps its country.
+
+A copy that keeps less sets a duration. The events go first, since
+they're the bulk of it and say the most about one visitor, and a visit,
+with what its events came to, stays for the reports that look back
+further; deleting a visit deletes a page's events on it too, so those
+are never kept longer than their visit. 25 months (`760 * DAY`) is the
+longest France's regulator (CNIL) says to keep what a site measures of
+its audience, for a business that keeps to it. A runner deletes what's
+older, and blanks the addresses, each hour, a batch at a time
+(`pruneAnalyticsRunner`, listed in `backend/workflows/index.ts`'s
+`RUNNERS`).
 
 Removing a user leaves their visits and events, without them (`user_id`
 goes null).

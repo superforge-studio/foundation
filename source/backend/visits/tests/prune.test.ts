@@ -12,9 +12,9 @@ import {
     pruneAnalytics
 } from "../prune"
 
-// How long the analytics is kept: the events and the visitors' IP
-// addresses for a while, the visits for longer, and any of them for good
-// when a copy says so
+// How long the analytics is kept: the visits and their events for good
+// and the visitors' IP addresses for 90 days, as the template ships, or
+// each for as long as a copy says
 
 // A remembered visitor's visit that started `days` ago, with their
 // address, one event then, and a server's event of the same age
@@ -66,22 +66,41 @@ function descending(one: number, other: number) {
     return other - one
 }
 
-test("events and addresses go after 90 days and visits after 25 months, as the template ships", () => {
-    expect(TEMPLATE_SETTINGS.keep_events_for).toBe(90 * DAY)
-    expect(TEMPLATE_SETTINGS.keep_ip_addresses_for).toBeUndefined()
-    expect(TEMPLATE_SETTINGS.keep_visits_for).toBe(760 * DAY)
+test("visits and events are kept for good and addresses go after 90 days, as the template ships", () => {
+    expect(TEMPLATE_SETTINGS.keep_events_for).toBe("forever")
+    expect(TEMPLATE_SETTINGS.keep_ip_addresses_for).toBe(90 * DAY)
+    expect(TEMPLATE_SETTINGS.keep_visits_for).toBe("forever")
 })
 
-test("they're kept as this app's settings say, the addresses as long as the events unless they say", () => {
+test("they're kept as this app's settings say", () => {
     expect(KEEP_EVENTS_FOR).toBe(SETTINGS.keep_events_for)
-    expect(KEEP_IP_ADDRESSES_FOR).toBe(
-        SETTINGS.keep_ip_addresses_for ?? SETTINGS.keep_events_for
-    )
+    expect(KEEP_IP_ADDRESSES_FOR).toBe(SETTINGS.keep_ip_addresses_for)
     expect(KEEP_VISITS_FOR).toBe(SETTINGS.keep_visits_for)
 })
 
-// As the template ships, whatever this app's settings say
-const SHIPPED = {
+test("as the template ships, only blanks the addresses", async () => {
+    const database = await testDatabase()
+    for (const days of [1, 91, 5000]) {
+        await visitFrom(database, days)
+    }
+
+    expect(
+        await pruneAnalytics(database, {
+            events: TEMPLATE_SETTINGS.keep_events_for,
+            addresses: TEMPLATE_SETTINGS.keep_ip_addresses_for,
+            visits: TEMPLATE_SETTINGS.keep_visits_for
+        })
+    ).toEqual({ events: 0, addresses: 2, visits: 0 })
+    expect(await ages(database)).toEqual({
+        visits: [5000, 91, 1],
+        addresses: [1],
+        events: [5000, 5000, 91, 91, 1, 1]
+    })
+})
+
+// A copy's that keeps each for a while: the events and the addresses 90
+// days, and the visits 25 months
+const LIMITED = {
     events: 90 * DAY,
     addresses: 90 * DAY,
     visits: 760 * DAY
@@ -93,7 +112,7 @@ test("deletes the events and blanks the addresses older than they're kept, and l
         await visitFrom(database, days)
     }
 
-    expect(await pruneAnalytics(database, SHIPPED)).toEqual({
+    expect(await pruneAnalytics(database, LIMITED)).toEqual({
         events: 4,
         addresses: 2,
         visits: 0
@@ -104,7 +123,7 @@ test("deletes the events and blanks the addresses older than they're kept, and l
         events: [89, 89, 1, 1]
     })
     // Nothing left to delete or blank
-    expect(await pruneAnalytics(database, SHIPPED)).toEqual({
+    expect(await pruneAnalytics(database, LIMITED)).toEqual({
         events: 0,
         addresses: 0,
         visits: 0
@@ -138,7 +157,9 @@ test("deletes the visits older than they're kept, with any events they still hav
 
     // The events kept for good: the old visit takes its own with it, and
     // the server's of that age stays
-    expect(await pruneAnalytics(database, { events: "forever" })).toEqual({
+    expect(
+        await pruneAnalytics(database, { ...LIMITED, events: "forever" })
+    ).toEqual({
         events: 0,
         addresses: 2,
         visits: 1

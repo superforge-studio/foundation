@@ -8,10 +8,13 @@ import type { Runner } from "../workflows/runners"
 
 // How long the site's analytics is kept, as the app's settings say
 // (`keep_events_for`, `keep_ip_addresses_for` and `keep_visits_for`,
-// utilities/settings/), and the runner that deletes what's older. The events are the bulk of it, and say the most about one
-// visitor, so they go first, with the IP addresses kept on the visits; a
-// visit, a row with what its events came to, stays for the reports that
-// look back a year or two.
+// utilities/settings/), and the runner that deletes what's older and
+// blanks the IP addresses. As the template ships, the visits and their
+// events are kept for good, and only a remembered visitor's address goes,
+// after 90 days. A copy that keeps less has the events go first, since
+// they're the bulk of it and say the most about one visitor, and a visit,
+// a row with what its events came to, stay for the reports that look back
+// further.
 
 /**
  * How long an event is kept after it happened, or `"forever"`. Every
@@ -21,11 +24,9 @@ export const KEEP_EVENTS_FOR = SETTINGS.keep_events_for
 
 /**
  * How long a remembered visitor's IP address is kept on their visit after
- * it started, or `"forever"`: as long as the events unless the settings
- * say, after which it's blanked and the visit stays.
+ * it started, or `"forever"`, after which it's blanked and the visit stays.
  */
-export const KEEP_IP_ADDRESSES_FOR =
-    SETTINGS.keep_ip_addresses_for ?? KEEP_EVENTS_FOR
+export const KEEP_IP_ADDRESSES_FOR = SETTINGS.keep_ip_addresses_for
 
 /** How long a visit is kept after it started, or `"forever"`. */
 export const KEEP_VISITS_FOR = SETTINGS.keep_visits_for
