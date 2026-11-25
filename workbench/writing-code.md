@@ -160,19 +160,20 @@ tables or the routes. Each of those has a file of the app's beside it,
 named `app.ts`, which the template's reads. The template made each once,
 empty, and no update changes it:
 
-| The app's own                             | go in                                 | beside the template's    |
-| ----------------------------------------- | ------------------------------------- | ------------------------ |
-| Tables                                    | `source/database/schema/app.ts`       | `schema/foundation.ts`   |
-| Seeders, and tables that get none         | `source/database/seed/app.ts`         | `seed/seed.ts`           |
-| Kinds of file in the bucket               | `source/database/storage/app.ts`      | `storage/files.ts`       |
-| Routes, and what they see on `context`    | `source/backend/app.ts`               | `index.ts`, `context.ts` |
-| Workflows and runners                     | `source/backend/workflows/app.ts`     | `workflows/index.ts`     |
-| Jobs                                      | `source/backend/jobs/app.ts`          | `jobs/index.ts`          |
-| Whoever logs in besides the team          | `source/backend/auth/app.ts`          | `auth/others.ts`         |
-| Checks before the app says it's healthy   | `source/backend/health/app.ts`        | `health/routes.ts`       |
-| Areas of the app                          | `source/utilities/permissions/app.ts` | `permissions/index.ts`   |
-| Answers of its own, asked before the rest | `source/app.ts`                       | `source/server.ts`       |
-| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts` | `tests/support/api.ts`   |
+| The app's own                             | go in                                  | beside the template's    |
+| ----------------------------------------- | -------------------------------------- | ------------------------ |
+| Tables                                    | `source/database/schema/app.ts`        | `schema/foundation.ts`   |
+| Seeders, and tables that get none         | `source/database/seed/app.ts`          | `seed/seed.ts`           |
+| Kinds of file in the bucket               | `source/database/storage/app.ts`       | `storage/files.ts`       |
+| Routes, and what they see on `context`    | `source/backend/app.ts`                | `index.ts`, `context.ts` |
+| Workflows and runners                     | `source/backend/workflows/app.ts`      | `workflows/index.ts`     |
+| Jobs                                      | `source/backend/jobs/app.ts`           | `jobs/index.ts`          |
+| Whoever logs in besides the team          | `source/backend/auth/app.ts`           | `auth/others.ts`         |
+| Checks before the app says it's healthy   | `source/backend/health/app.ts`         | `health/routes.ts`       |
+| Areas of the app                          | `source/utilities/permissions/app.ts`  | `permissions/index.ts`   |
+| Answers of its own, asked before the rest | `source/app.ts`                        | `source/server.ts`       |
+| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts`  | `tests/support/api.ts`   |
+| The upgrade test's samples of its columns | `source/database/tests/support/app.ts` | `tests/support/fill.ts`  |
 
 **Never add the app's own to a file the template owns.** When the
 template has no place for what the app needs, change the template's file
@@ -388,12 +389,15 @@ isn't there, 409 for a conflict, 503 for a dependency that's down.
 - **Input that doesn't fit** is answered by `validated()` itself: 400,
   `invalid`, and `issues`, what didn't fit, field by field. A body that
   isn't JSON at all is 400 `invalid` too, without `issues`.
-- **A form on another site** posting to the API is 403 `forbidden`
-  (`csrf()` in `index.ts`), unless the browser says it came from this site.
-  JSON, which a form can't send, a request that sends no
-  `Content-Type`, like a script's bodiless POST, and any method but a
-  `POST`, the one a form sends, like a script's `PUT` of a text file, are
-  left alone.
+- **Another origin's request** that would change something (any method
+  but `GET`, `HEAD` and `OPTIONS`) is 403 `forbidden` (`refuseOtherSites`
+  in `index.ts`) when the browser says where it came from: an `Origin`
+  that isn't this host, or a `Sec-Fetch-Site` of `cross-site` or
+  `same-site`, like a sibling subdomain's page, whatever its body. A
+  script or curl sends neither, so it gets through.
+- **A body over a megabyte** is 413 `too-large` (`API_BODY_LIMIT` in
+  `index.ts`), before it's read; a route that takes more sets its own
+  limit after its checks, as a dev server's upload does.
 - **A path no route answers** is 404 `not-found`, and **a route that
   throws** is 500 `unexpected`, logged (`index.ts` mounts both handlers).
   Throwing is for bugs, never for a failure a caller handles.
@@ -1038,9 +1042,15 @@ For work worth a span of its own inside those, wrap it:
 (`utilities/tracing.ts`). Never put a secret, or a person's details, in a
 span's name or its attributes: a trace is kept as long as the logs, and
 everyone on the Railway project reads it. A query's span keeps its SQL,
-never its values, and the query parameters that carry a credential or a
-person's details, like OAuth's `code`, are redacted from every URL a span
-keeps (`REDACTED_QUERY`, `source/tracing.ts`): a new one goes on that list.
+never its values, and so does a failed query that's logged or marked on
+a span: its statement and Postgres's own words, never what it was sent
+(`withoutValues`, `utilities/tracing.ts`). The query parameters that
+carry a credential or a person's details, like OAuth's `code`, are
+redacted from every URL a span keeps of a request the server answers
+(`REDACTED_QUERY`, `source/tracing.ts`): a new one goes on that list. A
+call out, through `fetch`, is redacted only of signatures, by undici's
+own list, so one that carries a credential in its query needs a
+`requestHook` there.
 
 **Reading production's**, as an agent: the Railway MCP's `list-traces`,
 which filters with Railway's log syntax (`@status:error`,

@@ -21,8 +21,11 @@ the work:
    `railway logs --filter "looks meant for the app"`.
 2. **Kept as it came, first**: a row in `internal.webhook_deliveries`, with
    its headers (all but `authorization`, `cookie` and
-   `proxy-authorization`), its body exactly as it came, which its
-   signature is over, and the sender's own ID for it, when it has one. So a
+   `proxy-authorization`), its body as it came, read as UTF-8 text, byte-order
+   mark and all (a body with a NUL character, which Postgres can't keep,
+   is 400 `unreadable` and kept nowhere), and the sender's own ID for it,
+   when it has one. A signature is checked over the body's bytes
+   themselves, `delivery.bytes`, never the text written out again. So a
    delivery that's refused or fails can still be read, and checked again,
    with SQL.
 3. **Checked**: the source's `verify`. One that isn't its source's is
@@ -90,8 +93,11 @@ export const stripe: WebhookSource = {
    `standardWebhooksSource({ name, secret, events })`, which checks it
    with `standard.ts` and takes `webhook-id` as the delivery's ID. Any
    other checks the sender's own way (Stripe's `Stripe-Signature`,
-   HighLevel's), always with `timingSafeEqual`, and against the body as it
-   came, never one parsed and written out again.
+   HighLevel's), always with `timingSafeEqual`, and against the body's
+   bytes as they came (`delivery.bytes`), never one parsed and written
+   out again. A Standard Webhooks secret whose key is under 24 bytes,
+   like `whsec_` alone, is `unconfigured`, 503, since anyone could sign
+   with it.
 3. **Its secret**, a Railway variable on the app's service
    (`STRIPE_WEBHOOK_SECRET`), in `.railway/railway.ts`, whose value the
    owner sets in Railway's dashboard. Until it's set, its deliveries are

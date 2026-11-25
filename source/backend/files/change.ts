@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import type { Database } from "@/database"
 import { file_folders, files } from "@/database/schema"
 import type { Storage } from "@/database/storage"
@@ -24,28 +24,41 @@ export async function changeFolder(
     null,
     "not-found" | "no-folder" | "into-itself" | "too-deep"
 > {
-    if ((await folderPath(database, input.id)) === null) {
-        return { ok: false, error: "not-found" }
-    }
-    if (input.parent_id !== undefined && input.parent_id !== null) {
-        const into = await folderPath(database, input.parent_id)
-        if (into === null) {
-            return { ok: false, error: "no-folder" }
-        } else if (into.some((folder) => folder.id === input.id)) {
-            return { ok: false, error: "into-itself" }
-        } else if (
-            into.length + (await levelsOf(database, input.id)) >
-            DEEPEST
-        ) {
-            return { ok: false, error: "too-deep" }
+    // One change of a folder at a time, its checks and its write together:
+    // two moves at once, A into B and B into A, would each pass before
+    // either wrote, and leave the two inside each other, out of reach
+    return await database.transaction(async (transaction) => {
+        await transaction.execute(
+            sql`select pg_advisory_xact_lock(${FOLDER_MOVES_LOCK}, 0)`
+        )
+        if ((await folderPath(transaction, input.id)) === null) {
+            return { ok: false, error: "not-found" }
         }
-    }
-    await database
-        .update(file_folders)
-        .set({ name: input.name, parent_id: input.parent_id })
-        .where(eq(file_folders.id, input.id))
-    return { ok: true, data: null }
+        if (input.parent_id !== undefined && input.parent_id !== null) {
+            const into = await folderPath(transaction, input.parent_id)
+            if (into === null) {
+                return { ok: false, error: "no-folder" }
+            } else if (into.some((folder) => folder.id === input.id)) {
+                return { ok: false, error: "into-itself" }
+            } else if (
+                into.length + (await levelsOf(transaction, input.id)) >
+                DEEPEST
+            ) {
+                return { ok: false, error: "too-deep" }
+            }
+        }
+        await transaction
+            .update(file_folders)
+            .set({ name: input.name, parent_id: input.parent_id })
+            .where(eq(file_folders.id, input.id))
+        return { ok: true, data: null }
+    })
 }
+
+// The first key of the advisory lock that keeps folders' changes in turn:
+// one nothing else takes (the workflows' gate is 1689, a visitor's batches
+// 1690, backend/visits/record.ts)
+const FOLDER_MOVES_LOCK = 1691
 
 /**
  * Renames a file, or moves it into a folder (null for the top), or both.

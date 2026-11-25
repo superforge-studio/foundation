@@ -16,18 +16,22 @@ import { api_failure } from "@/utilities/schemas/failures"
 
 // Who may call each route, said at the route: every route under /api names
 // its area of the app (`permitted`, auth/logged-in.ts), is someone's own
-// (`loggedIn`), asks who's logged in without needing anyone
-// (`maybeLoggedIn`), or is one of the few anyone may call, listed here with
-// why, the app's own in ./support/app.ts. So a route can't be added without
+// (`loggedIn`), or is one of the few anyone may call, listed here with
+// why, the app's own in ./support/app.ts: a route that asks who's logged in
+// without needing anyone (`maybeLoggedIn`) is anyone's, so it's listed too. So a route can't be added without
 // saying who may call it. And what a role and a token may do, through
 // routes that name their area.
 
 /** The routes anyone may call, and why each may: the template's, then the app's. */
 const ANYONE: Record<string, string> = {
     "GET /api/health": "Railway's healthcheck, which needs no one",
+    "GET /api/auth/session":
+        "Who's logged in, which every page asks, answering null for a visitor",
     "POST /api/auth/start": "Logging in, before anyone is",
     "POST /api/auth/verify": "Logging in, before anyone is",
     "POST /api/auth/logout": "Ends the session its own cookie holds, if any",
+    "POST /api/visits":
+        "What a page's visitor did, logged in or not, kept as theirs when they are",
     "POST /api/visits/consent":
         "A visitor's answer to the banner, about their own browser",
     "POST /api/webhooks/:source":
@@ -53,13 +57,33 @@ test("every route says who may call it", async () => {
     }
     const says = (each: unknown) =>
         each === loggedIn ||
-        each === maybeLoggedIn ||
         requirementOf(each) !== undefined ||
         appSaysWhoMayCall(each)
     const unsaid = [...handlers]
         .filter(([key, list]) => !(key in ANYONE) && !list.some(says))
         .map(([key]) => key)
     expect(unsaid).toEqual([])
+    // A route behind `maybeLoggedIn` lets everyone through, so it's one
+    // anyone may call, listed with why
+    const unlisted = [...handlers]
+        .filter(
+            ([key, list]) =>
+                list.includes(maybeLoggedIn) &&
+                !(key in ANYONE) &&
+                !list.some(
+                    (each) =>
+                        each === loggedIn || requirementOf(each) !== undefined
+                )
+        )
+        .map(([key]) => key)
+    expect(unlisted).toEqual([])
+    // A route for every method (`.all()`) can't be told from middleware, so
+    // none may be added: only middleware, on a wildcard, answers every
+    // method
+    const every_method = api.routes
+        .filter((route) => route.method === "ALL" && !route.path.endsWith("*"))
+        .map((route) => route.path)
+    expect(every_method).toEqual([])
     // And nothing listed here that no route answers any more
     expect(Object.keys(ANYONE).filter((key) => !handlers.has(key))).toEqual([])
 })

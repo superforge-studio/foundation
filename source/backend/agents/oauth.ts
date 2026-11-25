@@ -1,6 +1,13 @@
 import { Hono } from "hono"
+import { bodyLimit } from "hono/body-limit"
 import { AGENT_SCOPES, MCP_PATH } from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
+import {
+    answerNotFound,
+    answerUnexpected,
+    failure,
+    tooLarge
+} from "../failures"
 import {
     APP_PATHS,
     appInfra,
@@ -44,6 +51,12 @@ export function oauthWith(infra: () => Infra) {
         new Hono()
             // Each request's span named for its route (utilities/tracing.ts)
             .use(traceRoutes)
+            // A failure of the app's own in the API's one shape; OAuth's
+            // own calls answer as RFC 6749 says, which Infra does
+            .notFound(answerNotFound)
+            .onError(answerUnexpected)
+            // An OAuth call's body is a few hundred bytes
+            .use(bodyLimit({ maxSize: OAUTH_BODY_LIMIT, onError: tooLarge }))
             .get("/.well-known/oauth-protected-resource", (context) =>
                 context.json(resource(context.req.url), 200, {
                     "Cache-Control": "no-store"
@@ -66,7 +79,12 @@ export function oauthWith(infra: () => Infra) {
             .all(`${APP_PATHS.oauth}/:call`, (context) => {
                 const call = context.req.param("call")
                 if (!isOAuthCall(call)) {
-                    return context.json({ error: "not-found" }, 404)
+                    return failure(
+                        context,
+                        404,
+                        "not-found",
+                        "No OAuth call answers this path"
+                    )
                 } else {
                     return infra().passOAuth(
                         context.req.raw,
@@ -77,6 +95,9 @@ export function oauthWith(infra: () => Infra) {
             })
     )
 }
+
+// The most an OAuth call's body may be, as the Infra package takes
+const OAUTH_BODY_LIMIT = 16 * 1024
 
 /** The server's, on its Infra */
 export const oauth = oauthWith(appInfra)

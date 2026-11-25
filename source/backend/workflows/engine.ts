@@ -2,7 +2,8 @@ import {
     DBOS,
     DBOSClient,
     type GetWorkflowsInput,
-    type ScheduledWorkflowFn
+    type ScheduledWorkflowFn,
+    type WorkflowStatus
 } from "@dbos-inc/dbos-sdk"
 import pg from "pg"
 import { z } from "zod"
@@ -406,16 +407,48 @@ async function listWorkflows(listing: GetWorkflowsInput) {
         : await (await dbosClient()).listWorkflows(listing)
 }
 
-// How many runs a page of the search for the ones worth listing reads, and
+// How many runs a page of the scan for the ones worth listing reads, and
 // how many pages it reads at most, so a flood of quiet runs costs a few
-// small queries rather than hiding everything else
+// small queries
 const SHOWN_PAGE = 200
 const SHOWN_PAGES = 5
 
 // The ids of the latest `limit` runs worth listing, newest first: every
-// run but a quiet workflow's that hasn't failed (runs.ts's `worthListing`)
+// run but a quiet workflow's that hasn't failed (runs.ts's `worthListing`).
+// DBOS is asked for what's wanted, however many quiet runs came since: the
+// runs of the workflows that aren't quiet, by name, and the runs that
+// failed, of any workflow; and a scan of the newest runs finds the rest,
+// a workflow's that's no longer listed among them
 async function shownRunIds(quiet: Set<string>, limit: number) {
-    const shown: string[] = []
+    const bare = { sortDesc: true, limit, loadInput: false, loadOutput: false }
+    const named = knownWorkflows()
+        .map((workflow) => workflow.name)
+        .filter((name) => !quiet.has(name))
+    const found = [
+        ...(named.length === 0
+            ? []
+            : await listWorkflows({ ...bare, workflowName: named })),
+        ...(await listWorkflows({
+            ...bare,
+            status: ["ERROR", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"]
+        })),
+        ...(await scannedRuns(quiet, limit))
+    ]
+    const newest = new Map<string, number>()
+    for (const status of found) {
+        if (worthListing(status, quiet)) {
+            newest.set(status.workflowID, status.createdAt)
+        }
+    }
+    return [...newest]
+        .sort(([, first], [, second]) => second - first)
+        .slice(0, limit)
+        .map(([id]) => id)
+}
+
+// The newest runs worth listing among the latest few pages of runs
+async function scannedRuns(quiet: Set<string>, limit: number) {
+    const shown: WorkflowStatus[] = []
     for (let page = 0; page < SHOWN_PAGES; page++) {
         const statuses = await listWorkflows({
             sortDesc: true,
@@ -426,7 +459,7 @@ async function shownRunIds(quiet: Set<string>, limit: number) {
         })
         for (const status of statuses) {
             if (shown.length < limit && worthListing(status, quiet)) {
-                shown.push(status.workflowID)
+                shown.push(status)
             }
         }
         if (shown.length >= limit || statuses.length < SHOWN_PAGE) {

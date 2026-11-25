@@ -287,6 +287,13 @@ export function whatWentWrong(failure: ApiFailure) {
             return "That code has stopped working. Send a new one."
         case "no-link":
             return "That link has expired or was already used. Enter your email and we'll send a new one."
+        case "not-listed":
+            // What the API says (backend/auth/others.ts, `NOT_LISTED`)
+            return "This address can't log in here. Ask whoever runs this app to add you to the team."
+        case "too-many": {
+            const minutes = Math.ceil((failure.retry_after ?? 3600) / 60)
+            return `Too many logins from here for now. Try again in ${minutes} minutes.`
+        }
         default:
             return "Login isn't working right now. Try again in a few minutes."
     }

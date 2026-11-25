@@ -59,9 +59,23 @@ export const webhookRoutes = new Hono<ApiEnvironment>().post(
             )
         }
 
+        // The body's bytes as they came, which a signature is over, and
+        // the same as text, byte-order mark and all, which is kept
+        const bytes = new Uint8Array(await context.req.arrayBuffer())
+        const body = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes)
+        if (body.includes("\u0000")) {
+            // Postgres can't keep it, so it's refused before it's kept
+            return failure(
+                context,
+                400,
+                "unreadable",
+                "The body has a NUL character, which can't be kept"
+            )
+        }
         const taken = await takeDelivery(context.var.database, source, {
             headers: context.req.raw.headers,
-            body: await context.req.text(),
+            bytes,
+            body,
             received_at: new Date()
         })
         if (taken.ok) {

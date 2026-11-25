@@ -13,19 +13,21 @@ export const email_address = z
     .pipe(z.email().max(254))
 
 /**
- * A login email's six-digit code, forgiving the spaces a pasted code can
- * carry (`123 456`).
+ * A login email's code, forgiving the spaces a pasted code can carry
+ * (`123 456`): digits, six as Infra sends them today, taken from 4 to 12
+ * so Infra, which checks it, is the one to say no.
  */
 export const login_code = z
     .string()
     .transform((value) => value.replace(/\s/g, ""))
-    .pipe(z.string().regex(/^\d{6}$/))
+    .pipe(z.string().regex(/^\d{4,12}$/))
 
 /**
  * A login link's token: what follows `#` in the link the email holds
- * (`/login#<token>`), 32 random bytes in base64url.
+ * (`/login#<token>`), base64url, 43 characters as Infra makes them today,
+ * taken from 20 to 200 so Infra, which checks it, is the one to say no.
  */
-export const login_token = z.string().regex(/^[\w-]{43}$/)
+export const login_token = z.string().regex(/^[\w-]{20,200}$/)
 
 /** What starts a login: the address to email a code and a link to. */
 export const login_start = z.object({ email: email_address })

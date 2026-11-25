@@ -232,6 +232,24 @@ test("folders hold folders and files, renamed and moved as rows", async () => {
     )
 })
 
+test("two folders moved into each other at once never end up inside each other", async () => {
+    const logged_in = await asOwner()
+    const first = await makeFolder(logged_in, "First")
+    const second = await makeFolder(logged_in, "Second")
+    const move = (folder_id: string, parent_id: string) =>
+        logged_in.api.client.api.files.folders[":folder_id"].$patch(
+            { param: { folder_id }, json: { parent_id } },
+            logged_in.headers
+        )
+    const answers = await Promise.all([
+        move(first, second),
+        move(second, first)
+    ])
+    expect(answers.map((answer) => answer.status).sort()).toEqual([200, 409])
+    // Both are still reachable, one inside the other
+    expect((await contents(logged_in)).folders).toHaveLength(1)
+})
+
 test("an upload shows only once its bytes are in, and no larger than it said", async () => {
     const logged_in = await asOwner()
     const started = await logged_in.api.client.api.files.uploads.$post(

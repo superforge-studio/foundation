@@ -265,3 +265,11 @@ test("a rejection says what it was, and where its stack starts", () => {
     })
     expect(rejectionError({ code: 1 }).message).toBe("A promise was rejected")
 })
+
+test("free text is never cut inside an emoji, and loses any U+0000", () => {
+    // The 80th unit is the first half of the emoji
+    const text = `${"a".repeat(79)}😀 and more`
+    const cut = scrub(text, 80)
+    expect(cut).toBe("a".repeat(79))
+    expect(scrub("before\u0000after", 80)).toBe("beforeafter")
+})

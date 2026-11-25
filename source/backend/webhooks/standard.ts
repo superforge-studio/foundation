@@ -9,17 +9,22 @@ import type { Delivery, Refusal } from "./sources"
 // timestamp and the signatures as headers, `webhook-*`, or `svix-*` from
 // Svix.
 
+/** The fewest bytes a signing secret's key may be (Standard Webhooks says 24 to 64). */
+export const SHORTEST_KEY = 24
+
 /** How far a delivery's timestamp may be from now, either way. */
 export const STANDARD_TOLERANCE = 5 * MINUTE
 
 /**
  * Whether `delivery` was signed with `secret` (`whsec_` and its key in
- * base64), within `STANDARD_TOLERANCE` of `now`. Any one of its
- * signatures may match, since a sender rotating its secret sends one for
- * each. Compared in constant time.
+ * base64), within `STANDARD_TOLERANCE` of `now`, over its body's bytes as
+ * they came. Any one of its signatures may match, since a sender rotating
+ * its secret sends one for each. Compared in constant time. A secret whose
+ * key is shorter than `SHORTEST_KEY` bytes, like `whsec_` alone or text
+ * that isn't base64, is `unconfigured`: anyone could sign with it.
  */
 export function verifyStandardWebhook(
-    delivery: Pick<Delivery, "headers" | "body">,
+    delivery: Pick<Delivery, "headers" | "bytes">,
     secret: string,
     now = Date.now()
 ): OperationResult<null, Refusal> {
@@ -43,8 +48,18 @@ export function verifyStandardWebhook(
         secret.startsWith("whsec_") ? secret.slice("whsec_".length) : secret,
         "base64"
     )
+    if (key.length < SHORTEST_KEY) {
+        return {
+            ok: false,
+            error: {
+                reason: "unconfigured",
+                problem: `The signing secret's key is ${key.length} bytes, fewer than ${SHORTEST_KEY}: set it to the secret the sender gives, whsec_ and its key in base64`
+            }
+        }
+    }
     const expected = createHmac("sha256", key)
-        .update(`${id}.${timestamp}.${delivery.body}`)
+        .update(`${id}.${timestamp}.`)
+        .update(delivery.bytes)
         .digest()
     const matched = signatures.split(" ").some((signature) => {
         const [version, value] = signature.split(",")

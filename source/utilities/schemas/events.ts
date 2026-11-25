@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { storable } from "./text"
 
 // An event's fields: what the pages send the app's own /api/visits
 // (frontend/visitors/) and what the server records itself, each checked
@@ -26,12 +27,17 @@ export const event_name = z
 /**
  * The rest of an event, flat: at most 32, each named in at most 64
  * characters, and a string of at most 1,000 characters, a number, a
- * boolean or null.
+ * boolean or null, each string one the database can keep (./text.ts).
  */
 export const event_properties = z
     .record(
-        z.string().min(1).max(64),
-        z.union([z.string().max(1000), z.number(), z.boolean(), z.null()])
+        storable(z.string().min(1).max(64)),
+        z.union([
+            storable(z.string().max(1000)),
+            z.number(),
+            z.boolean(),
+            z.null()
+        ])
     )
     .refine((properties) => Object.keys(properties).length <= 32, {
         message: "More than 32 properties"
@@ -45,7 +51,9 @@ export type EventProperties = z.infer<typeof event_properties>
 export const browser_id = z.string().regex(/^[\w-]{8,64}$/)
 
 /** A page's path, starting `/`, without its query or fragment. */
-export const page_path = z
-    .string()
-    .max(2048)
-    .regex(/^\/[^?#]*$/)
+export const page_path = storable(
+    z
+        .string()
+        .max(2048)
+        .regex(/^\/[^?#]*$/)
+)

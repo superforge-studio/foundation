@@ -94,7 +94,53 @@ async function rendered(request: Request) {
     }
 }
 
+/**
+ * What every answer says of how a browser may treat it, files, pages and
+ * the API alike: no other site may frame it, so no one can draw the Allow
+ * page or the admin under someone's click; a file is only ever what its
+ * type says; a link out tells the next site only this one's origin; and,
+ * on any host but this computer's, the site is only ever reached over
+ * HTTPS, for a year. A Content-Security-Policy past `frame-ancestors`, one
+ * that limits scripts and styles, is the app's to add once it's tuned to
+ * what its pages load.
+ */
+function securityHeaders(request_url: string) {
+    const headers: Record<string, string> = {
+        "Content-Security-Policy": "frame-ancestors 'none'",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
+    }
+    if (!LOCAL_HOSTS.has(new URL(request_url).hostname)) {
+        headers["Strict-Transport-Security"] = "max-age=31536000"
+    }
+    return headers
+}
+
+// The hosts a browser reaches this computer by, which never get HSTS
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"])
+
 const app = new Hono()
+    // Every answer with the security headers, set on a copy, since an
+    // answer's own headers can be immutable, as a redirect's are. An
+    // answer that sets its own Content-Security-Policy, like a dev
+    // server's file (backend/files/send.ts), keeps it.
+    .use(async (context, next) => {
+        await next()
+        const headers = new Headers(context.res.headers)
+        for (const [name, value] of Object.entries(
+            securityHeaders(context.req.url)
+        )) {
+            if (!headers.has(name)) {
+                headers.set(name, value)
+            }
+        }
+        context.res = new Response(context.res.body, {
+            status: context.res.status,
+            statusText: context.res.statusText,
+            headers
+        })
+    })
     // A host with no files of its own skips them
     .use(async (context, next) => {
         if (hosts_without_files.has(new URL(context.req.url).host)) {

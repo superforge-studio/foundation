@@ -67,17 +67,20 @@ export function pagePath(pathname: string) {
 
 /**
  * Free text as an event keeps it: on one line, every email address left
- * out, every web address without its query or fragment, and at most
- * `longest` characters.
+ * out, every web address without its query or fragment, no U+0000, and at
+ * most `longest` characters, as the server counts them (UTF-16 units),
+ * never cutting an emoji in two, which the database can't keep.
  */
 export function scrub(text: string, longest: number) {
-    return text
+    const cut = text
         .replace(/\S+@\S+\.\S+/g, "[email]")
         .replace(/(https?:\/\/[^\s?#]+)[?#]\S*/g, "$1")
+        .replaceAll("\u0000", "")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, longest)
-        .trimEnd()
+    // The first half of a pair the cut left without its second
+    return cut.replace(/[\uD800-\uDBFF]$/, "").trimEnd()
 }
 
 // A hostname without a leading `www.`, so a site's two names are one

@@ -78,16 +78,25 @@ never handles a token.
   its area (`permitted`, `backend/auth/logged-in.ts`), and Claude reaches
   it only as far as the person's role does (403 `not-permitted`, saying
   the area and level it needed). `list_routes` leaves out the routes the
-  role can't reach, and says the area and level of each one it lists.
+  role can't reach, the ones only a browser may call (`inBrowser`) and the
+  ones anyone may call without logging in, like starting a login, and says
+  the area and level of each one it lists. `call_api` refuses anything but
+  a `GET` itself for a connection that may only read, before the API
+  would, so a read-only connection can't reach a route anyone may call.
 - **Only the team can connect**, and a token stops working the moment
   its person is taken off the team in `backend/auth/access.ts`, since
   every request checks.
+- **Its failures take the API's one shape**, `{ error: { reason,
+  message } }`: 401 `logged-out` with the `WWW-Authenticate` above, 503
+  `unavailable` with a `Retry-After` when Infra's keys can't be fetched to
+  check the token, so Claude tries again and keeps its connection, and
+  413 `too-large` past a megabyte.
 
 ## The tools
 
 | Tool          | What it does                                                                            |
 | ------------- | --------------------------------------------------------------------------------------- |
-| `list_routes` | The routes under `/api` the person's role reaches: method, path, and area and level     |
+| `list_routes` | The routes under `/api` a token of the person's can call: method, path, area and level  |
 | `call_api`    | Calls one, as the person, with a query and a JSON body, and answers its status and JSON |
 
 So every route a feature adds is a tool already. Changing many rows at

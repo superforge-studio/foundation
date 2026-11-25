@@ -164,6 +164,18 @@ function asJson(value: unknown) {
 // What an error says, however DBOS kept it: an Error, or what one was
 // serialized to
 function describeError(error: unknown): string {
+    return withoutParams(said(error))
+}
+
+// A failed query's message without the values it was sent, which Drizzle
+// puts after `params:` (utilities/tracing.ts, `withoutValues`)
+function withoutParams(message: string) {
+    return message.startsWith("Failed query:")
+        ? message.replace(/\nparams: [\s\S]*$/, "")
+        : message
+}
+
+function said(error: unknown): string {
     if (error instanceof Error) {
         return error.message
     } else if (typeof error === "string") {

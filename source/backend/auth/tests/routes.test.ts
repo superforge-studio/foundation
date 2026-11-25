@@ -77,6 +77,10 @@ test("logs in with the emailed code, making the user, and the session says who",
         {},
         { headers: { cookie: cookie ?? "" } }
     )
+
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     const { user } = await session.json()
     expect(user?.email).toBe(EMAIL)
 
@@ -372,6 +376,10 @@ test("logging out ends the session and clears the cookie", async () => {
         {},
         { headers: { cookie } }
     )
+
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect(await session.json()).toMatchObject({
         user: null,
         permissions: null
@@ -405,6 +413,9 @@ test("a session that has run out logs no one in", async () => {
         {},
         { headers: { cookie } }
     )
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect(await session.json()).toMatchObject({
         user: null,
         permissions: null
@@ -512,6 +523,9 @@ test("only the list lets anyone in: taken off it, someone is logged out at their
     const listed = api.internal_users.splice(0)
     expect((await api.client.api.users.$get({}, headers)).status).toBe(401)
     const session = await api.client.api.auth.session.$get({}, headers)
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect(await session.json()).toMatchObject({
         user: null,
         permissions: null
@@ -534,6 +548,9 @@ test("a session whose person was deactivated logs no one in, even while they're 
         {},
         { headers: { cookie } }
     )
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     expect((await session.json()).user).toBeNull()
 })
 
@@ -571,6 +588,29 @@ test("anyone not on the team is refused before Infra is asked, so nothing is ema
     expect(asked).toEqual([EMAIL])
 })
 
+test("starting logins is counted per network, so a list of addresses can't be walked", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {})
+    const api = await teamApi()
+    const start = (email: string, ip: string) =>
+        api.client.api.auth.start.$post(
+            { json: { email } },
+            { headers: { "X-Real-IP": ip } }
+        )
+    for (let tried = 0; tried < 20; tried++) {
+        const answered = await start(
+            `stranger${tried}@example.com`,
+            "203.0.113.7"
+        )
+        expect(answered.status).toBe(403)
+    }
+    const walked = await start("one-more@example.com", "203.0.113.7")
+    expect(walked.status).toBe(429)
+    expect(walked.headers.get("Retry-After")).not.toBeNull()
+    expect(api_failure.parse(await walked.json()).error.reason).toBe("too-many")
+    // Another network is counted on its own
+    expect((await start(EMAIL, "198.51.100.1")).status).toBe(200)
+})
+
 test("the session says what its person may do in each area", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {})
     const api = await teamApi({
@@ -584,6 +624,9 @@ test("the session says what its person may do in each area", async () => {
         {},
         { headers: { cookie } }
     )
+    if (session.status !== 200) {
+        throw new Error("No session answered")
+    }
     // The template's areas, whatever areas the app adds of its own
     expect((await session.json()).permissions).toMatchObject({
         team: "none",

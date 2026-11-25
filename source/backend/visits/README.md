@@ -65,6 +65,10 @@ What's kept of whoever sent a batch:
 - **Never their `User-Agent`**, of anyone: it's read as the visit starts
   and dropped, as a visitor's address is when the site doesn't remember
   them.
+  That's this database. Railway's logs and traces are another place:
+  each request's span carries the address it came from and its
+  `User-Agent`, a visit's among them, whatever the site remembers, for
+  as long as Railway keeps them (`source/tracing.ts`).
 - **Nothing of a bot**, by its `User-Agent` (`isbot`), or of a browser that
   sends none: the batch is answered and dropped.
 

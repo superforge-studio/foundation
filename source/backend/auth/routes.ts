@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono"
 import { login_start, login_verify } from "@/utilities/schemas/auth"
 import type { ApiEnvironment } from "../context"
 import { failure, validated } from "../failures"
+import { countAttempt, networkKey } from "../rate-limits/count"
 import { listedInternal, permissionsOf } from "./access"
 import { OTHERS } from "./app"
 import {
@@ -27,8 +28,8 @@ const UNAVAILABLE = "Login isn't working right now. Try again soon."
  * access.ts lists them, and the app keeps their user and their session,
  * unless the app gives someone else a way in (./others.ts), who's asked
  * only of an address the team doesn't have. Starting and verifying take JSON, which a form on another site
- * can't send; logging out takes no body, and the API refuses another
- * site's form (`csrf()` in index.ts). The cookie is SameSite=Lax, so
+ * can't send; logging out takes no body, and the API refuses a request
+ * another origin's page sends (`refuseOtherSites` in index.ts). The cookie is SameSite=Lax, so
  * another site's page can't act as anyone (logged-in.ts).
  */
 export const authRoutes = new Hono<ApiEnvironment>()
@@ -41,6 +42,7 @@ export const authRoutes = new Hono<ApiEnvironment>()
             {
                 user: context.var.user,
                 permissions: context.var.permissions,
+                scopes: context.var.scopes,
                 ...(await OTHERS.session(context))
             },
             200
@@ -51,9 +53,26 @@ export const authRoutes = new Hono<ApiEnvironment>()
     // the project's domains. In a dev server, which emails nothing, the
     // answer holds the code and the link for the page to show. Anyone not
     // on the team, whom nothing else lets in either, is refused before
-    // Infra is asked, so nothing is emailed to them.
+    // Infra is asked, so nothing is emailed to them. Each start is counted
+    // first, per network, so no one can walk a list of addresses to learn
+    // who's on the team (429 `too-many`).
     .post("/auth/start", validated("json", login_start), async (context) => {
         const { email } = context.req.valid("json")
+        const counted = await countAttempt(context.var.database, {
+            bucket: "login-start",
+            key: networkKey(visitorIp(context)),
+            most: LOGIN_STARTS_AN_HOUR
+        })
+        if (!counted.ok) {
+            context.header("Retry-After", String(counted.error.retry_after))
+            return failure(
+                context,
+                429,
+                "too-many",
+                "Too many logins from here for now",
+                { retry_after: counted.error.retry_after }
+            )
+        }
         if (
             !mayLogIn(context.var.access, email) &&
             !(await OTHERS.mayLogIn(context, email))
@@ -218,3 +237,8 @@ function forTheTeam(
         return {}
     }
 }
+
+// How many logins one network may start in an hour: a team's worth of
+// people on one office's network, each asking twice, and not a list of
+// addresses to try
+const LOGIN_STARTS_AN_HOUR = 20

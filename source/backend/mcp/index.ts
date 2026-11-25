@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { Hono } from "hono"
+import { bodyLimit } from "hono/body-limit"
 import { z } from "zod"
 import {
     AREA_NAMES,
@@ -9,10 +10,21 @@ import {
     LEVELS,
     type Permissions
 } from "@/utilities/permissions"
-import { MCP_PATH } from "@/utilities/schemas/agents"
+import {
+    AGENT_SCOPES,
+    type AgentScope,
+    MCP_PATH
+} from "@/utilities/schemas/agents"
 import { traceRoutes } from "@/utilities/tracing"
-import { levelFor, requirementOf } from "../auth/logged-in"
-import { api, type apiWith } from "../index"
+import {
+    inBrowser,
+    levelFor,
+    loggedIn,
+    maybeLoggedIn,
+    requirementOf
+} from "../auth/logged-in"
+import { answerNotFound, answerUnexpected, tooLarge } from "../failures"
+import { API_BODY_LIMIT, api, type apiWith } from "../index"
 import { requestOrigin } from "../infra"
 
 // The app's own MCP, at /admin/mcp (`MCP_PATH`, source/server.ts), which
@@ -44,75 +56,109 @@ const METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const
 export function mcpWith(api: Api) {
     // Its request's span named for its route, and the API's calls its tools
     // make in it each a span inside it (utilities/tracing.ts)
-    return new Hono().use(traceRoutes).all(MCP_PATH, async (context) => {
-        const authorization = context.req.header("Authorization")
-        const origin = requestOrigin(context.req.url)
-        const base = new URL(context.req.url).origin
+    const app = new Hono()
+        .use(traceRoutes)
+        .notFound(answerNotFound)
+        .onError(answerUnexpected)
+    return app.all(
+        MCP_PATH,
+        bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge }),
+        async (context) => {
+            const authorization = context.req.header("Authorization")
+            const origin = requestOrigin(context.req.url)
+            const base = new URL(context.req.url).origin
 
-        // Who the token logs in, as the API says: nobody, without one, or
-        // with one Infra didn't sign for this app
-        const session =
-            authorization === undefined
-                ? null
-                : await api.request(`${base}/api/auth/session`, {
-                      headers: { Authorization: authorization }
-                  })
-        const answered =
-            session?.status === 200
-                ? logged_in_session.parse(await session.json())
-                : null
-        if (answered === null || answered.permissions === null) {
-            const challenge = [
-                `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
-                authorization === undefined ? null : 'error="invalid_token"'
-            ]
-                .filter((part) => part !== null)
-                .join(", ")
-            return context.json(
-                {
-                    error: "logged-out" as const,
-                    message:
-                        "Connect Claude to this app: it logs in through the app's own login, with one click to allow it."
-                },
-                401,
-                { "Cache-Control": "no-store", "WWW-Authenticate": challenge }
+            // Who the token logs in, as the API says: nobody, without one, or
+            // with one Infra didn't sign for this app
+            const session =
+                authorization === undefined
+                    ? null
+                    : await api.request(`${base}/api/auth/session`, {
+                          headers: { Authorization: authorization }
+                      })
+            if (session?.status === 503) {
+                // Infra's keys couldn't be fetched to check the token: Claude
+                // tries again, keeping its connection
+                return context.json(
+                    {
+                        error: {
+                            reason: "unavailable" as const,
+                            message:
+                                "Claude's token can't be checked right now. Try again in a minute."
+                        }
+                    },
+                    503,
+                    { "Cache-Control": "no-store", "Retry-After": "30" }
+                )
+            }
+            const answered =
+                session?.status === 200
+                    ? logged_in_session.parse(await session.json())
+                    : null
+            if (
+                answered === null ||
+                answered.permissions === null ||
+                answered.scopes === null
+            ) {
+                const challenge = [
+                    `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${MCP_PATH}"`,
+                    authorization === undefined ? null : 'error="invalid_token"'
+                ]
+                    .filter((part) => part !== null)
+                    .join(", ")
+                return context.json(
+                    {
+                        error: {
+                            reason: "logged-out" as const,
+                            message:
+                                "Connect Claude to this app: it logs in through the app's own login, with one click to allow it."
+                        }
+                    },
+                    401,
+                    {
+                        "Cache-Control": "no-store",
+                        "WWW-Authenticate": challenge
+                    }
+                )
+            }
+
+            // A server of this request's own, with nothing kept between
+            // requests (MCP's stateless mode), so a deploy loses nothing, and
+            // a plain JSON answer to each
+            const server = new McpServer(
+                { name: "app", title: "This app", version: "1.0.0" },
+                { instructions: INSTRUCTIONS }
             )
+            registerTools(
+                server,
+                api,
+                base,
+                authorization ?? "",
+                answered.permissions,
+                answered.scopes
+            )
+            const transport = new WebStandardStreamableHTTPServerTransport({
+                sessionIdGenerator: undefined,
+                enableJsonResponse: true
+            })
+            await server.connect(transport)
+            try {
+                const response = await transport.handleRequest(context.req.raw)
+                response.headers.set("Cache-Control", "no-store")
+                return response
+            } finally {
+                await server.close()
+            }
         }
-
-        // A server of this request's own, with nothing kept between
-        // requests (MCP's stateless mode), so a deploy loses nothing, and
-        // a plain JSON answer to each
-        const server = new McpServer(
-            { name: "app", title: "This app", version: "1.0.0" },
-            { instructions: INSTRUCTIONS }
-        )
-        registerTools(
-            server,
-            api,
-            base,
-            authorization ?? "",
-            answered.permissions
-        )
-        const transport = new WebStandardStreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true
-        })
-        await server.connect(transport)
-        try {
-            const response = await transport.handleRequest(context.req.raw)
-            response.headers.set("Cache-Control", "no-store")
-            return response
-        } finally {
-            await server.close()
-        }
-    })
+    )
 }
 
 // What /api/auth/session answers, of what the MCP needs: who's logged in,
 // and what they may do in each area
 const logged_in_session = z.object({
     user: z.object({ id: z.string() }).nullable(),
-    permissions: z.record(z.enum(AREA_NAMES), z.enum(LEVELS)).nullable()
+    permissions: z.record(z.enum(AREA_NAMES), z.enum(LEVELS)).nullable(),
+    scopes: z.array(z.enum(AGENT_SCOPES)).nullable()
 })
 
 // The tools: the API's routes, and calling one as the person
@@ -121,39 +167,51 @@ function registerTools(
     api: Api,
     base: string,
     authorization: string,
-    permissions: Permissions
+    permissions: Permissions,
+    scopes: readonly AgentScope[]
 ) {
     server.registerTool(
         "list_routes",
         {
             title: "List the app's routes",
             description:
-                "The routes of the app's API under /api that you may call: each one's method and path, with :name for a part of the path to fill in, and the area and level it needs, when it's the business's rather than the person's own. call_api calls one.",
+                "The routes of the app's API under /api that you may call: each one's method and path, with :name for a part of the path to fill in, and the area and level it needs, when it's the business's rather than the person's own. call_api calls one. Routes only a person in a browser may call, and those anyone may call without logging in, aren't listed.",
             annotations: { readOnlyHint: true, openWorldHint: false }
         },
         async () => {
-            const listed = new Map<string, string>()
+            // Each route's handlers, by its method and path: a route is
+            // listed when one of them names its area and the person's role
+            // reaches it, or says it's someone's own (`loggedIn`,
+            // `maybeLoggedIn`), and none of them is `inBrowser`, which no
+            // token gets past
+            const handlers = new Map<string, unknown[]>()
             for (const { method, path, handler } of api.routes) {
-                const known = METHODS.some((each) => each === method)
-                const key = `${method} ${path}`
-                const requirement = requirementOf(handler)
-                if (!known) {
-                    // Middleware for every method, never a route of its own
-                } else if (requirement === undefined) {
-                    if (!listed.has(key)) {
-                        listed.set(key, key)
-                    }
-                } else {
-                    const level = requirement.level ?? levelFor(method)
-                    listed.set(
-                        key,
-                        allows(permissions, requirement.area, level)
-                            ? `${key} (${requirement.area}: ${level})`
-                            : ""
-                    )
+                // `ALL` is middleware for every method, never a route of its own
+                if (METHODS.some((each) => each === method)) {
+                    const key = `${method} ${path}`
+                    handlers.set(key, [...(handlers.get(key) ?? []), handler])
                 }
             }
-            const routes = [...listed.values()].filter((line) => line !== "")
+            const routes: string[] = []
+            for (const [key, list] of handlers) {
+                const method = key.split(" ")[0] ?? ""
+                const requirement = list
+                    .map((each) => requirementOf(each))
+                    .find((each) => each !== undefined)
+                const someones = list.some(
+                    (each) => each === loggedIn || each === maybeLoggedIn
+                )
+                if (list.includes(inBrowser)) {
+                    // Only a person in a browser
+                } else if (requirement !== undefined) {
+                    const level = requirement.level ?? levelFor(method)
+                    if (allows(permissions, requirement.area, level)) {
+                        routes.push(`${key} (${requirement.area}: ${level})`)
+                    }
+                } else if (someones) {
+                    routes.push(key)
+                }
+            }
             return text(routes.sort().join("\n"))
         }
     )
@@ -184,6 +242,22 @@ function registerTools(
             annotations: { openWorldHint: false }
         },
         async ({ method, path, query, body }) => {
+            // The API refuses it too; this keeps a read-only connection
+            // from the routes anyone may call, like starting a login
+            if (method !== "GET" && !scopes.includes("act")) {
+                return {
+                    ...text(
+                        `403\n\n${JSON.stringify({
+                            error: {
+                                reason: "read-only",
+                                message:
+                                    "You were allowed to read here, not to change anything: only GET requests"
+                            }
+                        })}`
+                    ),
+                    isError: true
+                }
+            }
             const url = new URL(path, base)
             for (const [name, value] of Object.entries(query ?? {})) {
                 url.searchParams.set(name, value)

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { setTimeout as sleep } from "node:timers/promises"
 import { DBOS } from "@dbos-inc/dbos-sdk"
+import { sql } from "drizzle-orm"
 import type pg from "pg"
 import {
     afterAll,
@@ -283,6 +284,27 @@ describe("the workflows on DBOS", { timeout: 60_000 }, () => {
         expect(listed).not.toContain(queued.fine)
         expect(listed.length).toBeGreaterThan(1)
         expect((await dbosWorkflows.run(queued.fine))?.status).toBe("succeeded")
+
+        // However many quiet runs come after it, as three weeks of hourly
+        // ones would: copies of the fine one's row, each newer than the last
+        await database.execute(
+            sql.raw(`
+            do $$
+            begin
+                create temp table copies on commit drop as
+                    select * from dbos.workflow_status
+                    where workflow_uuid = '${queued.fine}';
+                for counted in 1..1100 loop
+                    update copies set
+                        workflow_uuid = gen_random_uuid()::text,
+                        created_at = created_at + 1;
+                    insert into dbos.workflow_status select * from copies;
+                end loop;
+            end $$
+        `)
+        )
+        const still = (await dbosWorkflows.runs()).map((run) => run.id)
+        expect(still).toContain(queued.broken)
     })
 
     test("apply each workflow's schedule as DBOS launches, fire it, and delete a schedule no workflow has", async () => {

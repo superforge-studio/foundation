@@ -1,14 +1,14 @@
 import { createHmac } from "node:crypto"
 
 /** A Standard Webhooks signing secret, for a test's source. */
-export const SECRET = `whsec_${Buffer.from("a test's signing secret").toString("base64")}`
+export const SECRET = `whsec_${Buffer.from("a test's signing secret, 24 bytes or more").toString("base64")}`
 
 /**
  * The headers a Standard Webhooks sender sends with `body`: its id, the
  * time in seconds, and its signature with `secret`.
  */
 export function signedHeaders(
-    body: string,
+    body: string | Uint8Array,
     {
         id = "msg_test",
         secret = SECRET,
@@ -17,7 +17,8 @@ export function signedHeaders(
 ) {
     const key = Buffer.from(secret.slice("whsec_".length), "base64")
     const signature = createHmac("sha256", key)
-        .update(`${id}.${timestamp}.${body}`)
+        .update(`${id}.${timestamp}.`)
+        .update(body)
         .digest("base64")
     return {
         "webhook-id": id,

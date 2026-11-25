@@ -76,7 +76,14 @@ export function folderStore(directory: string): ObjectStore {
                 return {
                     ok: true,
                     data: {
-                        body: streamOf(path, start, end),
+                        // An empty file is an empty body: a read stream
+                        // can't end before it starts
+                        body:
+                            size === 0
+                                ? new ReadableStream<Uint8Array>({
+                                      start: (controller) => controller.close()
+                                  })
+                                : streamOf(path, start, end),
                         size,
                         start,
                         end,

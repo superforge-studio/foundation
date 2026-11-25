@@ -281,10 +281,15 @@ never its tables, which are DBOS's to change (`engine.ts`):
 
 - **`runs()`**, the latest hundred worth listing, newest first, through
   `listWorkflows`, with each one's input and, for a failed one, its error.
-  A quiet workflow's run is listed only once it has failed: the runs are
-  found a page of 200 at a time without their inputs, five pages at most,
-  then the ones worth listing loaded with them. An older run isn't listed,
-  but still opens by its id.
+  A quiet workflow's run is listed only once it has failed. DBOS is asked
+  for what's wanted, without inputs, however many quiet runs came since:
+  the runs of the workflows that aren't quiet, by name, and the failed
+  runs of any; a scan of the newest thousand finds the rest, like a run
+  of a workflow no longer listed. The newest hundred are then loaded with
+  their inputs. An older run isn't listed, but still opens by its id.
+- **A failed step's error** is shown without the values a failed query
+  was sent (Drizzle puts them after `params:` in its message): DBOS keeps
+  the error whole in its own tables, but the API never answers them.
 - **`run(id)`**, one with what it returned and each step it has
   finished, through `listWorkflowSteps`. DBOS records a step once it has
   returned, so a run that's working shows the steps before the one it's
