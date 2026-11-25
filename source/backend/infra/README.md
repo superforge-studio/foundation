@@ -220,10 +220,11 @@ needs it.
   app uses of `@superforge/infra`: `Infra` and its results, the stand-in
   and `standInAgentToken` for the tests, `requestOrigin`, `APP_PATHS` and
   `OAUTH_CALLS` for Claude's login, and `infraClient`. Everything else,
-  the client, Infra's contract (every call's request and answer as zod
-  schemas, at `@superforge/infra/contract`, which
-  `utilities/schemas/agents.ts` takes Claude's scopes from), the stand-in
-  and choosing between them, is the package's.
+  the client, Infra's contract (at `@superforge/infra/contract`, which
+  `utilities/schemas/agents.ts` takes Claude's scopes from, building its
+  own schema of them with the app's zod), the stand-in and choosing
+  between them, is the package's. The package brings its own zod, so the
+  app's can be any version; its schemas are never put inside the app's.
 
 To check a key from a terminal, `GET /v1/project` answers its project and
 its mode, `live` or `test`:
