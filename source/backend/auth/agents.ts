@@ -4,7 +4,7 @@ import { users } from "@/database/schema"
 import { MCP_PATH } from "@/utilities/schemas/agents"
 import type { ApiEnvironment } from "../context"
 import { requestOrigin } from "../infra"
-import { listedBySlug, listing } from "./access"
+import { listedAs, listing } from "./access"
 import { TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 
 // Claude, logged in with a token in place of a browser's cookie: an access
@@ -12,9 +12,9 @@ import { TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 // in on the Allow page (agents/), naming them by their user's ID, which
 // never changes. Infra proves who allowed it; the app decides what that
 // person may do, here, on every request: they must still be on the team,
-// as access.ts lists them, by their slug, and Claude acts as them, with
-// what their role and what they allowed both let it do. logged-in.ts calls
-// this when a request has a token.
+// as access.ts lists them, by their slug with their address (`listedAs`),
+// and Claude acts as them, with what their role and what they allowed both
+// let it do. logged-in.ts calls this when a request has a token.
 
 // Three base64url parts, header, claims and signature, as every JWT is
 const JWT_SHAPE = /^[\w-]+\.[\w-]+\.[\w-]+$/
@@ -72,8 +72,7 @@ export async function agentUser(
               .select(TEAM_ROW_COLUMNS)
               .from(users)
               .where(and(eq(users.id, id.data), isNull(users.deactivated_at)))
-    const listed =
-        row === undefined ? undefined : listedBySlug(access, row.slug)
+    const listed = row === undefined ? undefined : listedAs(access, row)
     if (listed === undefined || row === undefined) {
         console.warn("Agent token for someone not on the team", {
             connection_id

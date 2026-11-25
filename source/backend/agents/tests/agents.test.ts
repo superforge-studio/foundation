@@ -140,6 +140,17 @@ describe("Claude's token", () => {
         expect((await asClaude(setup, "/api/users")).status).toBe(401)
     })
 
+    test("stops working the moment its person is listed with another address", async () => {
+        const setup = await testApi()
+        await logInAs(setup, ADA)
+        const [ada] = setup.internal_users
+        if (ada === undefined) {
+            throw new Error("Ada isn't listed")
+        }
+        setup.internal_users[0] = { ...ada, email: "ada@lovelace.dev" }
+        expect((await asClaude(setup, "/api/users")).status).toBe(401)
+    })
+
     test("is refused on any app but the one it was made for", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)

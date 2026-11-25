@@ -145,12 +145,27 @@ export const authRoutes = new Hono<ApiEnvironment>()
                 email: verified.data.address,
                 replacing: sessionToken(context),
                 user_agent: visitorBrowser(context),
-                access: context.var.access
+                access: context.var.access,
+                infra: context.var.infra
             })
-            if (!logged_in.ok) {
+            if (!logged_in.ok && logged_in.error === "not-listed") {
                 // Not one of the team: whoever else logs in, if anyone
                 // does, or refused (./others.ts)
                 return await OTHERS.logIn(context, verified.data.address)
+            } else if (!logged_in.ok) {
+                // Their row comes back only once Infra has ended Claude's
+                // connections as it, and Infra didn't
+                return failure(
+                    context,
+                    503,
+                    "unavailable",
+                    UNAVAILABLE,
+                    forTheTeam(
+                        context,
+                        verified.data.address,
+                        "Infra didn't end Claude's connections as this person's row, which it does before the row takes a new address or comes back to the team"
+                    )
+                )
             }
             // The session this browser had, if it was someone else's
             const replaced = sessionToken(context)

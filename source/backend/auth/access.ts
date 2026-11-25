@@ -15,9 +15,10 @@ export type Access = {
      * The team, the owner first: the only users there are, and the only
      * people who log in. Adding someone here lets them log in from the next
      * deploy. Taking them off deactivates them as the server starts,
-     * ending their sessions, while what they did keeps pointing at them;
-     * listing them again with the same slug brings them back
-     * (backend/users/sync.ts).
+     * ending their sessions and API tokens, while what they did keeps
+     * pointing at them; listing them again with the same slug brings them
+     * back, as a new address does, once Infra has ended Claude's
+     * connections as them (backend/users/sync.ts).
      */
     internal_users: readonly InternalUser[]
     /**
@@ -44,7 +45,10 @@ export type InternalUser = {
      * Who they are to the code, which never changes and is never given to
      * anyone else: lowercase words joined by hyphens, like `ada` or
      * `nick-r`. Their row follows it, so a new address changes their row
-     * rather than making a new one.
+     * rather than making a new one, and ends every way in their old one
+     * had: their sessions, their API tokens and Claude's connections. So
+     * someone new gets a slug of their own, never the one of the person
+     * they replace.
      */
     slug: string
     first_name: string
@@ -89,17 +93,36 @@ export const ACCESS: Access = {
     }
 }
 
+/** A listed person's address, as their row keeps it: trimmed and lowercased. */
+export function addressOf(listed: InternalUser) {
+    return listed.email.trim().toLowerCase()
+}
+
 /** The team member listed with `email`, if anyone is. */
 export function listedInternal(access: Access, email: string) {
     const address = email.trim().toLowerCase()
-    return access.internal_users.find(
-        (listed) => listed.email.trim().toLowerCase() === address
-    )
+    return access.internal_users.find((listed) => addressOf(listed) === address)
 }
 
 /** The team member listed with `slug`, if anyone is. */
 export function listedBySlug(access: Access, slug: string) {
     return access.internal_users.find((listed) => listed.slug === slug)
+}
+
+/**
+ * The team member a row is, if the list has it as it is: its slug, with
+ * its address. A row whose slug is listed with another address is no
+ * one's, so whatever its old address let in stops counting at the deploy
+ * that changes it, before the server's start ends it (users/sync.ts). Every
+ * check of who's asking asks this.
+ */
+export function listedAs(access: Access, row: { slug: string; email: string }) {
+    const listed = listedBySlug(access, row.slug)
+    if (listed === undefined || addressOf(listed) !== row.email) {
+        return undefined
+    } else {
+        return listed
+    }
 }
 
 /** A listed person's name, as the app shows it. */

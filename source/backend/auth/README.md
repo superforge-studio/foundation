@@ -58,6 +58,9 @@ each may be. The pages call them through `frontend/queries/auth.ts`, whose
    the person's row is made to follow the list (`keepListed`, below),
    `logged_in_at` is set, and `startSession` ends the session this browser
    had, deletes their sessions that have run out, and inserts the new one.
+   A row that has to come back, deactivated or with another address, has
+   Infra end Claude's connections as it first (`clearConnections`), and
+   the login is refused while Infra doesn't.
 6. **The cookie.** `setSessionCookie`, then `OTHERS.logOut` for the token
    the browser held before, in case it was someone else's. `Logged in` is
    logged with the user's ID, and the answer is the user, with the names
@@ -73,6 +76,7 @@ each may be. The pages call them through `frontend/queries/auth.ts`, whose
 | start         | 429    | `rate-limited` | One of Infra's limits                                            | `retry_after`, `limit`, a `Retry-After` header |
 | start         | 502    | `not-sent`     | The email didn't go out, and nothing was counted                 | `cause`, for the team                          |
 | start, verify | 503    | `unavailable`  | Infra refused the key, didn't answer, or answered something else | `cause`, for the team                          |
+| verify        | 503    | `unavailable`  | Infra didn't end Claude's connections as a row coming back       | `cause`, for the team                          |
 | verify        | 400    | `wrong-code`   | That isn't the code                                              | `attempts_left`                                |
 | verify        | 400    | `no-code`      | There's no code to try for that address                          |                                                |
 | verify        | 400    | `no-link`      | The link has run out or was used                                 |                                                |
@@ -120,14 +124,16 @@ What ends one:
 | Its person logs a browser out on their account | `endSessionById`, or `endOtherSessions` for every one but the one they're using                                           |
 | 30 days pass without a request                 | Nothing deletes it then: `liveSession` stops finding it, and it goes at its person's next login, or with `prune-sessions` |
 | Its person is taken off the list               | It stops counting at their next request (`currentSession`), and the next sync deletes it                                  |
+| Its person is listed with another address      | It stops counting at their next request (`listedAs`), and the next sync, or the new address's login, deletes it           |
 | Its person's row is deactivated, or deleted    | `liveSession` leaves out a deactivated person's, and a deleted row's sessions go with it (`on delete cascade`)            |
 
 ## The team, in code and in `users`
 
 `access.ts` holds the list, `ACCESS`, with each role's grant, and what
-reads it: `listedInternal` (by address, trimmed and lowercased),
-`listedBySlug`, `roleOf` (a `member` when the role is left out),
-`permissionsOf(access, role)` and `problemsWith`. Every route and
+reads it: `listedInternal` (by address, trimmed and lowercased, as
+`addressOf` gives a listed person's), `listedBySlug`, `listedAs` (a row,
+by its slug with its address), `roleOf` (a `member` when the role is left
+out), `permissionsOf(access, role)` and `problemsWith`. Every route and
 middleware reads it from `context.var.access`, never `ACCESS` itself, so a
 test hands its own.
 
@@ -137,30 +143,54 @@ test hands its own.
   them (`listing()`), which the middleware adds on every request. `users`
   has no column for a role. So a name or a role changed in `access.ts`
   holds from the first request after the deploy, whatever the row says.
+- **A row is a slug with an address.** The slug is who someone is to the
+  code, and never changes, so a new address changes their row rather than
+  making another. But the address is what logs in, so a row whose address
+  changes is treated as a row someone left: every way in the old address
+  had ends, and the person at the new one logs in afresh, once. The code
+  can't tell someone's own new address from someone new in their place,
+  so it ends them either way, and someone new gets a slug of their own.
+  An address is one active row's at a time (`users_email_index`, unique
+  where `deactivated_at` is null), so a deactivated row keeps the one it
+  had, and someone listed later may take it.
 - **`keepListed`** (`../users/sync.ts`) makes one person's row follow the
-  list, inside a transaction: found by their slug, or, for a row from
-  before slugs, by their address, which then takes the slug. It sets the
-  slug, the address and the name, and clears `deactivated_at`. A row it
-  has to make queues `user-added`, named for the user, in the same
-  transaction, so `tell-team-of-new-member` runs once for them
-  (`backend/workflows/README.md`, "The sample").
-- **`syncInternalUsers`** does that for everyone listed, deactivates
-  everyone else (`deactivated_at`), and deletes the sessions and the API
-  tokens of every deactivated person, in one transaction. It throws on a list with a
-  mistake in it (`problemsWith`: a slug that isn't one, or a slug or an
-  address listed twice), changing nothing. `syncAppInternalUsers` runs it
-  with `ACCESS` once the Node server is listening (`source/node.ts`), and
-  as a dev server first loads `source/server.ts`; never in the build's
-  prerender or the tests, then ends Claude's connections as everyone
-  deactivated (`endConnectionsOfGone`). It never rejects: it logs how
-  many it made and deactivated (`The team follows access.ts`), or that it
+  list, inside a transaction, found by their slug alone. Anyone else
+  active with their address is set aside first: deactivated, with their
+  sessions and API tokens ended. A row as listed has its name set; a row
+  with no slug yet is made, and queues `user-added`, named for the user,
+  in the same transaction, so `tell-team-of-new-member` runs once for them
+  (`backend/workflows/README.md`, "The sample"). A row that has to come
+  back, deactivated or with another address, takes the address listed,
+  with its sessions and API tokens ended and `deactivated_at` cleared,
+  only when it's in `cleared`: the rows Infra has said Claude has no
+  connection as (`clearConnections`, from `comingBack`'s rows). Otherwise
+  it stays set aside, and `keepListed` answers `not-cleared`.
+- **`syncInternalUsers`** does that for everyone listed, with Infra. It
+  asks Infra to end Claude's connections as each row coming back, then, in
+  one transaction, sets aside every active row the list doesn't have as
+  it is (`listedAs`), so an address handed from one person to another, or
+  two people swapping theirs, is free before it's taken; keeps each listed
+  person; and deletes the sessions and the API tokens of every
+  deactivated person. A row Infra didn't clear waits, set aside, for the
+  next start or its person's login. It answers how many are listed, made,
+  deactivated and waiting, and throws on a list with a mistake in it
+  (`problemsWith`: a slug that isn't one, or a slug or an address listed
+  twice), changing nothing. `syncAppInternalUsers` runs it with `ACCESS`
+  and the app's Infra once the Node server is listening
+  (`source/node.ts`), and as a dev server first loads `source/server.ts`;
+  never in the build's prerender or the tests, then ends Claude's
+  connections as everyone deactivated (`endConnectionsOfGone`). It never
+  rejects: it logs what it did (`The team follows access.ts`), or that it
   failed (`The team didn't sync with access.ts`), and the server goes on.
 - **The list decides, not the sync.** The middleware counts someone only
-  while `listedBySlug` finds their row's slug, so the sync is what keeps
-  the database telling the same story, not what keeps anyone out. A list
-  with a mistake still decides who logs in; `pnpm check` is what catches
-  one (`../users/tests/sync.test.ts`, which also holds `ACCESS` to an
-  owner who may do everything).
+  while the list has their row as it is, their slug with the row's
+  address (`listedAs`), so the sync is what keeps the database telling the
+  same story, not what keeps anyone out. A session, an API token or
+  Claude's token stops counting at the deploy that takes someone off or
+  gives their slug another address, before the server's start ends it. A
+  list with a mistake still decides who logs in; `pnpm check` is what
+  catches one (`../users/tests/sync.test.ts`, which also holds `ACCESS`
+  to an owner who may do everything).
 - **Taking someone off ends every way they were in, for good.** Their
   row stays, deactivated. Their sessions are deleted, and their API
   tokens with them, so a token never works again if they're listed again:
@@ -171,9 +201,12 @@ test hands its own.
   refresh one, and what it holds runs out within minutes. Meanwhile the
   middleware refuses a token whose person is off the list or deactivated.
   If Infra doesn't answer, it's logged (`Claude's connections weren't
-  ended`) and asked again at the next start; a person listed again before
-  then would find a connection still working, which only Infra can end:
-  they end it themselves on their account page.
+  ended`) and asked again at the next start. A row comes back, listed
+  again or with another address, only once Infra has said Claude has no
+  connection as it, so no connection someone allowed before outlives it.
+  Claude's access token lasts ten minutes, and the app checks it rather
+  than asking Infra, so one Claude already holds as that row can work
+  until it runs out.
 
 ## The four checks
 
@@ -239,9 +272,9 @@ Two kinds, each acting as one of the team, each sent as
   `infra.checkAgentToken` checks it with Infra's public keys: signed by
   Infra, for this origin and for `/admin/mcp`. It answers the user's ID,
   the scopes and the connection's ID. `agentUser` then finds that user's
-  row, not deactivated, and their slug on the list. A token Infra signed
-  whose person fails that is logged, with the connection's ID
-  (`Agent token for someone not on the team`).
+  row, not deactivated, and their slug on the list with the row's address
+  (`listedAs`). A token Infra signed whose person fails that is logged,
+  with the connection's ID (`Agent token for someone not on the team`).
 - **An API token** (`api-tokens.ts`) is one a person made on their account
   page for a script: `api_`, then 43 letters and digits. Its row in
   `auth.api_tokens` keeps its SHA-256, its last four characters
@@ -250,11 +283,11 @@ Two kinds, each acting as one of the team, each sent as
   or never. `makeApiToken` answers the token itself, and nothing shows it
   again. `apiTokenUser` refuses one that isn't shaped like a token before
   it costs a query, then one that has run out, or whose person is
-  deactivated or off the list, and notes `last_used_at`, at most once a
-  minute. Revoking deletes the row. A token that has run out stays listed
-  until it's revoked, so a script that stopped working says why. Its
-  routes are the account's (`backend/account/routes.ts`), each behind
-  `inBrowser`.
+  deactivated, off the list or listed with another address, and notes
+  `last_used_at`, at most once a minute. Revoking deletes the row. A token
+  that has run out stays listed until it's revoked, so a script that
+  stopped working says why. Its routes are the account's
+  (`backend/account/routes.ts`), each behind `inBrowser`.
 
 **Each is narrowed three ways.** By its person's role, which it never
 passes. By its scopes: `read` reads every area the role reads, and `act`

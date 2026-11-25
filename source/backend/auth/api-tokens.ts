@@ -8,7 +8,7 @@ import {
     API_TOKEN_SCOPES,
     type ApiTokenCreation
 } from "@/utilities/schemas/api-tokens"
-import { type Access, listedBySlug, listing } from "./access"
+import { type Access, listedAs, listing } from "./access"
 import { TEAM_ROW_COLUMNS, type TeamMember } from "./sessions"
 import { randomCharacters, sha256 } from "./tokens"
 
@@ -119,8 +119,9 @@ export async function revokeApiToken(
  * Whom a token acts as, with the names and role access.ts lists them with,
  * and what it may do, or undefined when it isn't a live token, or its
  * person is no longer on the team: they must still be listed in
- * access.ts, by their slug, as Claude's person must, so a token stops
- * working the moment they're taken off. Notes that it was used.
+ * access.ts, by their slug with their address (`listedAs`), as Claude's
+ * person must, so a token stops working the moment they're taken off, or
+ * listed with another address. Notes that it was used.
  */
 export async function apiTokenUser(
     database: Database,
@@ -152,7 +153,7 @@ export async function apiTokenUser(
     if (found === undefined) {
         return undefined
     }
-    const listed = listedBySlug(access, found.user.slug)
+    const listed = listedAs(access, found.user)
     if (listed === undefined) {
         console.warn("API token for someone not on the team", {
             api_token_id: found.id

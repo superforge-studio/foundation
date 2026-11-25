@@ -2,12 +2,7 @@ import { and, desc, eq, gt, sql } from "drizzle-orm"
 import type { Database } from "@/database"
 import { sessions, users } from "@/database/schema"
 import { now } from "@/database/time"
-import {
-    type Access,
-    listedBySlug,
-    permissionsOf,
-    roleOf
-} from "../auth/access"
+import { type Access, listedAs, permissionsOf, roleOf } from "../auth/access"
 
 /**
  * The team, for the admin's Settings: everyone access.ts lists,
@@ -38,7 +33,7 @@ export async function listUsers(database: Database, access: Access) {
         .groupBy(users.id)
         .orderBy(desc(users.created_at))
     return rows.map((row) => {
-        const listed = listedBySlug(access, row.slug)
+        const listed = listedAs(access, row)
         const role = listed === undefined ? null : roleOf(listed)
         return {
             ...row,

@@ -78,6 +78,13 @@
             "when": 1795565627627,
             "tag": "0010_cleanup-checks-and-file-sizes",
             "breakpoints": true
+        },
+        {
+            "idx": 11,
+            "version": "7",
+            "when": 1795588564731,
+            "tag": "0011_users-email-among-the-active",
+            "breakpoints": true
         }
     ]
 }
