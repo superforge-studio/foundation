@@ -292,8 +292,8 @@ export const analytics_visits = pgTable(
 // left, a click, an error, an event of the app's own from a page
 // (`track()`), and what only the server knows, like a sign-up
 // (backend/visits/record.ts). A page's belong to a visit; the server's
-// don't. Kept `KEEP_EVENTS_FOR` (backend/visits/prune.ts), while their
-// visits stay.
+// don't. Kept `KEEP_EVENTS_FOR`, for good as the template ships
+// (backend/visits/prune.ts), and a page's go with their visit.
 export const analytics_events = pgTable(
     "analytics_events",
     {

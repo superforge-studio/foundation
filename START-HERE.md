@@ -77,8 +77,9 @@ Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
     view and click, in the app's own database, and the site can remember
     a visitor's browser between visits, so their visits join up. Say
     plainly: by default the site sets a lasting cookie on every visitor,
-    with no banner, and keeps each visit with the country it came from
-    and, for 90 days, the visitor's IP address; the EU and the UK
+    with no banner, and keeps every visit for good, with what was viewed
+    and clicked on it and the country it came from, and, for 90 days,
+    the visitor's IP address; the EU and the UK
     generally require a visitor's consent for the cookie. A business
     based in the EU can have a small banner ask everyone first; one based
     elsewhere can have it ask only visitors where those rules apply, and
