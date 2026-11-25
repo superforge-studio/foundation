@@ -15,7 +15,7 @@ import type { ApiEnvironment } from "./context"
 import { answerNotFound, answerUnexpected, failure, tooLarge } from "./failures"
 import { fileRoutes } from "./files/routes"
 import { healthRoutes } from "./health/routes"
-import { appInfra } from "./infra"
+import { appInfra, appInfraUsing } from "./infra"
 import { jobRoutes } from "./jobs/routes"
 import { userRoutes } from "./users/routes"
 import { appLocate } from "./visits/location"
@@ -44,7 +44,8 @@ export function apiWith(variables: () => ApiEnvironment["Variables"]) {
 
             // The database on `context.var.database` for every route, the
             // Storage bucket on `context.var.storage`, the workflows on
-            // `context.var.workflows`, Infra on `context.var.infra`, who
+            // `context.var.workflows`, Infra on `context.var.infra` and
+            // which one it is on `context.var.infra_using`, who
             // can log in on `context.var.access`, whom the site remembers
             // on `context.var.visitor_mode`, what places a visitor on
             // `context.var.locate`, the services that post the app
@@ -219,7 +220,8 @@ function fromThisHost(origin: string, context: Context) {
 
 /**
  * What the server's own API sees on `context`: its database, bucket,
- * workflows and Infra, with who can log in as auth/access.ts says, whom
+ * workflows and Infra, and which Infra that is, with who can log in as
+ * auth/access.ts says, whom
  * the site remembers as utilities/visitors.ts says, visitors placed by the
  * database Railway names (visits/location.ts), the webhook sources
  * webhooks/sources.ts lists, and this app's own (./app.ts). Whatever else
@@ -231,6 +233,7 @@ export function serverVariables(): ApiEnvironment["Variables"] {
         storage: appStorage(),
         workflows: dbosWorkflows,
         infra: appInfra(),
+        infra_using: appInfraUsing(),
         access: ACCESS,
         visitor_mode: VISITOR_MODE,
         locate: appLocate(),

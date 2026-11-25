@@ -753,6 +753,9 @@ on it.
   calls production makes, still emailing nothing. A worktree with no
   `.env` of its own reads its main checkout's. A dev server never takes a
   secret key, so it can't email real people (`source/backend/infra/`).
+  **The toolbar shows only with a test key Infra takes**: the stand-in
+  keeps no comment, so a dev server on it has no toolbar
+  (`source/frontend/components/toolbar/`).
 - **`pnpm preview`** runs the production build (`pnpm build` first) as
   Railway does, `source/node.ts` and all, on the checkout's database, at
   http://localhost:3001. **`pnpm smoke-test`** does it on a new, empty

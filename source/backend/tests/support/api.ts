@@ -30,7 +30,9 @@ const NOWHERE: Locate = () => null
  * the test's own, the bucket's bytes in memory, workflows recorded rather
  * than run (and those a write queues in its own transaction left on their
  * queues, which `queued()` reads), Infra's stand-in, so no test reaches Infra (its logins
- * answer their code, as a test key's do), no one on the team until the
+ * answer their code, as a test key's do), said to be the stand-in
+ * (`infra_using`), so nothing keeps a comment until a test says it calls
+ * Infra with a key, no one on the team until the
  * test logs someone in, visitors remembered as the template ships (`remember`), none of them
  * placed, no webhook sources, and this app's own stand-ins (./app.ts): what a route's test calls, through the typed client
  * (`client.api.health.$get()`), or `api.request(path)` for a path no route
@@ -52,6 +54,7 @@ export async function testApi(
         storage: replacing.storage ?? new Storage(store.store),
         workflows: replacing.workflows ?? recorded.workflows,
         infra: replacing.infra ?? standInInfra(),
+        infra_using: replacing.infra_using ?? "stand-in",
         access: { internal_users, roles: given.roles },
         visitor_mode: replacing.visitor_mode ?? REMEMBER,
         locate: replacing.locate ?? NOWHERE,
