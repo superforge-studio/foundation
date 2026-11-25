@@ -137,7 +137,7 @@ describe("the jobs", () => {
     test("only a role that may write jobs, and Claude allowed to act, may start one", async () => {
         const setup = await testApi({
             access: {
-                internal_users: [],
+                team: [],
                 roles: { owner: "everything", member: { jobs: "read" } }
             }
         })

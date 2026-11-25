@@ -9,7 +9,7 @@ This codebase started as a copy of one of Superforge's templates, and
 `.superforge/superforge.json` says which one, and which release it's on:
 
 ```json
-{ "version": "0.1.0", "template": "starter-template", "project_id": null }
+{ "version": "0.1.0", "template": "foundation", "project_id": null }
 ```
 
 The template is public, at `github.com/superforge-studio/<template>`, and
@@ -45,7 +45,7 @@ moved each into its own file, so a tag before `v0.9.0` has no
 The template's tags, with nothing fetched and no remote added:
 
 ```bash
-git ls-remote --tags --refs https://github.com/superforge-studio/starter-template.git 'v*' |
+git ls-remote --tags --refs https://github.com/superforge-studio/foundation.git 'v*' |
     sed 's|.*refs/tags/v||' | sort -V
 ```
 
@@ -130,7 +130,7 @@ Add the template as a remote, once per checkout, then fetch its tags under
 `template/tags/`, so they never mix with this codebase's own:
 
 ```bash
-git remote add template https://github.com/superforge-studio/starter-template.git
+git remote add template https://github.com/superforge-studio/foundation.git
 git fetch --no-tags template "+refs/tags/v*:refs/remotes/template/tags/v*"
 ```
 

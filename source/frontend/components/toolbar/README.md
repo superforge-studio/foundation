@@ -1,7 +1,7 @@
 # Toolbar
 
-A small toolbar on every page, for the business's own people, the ones
-listed as internal in `backend/auth/app.ts`: when
+A small toolbar on every page, for the business's own people, the team
+listed in `backend/auth/app.ts`: when
 they spot something that should change, they click it, say what, and
 get back to work. It goes to Superforge Infra as a comment, and Claude
 fixes what's filed later: when someone asks it to work through them, or

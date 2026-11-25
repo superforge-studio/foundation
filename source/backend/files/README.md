@@ -141,7 +141,7 @@ folder's alike.
   since there it's at the app's own address. A row whose bytes are
   missing is 404 `no-bytes`, logged.
 - **A link to send** (`POST /api/files/:file_id/link`) is the same kind
-  of link, for seven days (`LINK_DAYS`), which saves the file under the
+  of link, for seven days (`LINKS_LAST_FOR`), which saves the file under the
   name it had when the link was made. No row records one, so nothing
   lists them or takes one back: it works until it runs out, or the bytes
   are deleted, after its file goes to Trash (its bytes stay 30 days) and
@@ -160,7 +160,7 @@ folder's alike.
   listed either while the folder is there, and still comes back by its
   own ID, to the top.
 - **`emptyExpired` deletes for good**: each folder in Trash for 30 days
-  (`TRASH_DAYS`), with every folder and file anywhere inside it, each file
+  (`KEEP_TRASH_FOR`), with every folder and file anywhere inside it, each file
   in Trash that long, and each upload still `uploading` a day after it
   started. A file's bytes go from the bucket first, then its row, so a
   failure part way leaves rows to try again with, never rows whose bytes
@@ -207,8 +207,8 @@ that's `open`.
 | What                              | Is                            | Set in                                                        |
 | --------------------------------- | ----------------------------- | ------------------------------------------------------------- |
 | A file's size                     | 100 MB at most                | `largest_file`, the app's settings (`utilities/settings/`)    |
-| How long something is in Trash    | 30 days                       | `trash_days`, the same settings                               |
-| How long a link to send works     | 7 days                        | `link_days`, the same settings                                |
+| How long something is in Trash    | 30 days                       | `keep_trash_for`, the same settings                           |
+| How long a link to send works     | 7 days                        | `links_last_for`, the same settings                           |
 | A file's or a folder's name       | 1 to 255 characters, no slash | `item_name`, `source/utilities/schemas/files.ts`              |
 | An upload's form                  | 15 minutes                    | `UPLOAD_FORM_SECONDS`, `routes.ts`                            |
 | A download's link                 | 5 minutes                     | `DOWNLOAD_LINK_SECONDS`, `send.ts`                            |

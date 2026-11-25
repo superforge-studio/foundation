@@ -15,7 +15,7 @@ beforeEach(() => {
 test("the runs are listed only to a role that may read the workflows", async () => {
     const api = await testApi({
         access: {
-            internal_users: [],
+            team: [],
             roles: { owner: "everything", member: { team: "read" } }
         }
     })

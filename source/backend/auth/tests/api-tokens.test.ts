@@ -339,7 +339,7 @@ describe("its end", () => {
         const { token } = await makeToken(setup, cookie)
         expect((await withToken(setup, token, "/api/users")).status).toBe(200)
 
-        setup.internal_users.length = 0
+        setup.team.length = 0
         expect((await withToken(setup, token, "/api/users")).status).toBe(401)
         expect(
             await loggedInAs(await withToken(setup, token, "/api/auth/session"))
@@ -350,12 +350,12 @@ describe("its end", () => {
         const setup = await testApi()
         const { cookie } = await logInAs(setup, ADA)
         const { token } = await makeToken(setup, cookie)
-        const [ada] = setup.internal_users
+        const [ada] = setup.team
         if (ada === undefined) {
             throw new Error("Ada isn't listed")
         }
 
-        setup.internal_users[0] = { ...ada, email: "ada@lovelace.dev" }
+        setup.team[0] = { ...ada, email: "ada@lovelace.dev" }
         expect((await withToken(setup, token, "/api/users")).status).toBe(401)
 
         await logInAs(setup, "ada@lovelace.dev")

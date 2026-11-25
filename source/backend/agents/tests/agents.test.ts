@@ -136,18 +136,18 @@ describe("Claude's token", () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
         expect((await asClaude(setup, "/api/users")).status).toBe(200)
-        setup.internal_users.length = 0
+        setup.team.length = 0
         expect((await asClaude(setup, "/api/users")).status).toBe(401)
     })
 
     test("stops working the moment its person is listed with another address", async () => {
         const setup = await testApi()
         await logInAs(setup, ADA)
-        const [ada] = setup.internal_users
+        const [ada] = setup.team
         if (ada === undefined) {
             throw new Error("Ada isn't listed")
         }
-        setup.internal_users[0] = { ...ada, email: "ada@lovelace.dev" }
+        setup.team[0] = { ...ada, email: "ada@lovelace.dev" }
         expect((await asClaude(setup, "/api/users")).status).toBe(401)
     })
 
@@ -558,7 +558,7 @@ describe("the MCP", () => {
     test("lists only the routes the person's role reaches", async () => {
         const setup = await testApi({
             access: {
-                internal_users: [],
+                team: [],
                 roles: { owner: "everything", member: { workflows: "read" } }
             }
         })

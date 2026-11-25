@@ -25,7 +25,7 @@ import { template } from "../../.superforge/superforge.json"
  */
 const TEMPLATES = new Map([
     [
-        "starter-template",
+        "foundation",
         {
             name: "Superforge Foundation",
             url: "https://superforge.studio/foundation"

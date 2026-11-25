@@ -91,7 +91,7 @@ test("every route says who may call it", async () => {
 
 // A team whose members may read the workflows and nothing else
 const NARROW: Access = {
-    internal_users: [],
+    team: [],
     roles: { ...ACCESS.roles, member: { workflows: "read" } }
 }
 

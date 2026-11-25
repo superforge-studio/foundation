@@ -22,10 +22,10 @@ and a private one. The license says so too (`LICENSE`, term 2): the
 business whose software this is holds its copy, and anyone it hires
 works on that copy, never on one of their own.
 
-- **`origin` is `superforge-studio/starter-template`** (or there's no
+- **`origin` is `superforge-studio/foundation`** (or there's no
   `origin`): this is a clone of Superforge's public template, not a copy.
   Stop, and have the owner make their own: on
-  <https://github.com/superforge-studio/starter-template>, **Use this
+  <https://github.com/superforge-studio/foundation>, **Use this
   template → Create a new repository**, under their own account or
   organization, set to **Private**. Then clone that one and start again
   there. Never push to the template, and never fork it: a fork of a public
@@ -149,7 +149,7 @@ time, and its Settings shows who's on the team, each as their role allows.
 Then say who's on the team, from step 1's answers, in `ACCESS` in
 `source/backend/auth/app.ts`, the app's own, which no update changes:
 
-- **`internal_users`**: the team, the owner first, each with a slug
+- **`team`**: everyone on it, the owner first, each with a slug
   (their first name, lowercase, like `ada`, or with a letter after it
   when two share one, like `nick-r`), which never changes, their first
   name, last name and the email they'll log in with, in place of the
@@ -200,7 +200,7 @@ write them for someone who has never met the business.
 
 ## 5. Make the names the business's own
 
-The codebase is called `starter-template` in a few places. Rename it to a
+The codebase is called `foundation` in a few places. Rename it to a
 short, lowercase name for the business (like `acme-plumbing`):
 
 - `name` in `package.json`.
@@ -222,7 +222,7 @@ short, lowercase name for the business (like `acme-plumbing`):
 - `SECURITY.md`, which is how to report a problem in the template to
   Superforge, goes: it isn't this codebase's.
 
-Leave `.superforge/` as it is: `superforge.json`'s `starter-template` is
+Leave `.superforge/` as it is: `superforge.json`'s `foundation` is
 the template this codebase came from, which updates read
 (`workbench/updating.md`) and every page's `<meta name="generator">`
 names, not this codebase's name, and `releases/` holds the notes of the

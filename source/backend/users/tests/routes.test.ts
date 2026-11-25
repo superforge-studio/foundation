@@ -53,7 +53,7 @@ test("whoever may read the team sees it, with the role each is listed with, and 
 test("someone whose role can't read the team is refused, saying what it needed", async () => {
     const api = await testApi({
         access: {
-            internal_users: [],
+            team: [],
             roles: { ...ACCESS.roles, member: { workflows: "read" } }
         }
     })
@@ -73,7 +73,7 @@ test("someone whose role can't read the team is refused, saying what it needed",
 test("someone taken off the list is logged out, whatever their row says", async () => {
     const api = await testApi()
     const ada = await logInAs(api, "ada@example.com")
-    api.internal_users.splice(0)
+    api.team.splice(0)
     const refused = await api.client.api.users.$get(
         {},
         { headers: { cookie: ada.cookie } }

@@ -5,10 +5,10 @@ import { now } from "@/database/time"
 import {
     type Access,
     addressOf,
-    type InternalUser,
     listedAs,
     nameOf,
-    problemsWith
+    problemsWith,
+    type TeamEntry
 } from "../auth/access"
 import { ACCESS } from "../auth/app"
 import { appInfra, type Infra } from "../infra"
@@ -35,12 +35,12 @@ import { queueEvent } from "../workflows/queue"
  * with the address is set aside first. A row it makes queues `user-added`,
  * named for them, in the same transaction, so whatever's on it (the notice
  * to the rest of the team) runs once. Run inside a transaction: the
- * server's start runs it for everyone (`syncInternalUsers`) and each login
+ * server's start runs it for everyone (`syncTeam`) and each login
  * for the one logging in (auth/login.ts).
  */
 export async function keepListed(
     database: Database,
-    listed: InternalUser,
+    listed: TeamEntry,
     cleared: ReadonlySet<string>
 ): AsyncOperationResult<
     { id: string; made: boolean; came_back: boolean },
@@ -122,7 +122,7 @@ export async function keepListed(
  * row as it is (`listedAs`, auth/logged-in.ts), so this is what keeps the
  * database telling the same story, not what keeps anyone out.
  */
-export async function syncInternalUsers(
+export async function syncTeam(
     database: Database,
     infra: Infra,
     access: Access
@@ -135,7 +135,7 @@ export async function syncInternalUsers(
     }
     const cleared = await clearConnections(
         infra,
-        await comingBack(database, access.internal_users)
+        await comingBack(database, access.team)
     )
     return await database.transaction(async (transaction) => {
         // Everyone the list doesn't have as they are, first, so an address
@@ -157,7 +157,7 @@ export async function syncInternalUsers(
         let made = 0
         let waiting = 0
         const came_back: string[] = []
-        for (const listed of access.internal_users) {
+        for (const listed of access.team) {
             const kept = await keepListed(transaction, listed, cleared)
             if (!kept.ok) {
                 waiting += 1
@@ -179,7 +179,7 @@ export async function syncInternalUsers(
             gone.map((user) => user.id)
         )
         return {
-            listed: access.internal_users.length,
+            listed: access.team.length,
             made,
             deactivated: set_aside.filter((id) => !came_back.includes(id))
                 .length,
@@ -197,7 +197,7 @@ export async function syncInternalUsers(
  */
 export async function comingBack(
     database: Database,
-    listed: readonly InternalUser[]
+    listed: readonly TeamEntry[]
 ) {
     const rows = await database
         .select({
@@ -276,17 +276,17 @@ async function endWaysIn(database: Database, ids: readonly string[]) {
 }
 
 /**
- * `syncInternalUsers` on the server's database and Infra with this app's
+ * `syncTeam` on the server's database and Infra with this app's
  * ACCESS, as the server starts (source/node.ts, and a dev server as it
  * first loads source/server.ts). It never rejects: a failure is logged,
  * and the server goes on, since the login middleware counts only the
  * list's people regardless.
  */
-export async function syncAppInternalUsers() {
+export async function syncAppTeam() {
     const database = appDatabase()
     const infra = appInfra()
     try {
-        const synced = await syncInternalUsers(database, infra, ACCESS)
+        const synced = await syncTeam(database, infra, ACCESS)
         console.info("The team follows auth/app.ts", synced)
     } catch (error) {
         console.error("The team didn't sync with auth/app.ts", { error })

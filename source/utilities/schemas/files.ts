@@ -20,11 +20,11 @@ export const LARGEST_FILE = SETTINGS.largest_file
 /** The largest file, as a person reads it: "100 MB". */
 export const LARGEST_FILE_WORDS = `${Math.round(LARGEST_FILE / (1024 * 1024))} MB`
 
-/** How long a file stays in Trash before it's deleted for good, in days. */
-export const TRASH_DAYS = SETTINGS.trash_days
+/** How long a file stays in Trash before it's deleted for good. */
+export const KEEP_TRASH_FOR = SETTINGS.keep_trash_for
 
-/** How long a link from "Copy a link" works, in days. */
-export const LINK_DAYS = SETTINGS.link_days
+/** How long a link from "Copy a link" works. */
+export const LINKS_LAST_FOR = SETTINGS.links_last_for
 
 /**
  * A file's or a folder's name: trimmed, something, at most 255 characters,

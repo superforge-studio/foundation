@@ -1,4 +1,4 @@
-# Superforge Starter Template
+# Superforge Foundation
 
 Your business, in one codebase: a website, an API and a database in one
 repository, deployed on Railway, made to be changed with Claude.
@@ -109,8 +109,8 @@ were published under the MIT license.
 ## This template
 
 This repository is a GitHub template (Use this template → Create a new
-repository). It's Superforge Foundation (`starter-template`), at
-<https://github.com/superforge-studio/starter-template>. A copy made from
+repository). It's Superforge Foundation (`foundation`), at
+<https://github.com/superforge-studio/foundation>. A copy made from
 it replaces this section, and the names above, in `START-HERE.md`'s step 5.
 
 **Found a problem?** A bug or a wrong step in the template is an issue on

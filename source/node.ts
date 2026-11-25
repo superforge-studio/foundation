@@ -20,12 +20,12 @@ import { stopTracing } from "./tracing.ts"
 type ServerEntry = { fetch(request: Request): Promise<Response> }
 
 // A path, not a specifier, so tsc doesn't look for a build that typecheck
-// runs before. Beside Start's entry, the internal users' sync, the
+// runs before. Beside Start's entry, the team's sync, the
 // workflows' start and stop, and the hosts with no files of their own
 // (source/server.ts).
 const built: {
     default: ServerEntry
-    syncAppInternalUsers(): Promise<void>
+    syncAppTeam(): Promise<void>
     startWorkflows(): Promise<void>
     stopWorkflows(): Promise<void>
     HOSTS_WITHOUT_FILES: readonly string[]
@@ -170,12 +170,12 @@ const server = serve(
     (address) => console.info("Server listening", { port: address.port })
 )
 
-// The internal users, made to follow the list in code
+// The team, made to follow the list in code
 // (source/backend/auth/app.ts), and the workflows, once the server is
 // answering: while a deploy goes out the workflows wait for the old
 // deployment's gate, and the healthcheck has to answer meanwhile for
 // Railway to stop the old one (source/backend/workflows/)
-built.syncAppInternalUsers()
+built.syncAppTeam()
 built.startWorkflows()
 
 // Railway stops the old deployment with SIGTERM once a new one is healthy:

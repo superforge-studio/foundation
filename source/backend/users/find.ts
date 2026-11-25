@@ -17,7 +17,7 @@ export async function findUser(database: Database, id: string) {
  * the database (sync.ts), and no one deactivated, but `except`'s, when
  * the notice is about one of them.
  */
-export async function internalEmails(database: Database, except?: string) {
+export async function teamEmails(database: Database, except?: string) {
     const rows = await database
         .select({ email: users.email })
         .from(users)

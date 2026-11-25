@@ -8,12 +8,12 @@ import type { AppRailway } from "./railway.ts"
 
 export const APP = {
     // The Railway project, named for the business, like `acme-plumbing`
-    project: "superforge-starter",
+    project: "superforge-foundation",
     // This repository on GitHub, as `git remote get-url origin` shows it
-    repository: "superforge-studio/starter-template",
+    repository: "superforge-studio/foundation",
     // Railway's address for the app, `<name>.up.railway.app`, which has to
     // be free across all of Railway. The first apply makes it
-    address: "superforge-starter.up.railway.app",
+    address: "superforge-foundation.up.railway.app",
     // Where the app, its database and its buckets all run: the region
     // nearest the business's customers (`REGIONS`, ./railway.ts). Choose it
     // once, before the first apply: a bucket can't move after it's made

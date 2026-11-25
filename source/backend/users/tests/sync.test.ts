@@ -9,7 +9,7 @@ import { api_tokens, sessions, users } from "@/database/schema"
 import { testDatabase } from "@/database/tests/support/database"
 import { fromNow } from "@/database/time"
 import { DAY } from "@/utilities/primitives/durations"
-import { endConnectionsOfGone, syncInternalUsers } from "../sync"
+import { endConnectionsOfGone, syncTeam } from "../sync"
 
 // What the server's start does with the list in backend/auth/app.ts:
 // makes `users` the listed people, found by their slugs, and sets aside
@@ -41,8 +41,8 @@ const PAT = {
     email: "pat@example.com"
 }
 
-function listing(...internal_users: Access["internal_users"]): Access {
-    return { internal_users, roles: APP_ACCESS.roles }
+function listing(...team: Access["team"]): Access {
+    return { team, roles: APP_ACCESS.roles }
 }
 
 type TestDatabase = Awaited<ReturnType<typeof testDatabase>>
@@ -53,7 +53,7 @@ async function sync(
     access: Access,
     infra: Infra = standInInfra()
 ) {
-    return await syncInternalUsers(database, infra, access)
+    return await syncTeam(database, infra, access)
 }
 
 // An Infra that ends Claude's connections, with the calls it was asked
@@ -143,9 +143,9 @@ test("this app's list has no mistakes", () => {
 })
 
 test("this app's list has an owner, who may do everything", () => {
-    expect(
-        APP_ACCESS.internal_users.some((listed) => roleOf(listed) === "owner")
-    ).toBe(true)
+    expect(APP_ACCESS.team.some((listed) => roleOf(listed) === "owner")).toBe(
+        true
+    )
     expect(APP_ACCESS.roles.owner).toBe("everything")
 })
 

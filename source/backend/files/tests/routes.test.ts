@@ -23,7 +23,7 @@ beforeEach(() => {
     vi.spyOn(console, "info").mockImplementation(() => {})
 })
 
-// The API, with an internal person logged in, and their headers. With
+// The API, with someone on the team logged in, and their headers. With
 // `presigns: false`, the bucket can't sign, as a dev server's folder can't
 async function asOwner(options: { presigns?: boolean } = {}) {
     const memory = memoryStore(options)
@@ -120,7 +120,7 @@ async function contents({ api, headers }: LoggedIn, folder_id = "root") {
 test("only a role that reaches Files sees it, and only one that may write changes it", async () => {
     const api = await testApi({
         access: {
-            internal_users: [],
+            team: [],
             roles: {
                 owner: "everything",
                 member: { files: "read" }

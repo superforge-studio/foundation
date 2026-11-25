@@ -1,13 +1,13 @@
 # Security
 
 This is how to report a security problem in Superforge Foundation, the
-template (<https://github.com/superforge-studio/starter-template>), or in
+template (<https://github.com/superforge-studio/foundation>), or in
 what every copy of it gets from it.
 
 **Report a vulnerability privately**, through GitHub's private
 vulnerability reporting: on the repository, Security → Report a
 vulnerability
-(<https://github.com/superforge-studio/starter-template/security/advisories/new>).
+(<https://github.com/superforge-studio/foundation/security/advisories/new>).
 Never in a public issue, a pull request or a discussion, which anyone can
 read before a fix is out.
 
