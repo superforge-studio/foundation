@@ -284,6 +284,8 @@ an update: the pages and their look, the team and its roles (`ACCESS`),
   and 429 `too-many` with a `Retry-After` once it's past the most it
   allows, so a script can't fill the database with junk. It's counted in
   `internal.rate_limits`, so every server and every deploy count together.
+  An attempt that's more than one thing, like a batch of a page's events,
+  counts as its `amount` (`backend/visits/limit.ts`).
 - **A file the team uploads, or one the app hands someone** → Your files,
   under `/api/files` (`backend/files/`), whose rows name it and whose
   bytes are in the bucket's `files` folder; a file the code itself writes

@@ -7,7 +7,12 @@ import { memoryStore } from "@/database/tests/support/storage"
 import { DAY, HOUR, MINUTE, SECOND } from "@/utilities/primitives/durations"
 import type { PageEvent } from "@/utilities/schemas/visits"
 import type { Locate } from "../location"
-import { type PageVisit, recordEvents, recordVisit } from "../record"
+import {
+    EVENTS_A_VISIT,
+    type PageVisit,
+    recordEvents,
+    recordVisit
+} from "../record"
 
 // What's kept of a visitor's page events, and of what the server says
 // happened, in a database of the test's own: each event's visit, what a
@@ -194,6 +199,32 @@ test("a visit lasts until 30 minutes pass without an event", async () => {
         (visits[0]?.ended_at.getTime() ?? 0) -
             (visits[0]?.started_at.getTime() ?? 0)
     ).toBe(10 * MINUTE)
+})
+
+test("a visit holds at most 5,000 events, and the next starts another", async () => {
+    const context = await setup()
+    // One short of the most, a millisecond apart
+    await recordVisit(
+        context,
+        batch(
+            Array.from({ length: EVENTS_A_VISIT - 1 }, (_, index) =>
+                event("click", 10 * SECOND - index)
+            )
+        )
+    )
+    // The first of these fills it, and the second starts another
+    await recordVisit(
+        context,
+        batch([event("click", 2 * SECOND), event("click", SECOND)])
+    )
+    // Which the next joins, as any visit's next event does
+    await recordVisit(context, batch([event("view", 0, "/pricing")]))
+
+    const { visits } = await kept(context.database)
+    expect(visits.map((visit) => [visit.clicks, visit.views])).toEqual([
+        [EVENTS_A_VISIT, 0],
+        [1, 1]
+    ])
 })
 
 test("a visit says where it came from, as its landing said, and whether it bounced", async () => {
