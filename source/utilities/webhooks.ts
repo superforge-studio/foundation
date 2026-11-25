@@ -16,5 +16,3 @@ export const WEBHOOK_OUTCOMES = [
     "accepted",
     "failed"
 ] as const
-
-export type WebhookOutcome = (typeof WEBHOOK_OUTCOMES)[number]

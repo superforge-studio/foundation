@@ -6,6 +6,7 @@
 import { sql } from "drizzle-orm"
 import {
     type AnyPgColumn,
+    bigint,
     boolean,
     check,
     index,
@@ -18,12 +19,12 @@ import {
     uuid
 } from "drizzle-orm/pg-core"
 // Relative, since drizzle-kit reads this file without the app's `@/` paths
-import { AGENT_SCOPES } from "../../utilities/schemas/agents"
+import { API_TOKEN_SCOPES } from "../../utilities/schemas/api-tokens"
 import { FILE_STATES } from "../../utilities/schemas/files"
 import { USER_SLUG_PATTERN } from "../../utilities/schemas/users"
 import { DEVICES, EVENT_SOURCES } from "../../utilities/visitors"
 import { WEBHOOK_OUTCOMES } from "../../utilities/webhooks"
-import { id, timestamp } from "../columns"
+import { id, oneOf, timestamp } from "../columns"
 import { auth, internal } from "./namespaces"
 
 // The Postgres schemas beside `public`, from a file of their own, so
@@ -104,10 +105,10 @@ export const api_tokens = auth.table(
         // The token's last characters, shown beside its name, so a token in
         // a script can be matched to its row
         preview: text().notNull(),
-        // What it may do (`AGENT_SCOPES`, utilities/schemas/agents.ts), as
-        // Claude's tokens may: `read`, the API's `GET` routes, and `act`,
+        // What it may do (`API_TOKEN_SCOPES`, utilities/schemas/api-tokens.ts),
+        // as Claude's tokens may: `read`, the API's `GET` routes, and `act`,
         // everything else its person could do themselves
-        scopes: text({ enum: AGENT_SCOPES }).array().notNull(),
+        scopes: text({ enum: API_TOKEN_SCOPES }).array().notNull(),
         // When it runs out, or null for a token that lasts until it's revoked
         expires_at: timestamp(),
         // When a request last came with it, to within a minute, or null for
@@ -120,7 +121,7 @@ export const api_tokens = auth.table(
         check(
             "api_tokens_scopes_check",
             sql.raw(
-                `"${table.scopes.name}" <@ array[${AGENT_SCOPES.map((scope) => `'${scope}'`).join(", ")}]::text[] and cardinality("${table.scopes.name}") > 0`
+                `"${table.scopes.name}" <@ array[${API_TOKEN_SCOPES.map((scope) => `'${scope}'`).join(", ")}]::text[] and cardinality("${table.scopes.name}") > 0`
             )
         )
     ]
@@ -163,14 +164,18 @@ export const files = pgTable(
     "files",
     {
         id: id(),
+        // Restricted, so a folder's row can't go while a file's row is in
+        // it: the file's bytes would stay in the bucket with nothing
+        // pointing at them. Trash deletes the files first (backend/files/).
         folder_id: uuid().references(() => file_folders.id, {
-            onDelete: "cascade"
+            onDelete: "restrict"
         }),
         name: text().notNull(),
         content_type: text().notNull(),
         // In bytes: what was declared until it's `ready`, then what the
-        // bucket has. A file is at most 100 MB (utilities/schemas/files.ts)
-        size: integer().notNull(),
+        // bucket has. A file is at most 100 MB (utilities/schemas/files.ts),
+        // and a bigint, so a copy can raise that past 2 GB
+        size: bigint({ mode: "number" }).notNull(),
         // Text with a check, as `users.slug` has one
         state: text({ enum: FILE_STATES }).notNull().default("uploading"),
         uploaded_by: uuid().references(() => users.id, {
@@ -186,12 +191,7 @@ export const files = pgTable(
         index("files_folder_id_index").on(table.folder_id),
         index("files_uploaded_by_index").on(table.uploaded_by),
         index("files_trashed_at_index").on(table.trashed_at),
-        check(
-            "files_state_check",
-            sql.raw(
-                `"${table.state.name}" in (${FILE_STATES.map((state) => `'${state}'`).join(", ")})`
-            )
-        )
+        oneOf("files_state_check", table.state, FILE_STATES)
     ]
 )
 
@@ -276,7 +276,8 @@ export const analytics_visits = pgTable(
         // Whose visits to unlink when a user is removed
         index("analytics_visits_user_id_index")
             .on(table.user_id)
-            .where(sql`${table.user_id} is not null`)
+            .where(sql`${table.user_id} is not null`),
+        oneOf("analytics_visits_device_check", table.device, DEVICES)
     ]
 )
 
@@ -323,7 +324,8 @@ export const analytics_events = pgTable(
         // Whose events to unlink when a user is removed
         index("analytics_events_user_id_index")
             .on(table.user_id)
-            .where(sql`${table.user_id} is not null`)
+            .where(sql`${table.user_id} is not null`),
+        oneOf("analytics_events_source_check", table.source, EVENT_SOURCES)
     ]
 )
 
@@ -356,11 +358,10 @@ export const webhook_deliveries = internal.table(
         events: jsonb().notNull().default([])
     },
     (table) => [
-        check(
+        oneOf(
             "webhook_deliveries_outcome_check",
-            sql.raw(
-                `"${table.outcome.name}" in (${WEBHOOK_OUTCOMES.map((outcome) => `'${outcome}'`).join(", ")})`
-            )
+            table.outcome,
+            WEBHOOK_OUTCOMES
         ),
         // The deliveries old enough to delete
         index("webhook_deliveries_received_at_index").on(table.received_at),

@@ -8,7 +8,6 @@ import { z } from "zod"
 
 /** Whether a file's bytes have reached the bucket yet. */
 export const FILE_STATES = ["uploading", "ready"] as const
-export type FileState = (typeof FILE_STATES)[number]
 
 /** The largest file anyone uploads: 100 MB. */
 export const LARGEST_FILE = 100 * 1024 * 1024

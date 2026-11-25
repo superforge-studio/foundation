@@ -161,7 +161,7 @@ export const agentRoutes = new Hono<ApiEnvironment>()
         }
     )
 
-// Infra couldn't be asked: logged where it happened (infra/client.ts)
+// Infra couldn't be asked: logged where it happened (@superforge/infra)
 function unavailable(context: Parameters<typeof failure>[0]) {
     return failure(
         context,

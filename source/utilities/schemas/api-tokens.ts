@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { agent_scope } from "./agents"
 
 // API tokens, which one of the business's own people makes on their account
 // page for what can't log in through a browser, like a script, a scheduled
@@ -18,6 +17,19 @@ export const API_TOKEN_LIFETIMES = [30, 90, 365] as const
 
 export type ApiTokenLifetime = (typeof API_TOKEN_LIFETIMES)[number]
 
+/**
+ * What an API token may do: `read`, the API's `GET` routes, and `act`,
+ * everything else its person could do themselves. The app's own list, which
+ * `auth.api_tokens.scopes`' check is made from, so a release of
+ * `@superforge/infra` never changes the schema; it holds every one of
+ * Claude's (`AGENT_SCOPES`, ./agents.ts), which its test checks.
+ */
+export const API_TOKEN_SCOPES = ["read", "act"] as const
+
+export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number]
+
+export const api_token_scope = z.enum(API_TOKEN_SCOPES)
+
 /** What a token's called, so its person knows what holds it */
 export const api_token_name = z.string().trim().min(1).max(80)
 
@@ -28,7 +40,7 @@ export const api_token_name = z.string().trim().min(1).max(80)
  */
 export const api_token_creation = z.object({
     name: api_token_name,
-    scopes: z.array(agent_scope).min(1),
+    scopes: z.array(api_token_scope).min(1),
     expires_in_days: z.literal(API_TOKEN_LIFETIMES).nullable().default(null)
 })
 

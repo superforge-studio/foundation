@@ -1,3 +1,5 @@
+import { rm } from "node:fs/promises"
+import { join } from "node:path"
 import { tellTeamOfNewMember } from "@/backend/users/workflows"
 import { enqueueFromScript } from "@/backend/workflows/engine"
 import { connect, type Database } from "@/database"
@@ -58,7 +60,7 @@ const SEEDERS: Seeder[] = [
 /**
  * The tables that get no sample rows, each with why, by its name as a
  * seeder names it: bare in `public`, after its schema in another, like
- * `internal.error_log`. The template's are here, and this app's own in
+ * `internal.webhook_deliveries`. The template's are here, and this app's own in
  * ./app.ts (`APP_UNSEEDED`).
  */
 export const UNSEEDED: Record<string, string> = {
@@ -97,7 +99,12 @@ export async function seedLocalDatabase() {
     try {
         const written = await seed(database)
         // The sample files' bytes, in this checkout's .storage/, which a dev
-        // server keeps its files in
+        // server keeps its files in: the last seed's go first, since the
+        // seed made every file's row anew, so nothing points at them now
+        await rm(join(LOCAL_STORAGE_DIRECTORY, "files"), {
+            recursive: true,
+            force: true
+        })
         const files_kept = await keepSampleFiles(
             database,
             new Storage(folderStore(LOCAL_STORAGE_DIRECTORY))

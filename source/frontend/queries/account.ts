@@ -9,12 +9,6 @@ import { FailedRequest, readFailure } from "./failures"
 // they're called, the browsers they're logged in on, and for one of the
 // business's own, their API tokens
 
-/** A browser someone is logged in on, as the API answers it. */
-export type AccountSession = InferResponseType<
-    typeof client.api.account.sessions.$get,
-    200
->["sessions"][number]
-
 /** Where the logged-in person is logged in: GET /api/account/sessions. */
 export const accountSessionsQuery = queryOptions({
     queryKey: ["account", "sessions"],

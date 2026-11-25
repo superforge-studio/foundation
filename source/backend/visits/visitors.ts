@@ -68,9 +68,10 @@ export async function anonymousVisitor(
 // Today's salt (UTC), from the bucket's one file (`Storage.visitor_salt`):
 // made by whichever call needs it first, in place of the day before's, so
 // every process hashes with the same one, and yesterday's is gone. Two
-// processes that make today's at the same moment each read back whichever
-// the bucket kept, so they agree but for a few milliseconds' window, which
-// would count a visitor twice that day.
+// processes that make today's within a few milliseconds of each other can
+// each read back their own, and keep it for the day, so a visitor the site
+// doesn't remember counts twice until one of them restarts: rare, since
+// only a deploy runs two at once, and accepted.
 async function todaysSalt(storage: Storage) {
     const day = new Date().toISOString().slice(0, "yyyy-mm-dd".length)
     const known = salts.get(storage)

@@ -34,9 +34,13 @@ wants a Files screen builds it on them ("What's left for an app", below).
   would go deeper, is refused 409 `too-deep` (`levelsOf`, `find.ts`,
   counts the levels a move takes with it), so every folder there is can
   be opened.
-- **A folder's row deleted takes its folders' and files' rows with it**
-  (`on delete cascade`), and a user's leaves theirs, with `uploaded_by`
-  and `created_by` null.
+- **A folder's row deleted takes its folders' rows with it** (`on delete
+  cascade`), **but never a file's**: a folder with a file's row still in
+  it can't be deleted (`on delete restrict`), since the file's bytes would
+  stay in the bucket with nothing pointing at them, so whatever deletes
+  folders deletes their files first, bytes then rows, as `emptyExpired`
+  does. A user's deleted row leaves theirs, with `uploaded_by` and
+  `created_by` null.
 
 The operations are a file per verb: `create.ts` (`createFolder`,
 `startUpload`), `find.ts` (`folderContents`, `findFile`, `findUpload`),

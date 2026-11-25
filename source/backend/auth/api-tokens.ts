@@ -3,9 +3,9 @@ import type { Database } from "@/database"
 import { api_tokens, users } from "@/database/schema"
 import { fromNow, now } from "@/database/time"
 import { DAY, MINUTE } from "@/utilities/primitives/durations"
-import { AGENT_SCOPES } from "@/utilities/schemas/agents"
 import {
     API_TOKEN_PREFIX,
+    API_TOKEN_SCOPES,
     type ApiTokenCreation
 } from "@/utilities/schemas/api-tokens"
 import { type Access, listedBySlug, listing } from "./access"
@@ -70,8 +70,8 @@ export async function makeApiToken(
             name,
             token_hash: await sha256(token),
             preview: token.slice(-PREVIEW_LENGTH),
-            // Each once, in the order AGENT_SCOPES has them
-            scopes: AGENT_SCOPES.filter((scope) => scopes.includes(scope)),
+            // Each once, in the order API_TOKEN_SCOPES has them
+            scopes: API_TOKEN_SCOPES.filter((scope) => scopes.includes(scope)),
             expires_at:
                 expires_in_days === null ? null : fromNow(expires_in_days * DAY)
         })

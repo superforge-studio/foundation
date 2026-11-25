@@ -1,9 +1,6 @@
 import { emptyTrash } from "@/backend/files/workflows"
 import { JOBS } from "@/backend/jobs"
-import {
-    tellTeamOfNewMember,
-    tellTeamOfSignUp
-} from "@/backend/users/workflows"
+import { tellTeamOfNewMember } from "@/backend/users/workflows"
 import { pruneAnalyticsRunner } from "@/backend/visits/prune"
 import { pruneWebhookDeliveries } from "@/backend/webhooks/workflows"
 import { APP_RUNNERS, APP_WORKFLOWS } from "./app"
@@ -20,9 +17,6 @@ import type { Runner } from "./runners"
  */
 export const WORKFLOWS: Workflow[] = [
     tellTeamOfNewMember,
-    // Until the next release: nothing starts it now, but a copy's runs may
-    // still be in flight
-    tellTeamOfSignUp,
     // Each hour, the webhooks older than they're kept (backend/webhooks/)
     pruneWebhookDeliveries,
     // Each hour, what's been in Trash 30 days (backend/files/)
