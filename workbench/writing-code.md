@@ -160,20 +160,21 @@ tables or the routes. Each of those has a file of the app's beside it,
 named `app.ts`, which the template's reads. The template made each once,
 empty, and no update changes it:
 
-| The app's own                             | go in                                  | beside the template's    |
-| ----------------------------------------- | -------------------------------------- | ------------------------ |
-| Tables                                    | `source/database/schema/app.ts`        | `schema/foundation.ts`   |
-| Seeders, and tables that get none         | `source/database/seed/app.ts`          | `seed/seed.ts`           |
-| Kinds of file in the bucket               | `source/database/storage/app.ts`       | `storage/files.ts`       |
-| Routes, and what they see on `context`    | `source/backend/app.ts`                | `index.ts`, `context.ts` |
-| Workflows and runners                     | `source/backend/workflows/app.ts`      | `workflows/index.ts`     |
-| Jobs                                      | `source/backend/jobs/app.ts`           | `jobs/index.ts`          |
-| Whoever logs in besides the team          | `source/backend/auth/app.ts`           | `auth/others.ts`         |
-| Checks before the app says it's healthy   | `source/backend/health/app.ts`         | `health/routes.ts`       |
-| Areas of the app                          | `source/utilities/permissions/app.ts`  | `permissions/index.ts`   |
-| Answers of its own, asked before the rest | `source/app.ts`                        | `source/server.ts`       |
-| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts`  | `tests/support/api.ts`   |
-| The upgrade test's samples of its columns | `source/database/tests/support/app.ts` | `tests/support/fill.ts`  |
+| The app's own                             | go in                                         | beside the template's                  |
+| ----------------------------------------- | --------------------------------------------- | -------------------------------------- |
+| Tables                                    | `source/database/schema/app.ts`               | `schema/foundation.ts`                 |
+| Seeders, and tables that get none         | `source/database/seed/app.ts`                 | `seed/seed.ts`                         |
+| Kinds of file in the bucket               | `source/database/storage/app.ts`              | `storage/files.ts`                     |
+| Routes, and what they see on `context`    | `source/backend/app.ts`                       | `index.ts`, `context.ts`               |
+| Workflows and runners                     | `source/backend/workflows/app.ts`             | `workflows/index.ts`                   |
+| Jobs                                      | `source/backend/jobs/app.ts`                  | `jobs/index.ts`                        |
+| Whoever logs in besides the team          | `source/backend/auth/app.ts`                  | `auth/others.ts`                       |
+| Checks before the app says it's healthy   | `source/backend/health/app.ts`                | `health/routes.ts`                     |
+| Areas of the app                          | `source/utilities/permissions/app.ts`         | `permissions/index.ts`                 |
+| The admin's sections, and Settings' parts | `source/frontend/components/dashboard/app.ts` | `navigation.ts`, `settings/screen.tsx` |
+| Answers of its own, asked before the rest | `source/app.ts`                               | `source/server.ts`                     |
+| Stand-ins a test gets for the app's own   | `source/backend/tests/support/app.ts`         | `tests/support/api.ts`                 |
+| The upgrade test's samples of its columns | `source/database/tests/support/app.ts`        | `tests/support/fill.ts`                |
 
 **Never add the app's own to a file the template owns.** When the
 template has no place for what the app needs, change the template's file
@@ -235,15 +236,16 @@ an update: the pages and their look, the team and its roles (`ACCESS`),
   `vite.config.ts`), since it changes per visitor, which knows who's
   logged in, and what their role lets them do, from `useSession()`
   (`frontend/queries/auth.ts`). It sits in the admin's frame
-  (`components/dashboard/shell.tsx`): a list beside the one chosen from
-  it, chosen by an id in the address (`?run=`, `?person=`), so Back and a
-  shared link keep it. It gets a place in the bar's switch (`SECTIONS`),
-  with the area it shows, so someone whose role can't read that area
-  doesn't see it, and draws `NotPermitted` for them if they open it
-  anyway. An address under `/admin` that's no page is answered in the
-  same frame (`AdminNotFound`), and anywhere else by the site's own
-  (`components/states/not-found.tsx`). Public pages stay prerendered, like
-  `/login` itself.
+  (`components/dashboard/shell.tsx`), most often as a list beside the one
+  chosen from it, chosen by an id in the address (`?order=`), so Back and
+  a shared link keep it, and gets a place in the sidebar, a line in
+  `APP_NAVIGATION` (`components/dashboard/app.ts`), with the area it
+  shows, so someone whose role can't read that area doesn't see it, and
+  draws `NotPermitted` for them if they open it anyway
+  (`components/dashboard/README.md` has the steps). An address under
+  `/admin` that's no page is answered in the same frame (`AdminNotFound`),
+  and anywhere else by the site's own (`components/states/not-found.tsx`).
+  Public pages stay prerendered, like `/login` itself.
 - **A route that needs the user** → `permitted("<area>")` before its
   handler (`backend/auth/logged-in.ts`) for what's the business's, the
   area it's in, which answers 401 `logged-out` without a live session, 403
@@ -348,17 +350,18 @@ the way production does, and the team only changes with a commit.
 - **The admin follows the same levels.** `/api/auth/session` answers the
   person and their `permissions`, which `useSession()` hands every screen,
   and `allows(permissions, area, level)` (`utilities/permissions/`) is
-  the check on both sides: the bar leaves out a section someone can't
-  read, and a button that writes, like a run's Try again, shows only to
-  a role that may write. Hiding it is a courtesy; the route is the guard.
+  the check on both sides: the sidebar leaves out a section someone can't
+  read, and a button that writes, like Settings' Add someone, shows only
+  to a role that may write. Hiding it is a courtesy; the route is the
+  guard.
 - **A new area**, like `orders`, goes in `APP_AREAS`
   (`utilities/permissions/app.ts`), with what it covers, its routes name
   it, and each role in `roles` is given it: the `owner` has it already,
   and a `member` doesn't until it's given a level there. Its screen's
-  section names it in `SECTIONS`.
+  section names it in `APP_NAVIGATION` (`components/dashboard/app.ts`).
 - **A new role**, like `technician`, goes in `TEAM_ROLES`, with its
   areas in `roles` and its name on screen in `ROLE_NAMES`
-  (`components/dashboard/permissions.tsx`); then someone is listed with it
+  (`components/dashboard/words.ts`); then someone is listed with it
   (`role: "technician"`). Nothing in the database changes.
 - **In a test**, routes read the team from `context.var.access`, and a
   test hands its own (`testApi({ access })`), with its own `roles` when it

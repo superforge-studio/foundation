@@ -89,8 +89,8 @@ export async function seed(database: Database) {
 /**
  * `pnpm database:seed`: the seed, in this checkout's database, then real
  * runs of the workflows the sample rows would have started, put on their
- * queues for the dev server to run (and the dashboard's Workflows screen to
- * show), rather than rows written into DBOS's tables, which are DBOS's.
+ * queues for the dev server to run (and /api/workflows/runs to list),
+ * rather than rows written into DBOS's tables, which are DBOS's.
  * Seeding again starts them again, for the users it makes anew.
  */
 export async function seedLocalDatabase() {

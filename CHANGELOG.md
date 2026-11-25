@@ -10,6 +10,7 @@ one: it reads only the releases after the copy's, each from its own file.
 Until 0.8.0 every release's notes were in this file, under its heading;
 0.9.0 moved each to its own.
 
+- [0.28.0](.superforge/releases/0.28.0.md) (2026-11-24): the admin on Skylevel's frame: a sidebar with who's logged in at its foot and the gear to Settings, an Overview that says the dashboard is the business's to build, Settings with the team, read-only, an `app.ts` for the app's own sections and parts of Settings, and no Workflows or Team screen.
 - [0.27.0](.superforge/releases/0.27.0.md) (2026-11-24): the toolbar shows only where Infra keeps what's filed, never on a dev server's stand-in, which only logs a comment, nor with a key Infra refuses, by asking `GET /api/comments/board` first; and every route can tell which Infra the server calls (`context.var.infra_using`).
 - [0.26.0](.superforge/releases/0.26.0.md) (2026-11-24): the `main` ruleset is in the codebase, `.github/rulesets/main.json`, and `pnpm github:ruleset` puts it on GitHub, an agent's step, no longer the owner's by hand; on a GitHub plan with no rulesets for a private repository it says so and passes.
 - [0.25.1](.superforge/releases/0.25.1.md) (2026-11-24): logging out takes the page with it: the admin draws "Log in to the admin" at once, without a refresh, the toolbar goes, and nothing asked for after the logout is answered 401.

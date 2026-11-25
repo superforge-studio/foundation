@@ -23,8 +23,8 @@ may read the `jobs` area lists them, and only one that may write it plans
 or starts one (`permitted("jobs")`). Claude calls them through the MCP's
 `call_api` as the person who let it in, and since both are `POST`s, it
 needs to have been allowed to act, and their role to write jobs. A run
-shows on the admin's Workflows screen, and at
-`GET /api/workflows/runs/:run_id`.
+is a workflow's run like any other, listed at `GET /api/workflows/runs`
+and read at `GET /api/workflows/runs/:run_id`.
 
 ## Writing one
 

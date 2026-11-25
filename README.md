@@ -22,7 +22,7 @@ sets the colors, fonts, logo and copy, and writes `PRODUCT.md` and
 | Database  | Postgres with Drizzle, migrations checked by squawk and an upgrade test                              |
 | Workflow  | DBOS, for background work that picks up where it stopped, in the same Postgres                       |
 | Login     | A code or a link by email, sent by Superforge Infra, for your team; the users and sessions are yours |
-| Admin     | Behind login: your workflows' runs, live, and your team, each as their role allows                   |
+| Admin     | Behind login: your team's dashboard to build, with the team in Settings, each as their role allows   |
 | Analytics | What visitors view and click, kept in your own database, asking first if you choose                  |
 | Tests     | Vitest on a real Postgres, a database of each test's own                                             |
 | Deploys   | Railway, as code (`.railway/railway.ts`), from each merge to `main` once CI passes                   |
@@ -57,7 +57,7 @@ development"), and logging in at `/login` shows its code on the page
 rather than emailing it. After `pnpm database:seed`, log in as the
 team's owner, the first `source/backend/auth/access.ts` lists
 (`ada@example.com` as the template ships), to see the whole admin at
-`/admin`.
+`/admin`: the Overview, where your own sections go, and Settings.
 
 Deploys run on Railway when a PR merges to `main`. Setting Railway up is a
 one-time job for each copy

@@ -1,14 +1,19 @@
-import { Link } from "@tanstack/react-router"
+import { Link, type LinkProps } from "@tanstack/react-router"
 import { cn } from "cn"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, type LucideIcon, Settings } from "lucide-react"
 import type { ReactNode } from "react"
 import { BusinessMark } from "@/frontend/components/site/business-mark"
-import type { SessionUser } from "@/frontend/queries/auth"
 import { type Area, allows, type Permissions } from "@/utilities/permissions"
 
-// The admin's frame: a bar across the top, and under it a list and what's
-// chosen from it, side by side, as a mail client lays them out. On a phone
-// the list and the detail are a screen each.
+// The dashboard's frame: on a computer, a sidebar down the left with its
+// sections and, at its foot, who's logged in, which opens their account,
+// with a gear beside them, for a role that may read some part of Settings,
+// which opens it; and the screen beside it. On a phone, a bar across the
+// top with the same two, and the sections under it. A list screen splits
+// its part in two, a list and what's chosen from it, side by side, as a
+// mail client lays them out (`Panes`); on a phone the list and the detail
+// are a screen each. The admin's sections are in ./navigation.ts, and
+// README.md, beside this file, has how a screen is built in it.
 
 /** Classes the dashboard's text buttons and headings share. */
 export const textButton =
@@ -16,90 +21,236 @@ export const textButton =
 export const sectionHeading =
     "font-heading font-semibold text-base tracking-tight"
 
-/**
- * The admin's sections, which the switch in the bar moves between, each
- * with the area of the app it shows (utilities/permissions/): someone
- * whose role can't read an area doesn't see its section.
- */
-export const SECTIONS: readonly {
-    to: "/admin/workflows" | "/admin/team"
+/** A dashboard's sections, in groups, which its sidebar moves between. */
+export type Navigation = readonly {
+    // Its name, over its sections in the sidebar. The first group, the
+    // one the dashboard opens on, goes without one
+    group?: string
+    sections: readonly Section[]
+}[]
+
+/** One of a dashboard's sections. */
+export type Section = {
+    to: NonNullable<LinkProps["to"]>
     name: string
-    area: Area
-}[] = [
-    { to: "/admin/workflows", name: "Workflows", area: "workflows" },
-    { to: "/admin/team", name: "Team", area: "team" }
-]
+    icon: LucideIcon
+    // The area of the app it shows (utilities/permissions/): someone
+    // whose role can't read it doesn't see the section, and opening it
+    // anyway shows `NotPermitted`. None for one everyone on the team sees,
+    // like the Overview
+    area?: Area
+    // Current only at its own address, not under it too: the one a
+    // dashboard opens on, whose address the others start with
+    exact?: boolean
+}
 
 /**
- * The bar: the business's mark, the switch between the sections someone
- * may read, and who's logged in, which opens their account.
+ * A dashboard's sections that `permissions` may read, in their groups,
+ * leaving out a group with none left.
  */
-export function DashboardBar({
-    user,
-    permissions
+export function shownTo(navigation: Navigation, permissions: Permissions) {
+    return navigation
+        .map(({ group, sections }) => ({
+            group,
+            sections: sections.filter(
+                (section) =>
+                    section.area === undefined ||
+                    allows(permissions, section.area, "read")
+            )
+        }))
+        .filter(({ sections }) => sections.length > 0)
+}
+
+/**
+ * Who's logged in, as the sidebar's foot shows them: their name, or their
+ * address when they have none, with a line under it, like their role.
+ */
+export type FramePerson = {
+    name: string | null
+    email: string | null
+    about: string | null
+}
+
+/**
+ * The frame every screen of the dashboard sits in: its sections, those
+ * whose area someone's role can't read left out (`permissions`), and who's
+ * logged in, which opens their account (`account`), with, when
+ * `settings`, the gear that opens Settings.
+ */
+export function DashboardFrame({
+    person,
+    navigation: every_group,
+    permissions,
+    account,
+    settings,
+    children
 }: {
-    user: SessionUser
+    person: FramePerson
+    navigation: Navigation
     permissions: Permissions
+    account: NonNullable<LinkProps["to"]>
+    settings: boolean
+    children: ReactNode
 }) {
-    const shown = SECTIONS.filter((section) =>
-        allows(permissions, section.area, "read")
-    )
+    const navigation = shownTo(every_group, permissions)
+    // Every section, in the sidebar's order, for a phone's single row
+    const sections = navigation.flatMap((group) => group.sections)
     return (
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-sidebar px-4 sm:px-5">
-            <BusinessMark className="shrink-0" />
-            {shown.length > 0 && (
+        <div className="flex h-dvh min-h-[32rem] flex-col md:flex-row">
+            {/* A computer's sidebar */}
+            <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
+                <div className="flex h-14 shrink-0 items-center border-b px-4">
+                    <BusinessMark />
+                </div>
                 <nav
-                    aria-label="Admin"
-                    className="flex rounded-lg border bg-background p-0.5"
+                    aria-label="Dashboard"
+                    className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-2 pt-4"
                 >
-                    {shown.map((section) => (
+                    {navigation.map(({ group, sections: grouped }) => (
+                        <div
+                            key={group ?? grouped[0]?.to}
+                            className="flex flex-col gap-0.5"
+                        >
+                            {group !== undefined && (
+                                <h2 className="px-2.5 pb-1 font-medium text-muted-foreground text-xs">
+                                    {group}
+                                </h2>
+                            )}
+                            {grouped.map((section) => (
+                                <Link
+                                    key={section.to}
+                                    to={section.to}
+                                    activeOptions={{
+                                        exact: section.exact ?? false
+                                    }}
+                                    className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-background aria-[current=page]:font-medium aria-[current=page]:text-foreground aria-[current=page]:shadow-xs aria-[current=page]:ring-1 aria-[current=page]:ring-border"
+                                >
+                                    <section.icon
+                                        aria-hidden
+                                        className="size-4 shrink-0"
+                                    />
+                                    {section.name}
+                                </Link>
+                            ))}
+                        </div>
+                    ))}
+                </nav>
+                <div className="mt-auto flex items-center gap-1 border-t p-2">
+                    <AccountLink person={person} to={account} />
+                    {settings && <SettingsLink />}
+                </div>
+            </aside>
+
+            {/* A phone's bar, and the sections under it */}
+            <header className="shrink-0 border-b bg-sidebar md:hidden">
+                <div className="flex h-14 items-center gap-4 px-4">
+                    <BusinessMark className="shrink-0" />
+                    <div className="ml-auto flex items-center gap-1">
+                        {settings && <SettingsLink />}
+                        <AccountLink person={person} to={account} compact />
+                    </div>
+                </div>
+                <nav
+                    aria-label="Dashboard"
+                    className="flex gap-1 overflow-x-auto px-3 pb-2"
+                >
+                    {sections.map((section) => (
                         <Link
                             key={section.to}
                             to={section.to}
-                            className="rounded-md px-3 py-1 text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-primary aria-[current=page]:font-medium aria-[current=page]:text-primary-foreground"
+                            activeOptions={{ exact: section.exact ?? false }}
+                            className="shrink-0 rounded-md px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-primary aria-[current=page]:font-medium aria-[current=page]:text-primary-foreground"
                         >
                             {section.name}
                         </Link>
                     ))}
                 </nav>
-            )}
-            <Link
-                to="/admin/account"
-                aria-label="Your account"
-                className="ml-auto flex min-w-0 items-center gap-2 rounded-md px-1 py-1 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-muted sm:px-2"
-            >
-                <span
-                    aria-hidden
-                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary font-medium text-[0.65rem] text-primary-foreground uppercase"
-                >
-                    {initials(user)}
-                </span>
-                <span className="hidden truncate text-muted-foreground sm:inline">
-                    {user.email}
-                </span>
-            </Link>
-        </header>
+            </header>
+
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                {children}
+            </main>
+        </div>
     )
 }
 
-// One or two letters for someone: their name's, or their address's
-function initials(user: { name: string | null; email: string }) {
-    const words = (user.name ?? "").split(/\s+/).filter((word) => word !== "")
+// Who's logged in, which opens their account: their initials, their name
+// and the line under it, like their role, or only the initials on a phone.
+// Its current look is a section's in the sidebar.
+function AccountLink({
+    person,
+    to,
+    compact = false
+}: {
+    person: FramePerson
+    to: NonNullable<LinkProps["to"]>
+    compact?: boolean
+}) {
+    const name = person.name ?? person.email ?? "Your account"
+    return (
+        <Link
+            to={to}
+            activeOptions={{ exact: true }}
+            aria-label={compact ? "Your account" : undefined}
+            className={cn(
+                "flex min-w-0 items-center gap-2.5 rounded-md text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-background aria-[current=page]:shadow-xs aria-[current=page]:ring-1 aria-[current=page]:ring-border",
+                compact ? "p-1" : "flex-1 p-1.5"
+            )}
+        >
+            <span
+                aria-hidden
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-medium text-primary-foreground text-xs uppercase"
+            >
+                {initials(person)}
+            </span>
+            {!compact && (
+                <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate font-medium">{name}</span>
+                    {person.about !== null && (
+                        <span className="truncate text-muted-foreground text-xs">
+                            {person.about}
+                        </span>
+                    )}
+                </span>
+            )}
+        </Link>
+    )
+}
+
+// The gear beside who's logged in, which opens Settings, drawn as a
+// section of the sidebar is while it's open
+function SettingsLink() {
+    return (
+        <Link
+            to="/admin/settings"
+            aria-label="Settings"
+            title="Settings"
+            className="flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-background aria-[current=page]:text-foreground aria-[current=page]:shadow-xs aria-[current=page]:ring-1 aria-[current=page]:ring-border"
+        >
+            <Settings aria-hidden className="size-4" />
+        </Link>
+    )
+}
+
+/** One or two letters for someone: their name's, or their address's. */
+export function initials(person: {
+    name: string | null
+    email: string | null
+}) {
+    const words = (person.name ?? "").split(/\s+/).filter((word) => word !== "")
     const first = words[0]
-    const last = words[words.length - 1]
-    if (first === undefined || last === undefined) {
-        return user.email.slice(0, 1)
-    } else if (words.length === 1) {
-        return first.slice(0, 1)
+    const last = words.length > 1 ? words[words.length - 1] : undefined
+    if (first === undefined) {
+        return (person.email ?? "?").slice(0, 1)
     } else {
-        return `${first.slice(0, 1)}${last.slice(0, 1)}`
+        return `${first.slice(0, 1)}${last?.slice(0, 1) ?? ""}`
     }
 }
 
 /**
- * The two panes: the list, and the detail of what's chosen. On a phone,
- * only one shows: the list until something is chosen, then its detail,
- * with the way back.
+ * The two panes of a list screen: the list, and the detail of what's
+ * chosen. On a phone, only one shows: the list until something is chosen,
+ * then its detail, with the way back (`BackToList`).
  */
 export function Panes({
     list,
@@ -137,7 +288,7 @@ export function BackToList({
     to,
     children
 }: {
-    to: "/admin/workflows" | "/admin/team"
+    to: NonNullable<LinkProps["to"]>
     children: string
 }) {
     return (
@@ -195,7 +346,7 @@ export function AdminNotFound() {
                     to="/admin"
                     className="w-fit text-sm underline underline-offset-4"
                 >
-                    Back to the admin
+                    Back to the Overview
                 </Link>
             </div>
         </SinglePane>

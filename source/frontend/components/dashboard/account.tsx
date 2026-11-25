@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { LogOut, Monitor, Smartphone } from "lucide-react"
+import { Lock, LogOut, Monitor, Smartphone } from "lucide-react"
+import type { ReactNode } from "react"
 import { Button } from "@/frontend/components/primitives/button"
 import {
     accountSessionsQuery,
@@ -11,15 +12,17 @@ import { failureOf } from "@/frontend/queries/failures"
 import type { Permissions } from "@/utilities/permissions"
 import { ApiTokens } from "./api-tokens"
 import { Connections } from "./connections"
-import { useNow } from "./marks"
-import { AreaLevels, ROLE_NAMES } from "./permissions"
+import { RoleMark, useNow } from "./marks"
+import { AreaLevels } from "./permissions"
+import { CopyPrompt } from "./prompt"
 import { sectionHeading, textButton } from "./shell"
-import { describeBrowser, isHandheld, moment, since } from "./words"
+import { describeBrowser, isHandheld, moment, ROLE_NAMES, since } from "./words"
 
-// Someone's own account, whatever their role: who they're listed as, what
-// their role lets them do, the browsers they're logged in on, with logging
-// out of the others, where they've let Claude in (connections.tsx), and
-// their API tokens (api-tokens.tsx).
+// Someone's own account, whatever their role, which their name at the
+// sidebar's foot opens: who they're listed as, with nothing to change
+// here, what their role lets them do, the browsers they're logged in on,
+// with logging out of the others, where they've let Claude in
+// (connections.tsx), and their API tokens (api-tokens.tsx).
 
 export function AccountPanel({
     user,
@@ -40,29 +43,90 @@ export function AccountPanel({
 }
 
 /**
- * Their name and address are the ones they're listed with in the app's
- * code (backend/auth/access.ts), so they change there, not here.
+ * Who they are, as the app's code lists them (backend/auth/access.ts), so
+ * nothing here changes: their names, their slug, the address they log in
+ * with, and their role. An owner gets a prompt that has Claude Code change
+ * them; anyone else asks an owner.
  */
 function ListedDetails({ user }: { user: SessionUser }) {
+    const rows: { term: string; value: ReactNode; note?: string }[] = [
+        { term: "First name", value: user.first_name },
+        { term: "Last name", value: user.last_name },
+        {
+            term: "Handle",
+            value: <span className="font-mono">{user.slug}</span>,
+            note: "What the app's code calls you. It never changes, so what you've done stays yours."
+        },
+        {
+            term: "Login email",
+            value: user.email,
+            note: "Your login codes and links go here."
+        },
+        {
+            term: "Role",
+            value: <RoleMark role={user.role} />,
+            note:
+                user.role === "owner"
+                    ? "You may do everything there is, in every area of the app."
+                    : "What it lets you do is below, as the app's code gives it."
+        }
+    ]
     return (
-        <div className="flex flex-col gap-5">
-            <h2 className={sectionHeading}>Your details</h2>
-            <div className="flex flex-col gap-1">
-                <span className="font-medium text-sm">Name</span>
-                <span className="text-sm">{user.name ?? "No name yet"}</span>
-            </div>
-            <div className="flex flex-col gap-1">
-                <span className="font-medium text-sm">Login email</span>
-                <span className="text-sm">{user.email}</span>
-                <span className="text-muted-foreground text-sm">
-                    Your login codes and links go here.
+        <section
+            aria-labelledby="details-heading"
+            className="flex flex-col gap-4"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="details-heading" className={sectionHeading}>
+                    Your details
+                </h2>
+                <span className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-muted-foreground text-xs">
+                    <Lock aria-hidden className="size-3" />
+                    Set in the app's code
                 </span>
             </div>
-            <p className="max-w-prose text-pretty text-muted-foreground text-sm">
-                You're on the team in the app's code, with this name and
-                address, so they change there.
-            </p>
-        </div>
+            <dl className="flex flex-col divide-y rounded-xl border bg-card">
+                {rows.map(({ term, value, note }) => (
+                    <div
+                        key={term}
+                        className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4"
+                    >
+                        <dt className="text-muted-foreground">{term}</dt>
+                        <dd className="flex min-w-0 flex-col gap-1">
+                            <span className="break-words font-medium">
+                                {value}
+                            </span>
+                            {note !== undefined && (
+                                <span className="text-pretty text-muted-foreground">
+                                    {note}
+                                </span>
+                            )}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+            {user.role === "owner" ? (
+                <div className="flex flex-col gap-2">
+                    <p className="max-w-prose text-pretty text-muted-foreground text-sm">
+                        You're listed in{" "}
+                        <span className="font-mono text-foreground">
+                            backend/auth/access.ts
+                        </span>
+                        , so these change there, with a pull request.
+                    </p>
+                    <CopyPrompt
+                        look="text"
+                        label="Copy a change for Claude Code"
+                        prompt={`I'm ${user.name ?? user.email}, listed on the team in ACCESS.internal_users in source/backend/auth/access.ts with the slug "${user.slug}". Ask me what to change about my first name, last name or login email, change it there, keeping my slug as it is, and open a pull request.`}
+                    />
+                </div>
+            ) : (
+                <p className="max-w-prose text-pretty text-muted-foreground text-sm">
+                    You're listed in the app's code, so these change there: ask
+                    the owner.
+                </p>
+            )}
+        </section>
     )
 }
 

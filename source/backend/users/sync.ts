@@ -68,7 +68,7 @@ export async function keepListed(database: Database, listed: InternalUser) {
 /**
  * Makes `users` follow the people access.ts lists, all together: each one
  * is a user, with the slug, address and name they're listed with, made now
- * if they've never logged in, so the Team screen and the notices to the
+ * if they've never logged in, so the admin's Settings and the notices to the
  * team have them from the deploy that lists them; and anyone it doesn't
  * list is deactivated, with their sessions ended and their API tokens
  * revoked. Answers how many are

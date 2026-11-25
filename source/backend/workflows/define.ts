@@ -25,17 +25,18 @@ export type Workflow<Input = unknown> = {
     // The events that start a run of it (events.ts), when a write queues
     // one: none when it's only ever queued or started by name
     on: readonly EventName[]
-    // Whether its runs stay off the Workflows screen unless one fails: a
-    // workflow that's plumbing, like sending a webhook on, which only needs
-    // its retries
+    // Whether its runs stay out of the list of runs (/api/workflows/runs)
+    // unless one fails: a workflow that's plumbing, like sending a webhook
+    // on, which only needs its retries
     quiet: boolean
     // The cron schedule it runs on by itself, in UTC (engine.ts applies
     // it), or null for one that only runs when it's queued or started
     schedule: string | null
     // What it's started with, checked as each run starts
     input: z.ZodType<Input>
-    // What a run of it is called on the dashboard, from what it was started
-    // with as DBOS kept it, or null when that no longer fits the workflow
+    // What a run of it is called in the list of runs, from what it was
+    // started with as DBOS kept it, or null when that no longer fits the
+    // workflow
     title: (stored: unknown) => string | null
 }
 
@@ -112,8 +113,8 @@ export type ScheduledInput = z.infer<typeof scheduled_input>
  * operations, the same functions the routes call, to do so (README.md).
  * `on` names the events that start it, each one whose data fits its input,
  * `schedule` the cron schedule it runs on by itself, for a workflow that
- * takes `scheduled_input`, and `quiet` keeps its runs off the Workflows
- * screen unless one fails.
+ * takes `scheduled_input`, and `quiet` keeps its runs out of the list of
+ * runs unless one fails.
  */
 export function defineWorkflow<Input, Output>(definition: {
     name: string
@@ -124,7 +125,7 @@ export function defineWorkflow<Input, Output>(definition: {
     // hour on the hour, `30 13 * * 1-5` weekdays at 13:30
     schedule?: ScheduledInput extends Input ? string : never
     quiet?: boolean
-    // What a run is called on the dashboard, like "Tell the team about
+    // What a run is called in the list of runs, like "Tell the team about
     // ada@example.com"; the workflow's name when it has none
     title?: (input: Input) => string
     run: (input: Input, context: WorkflowContext) => Promise<Output>

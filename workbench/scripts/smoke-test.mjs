@@ -126,18 +126,18 @@ try {
     await expectAnswer(base, "/api/health", 200, "no-store")
     // The admin, which isn't prerendered: drawn on request, for the
     // browser to fill in, and never kept by the CDN
-    await expectAnswer(base, "/admin/workflows", 200, "no-store")
+    await expectAnswer(base, "/admin", 200, "no-store")
     await expectAnswer(base, "/no-page-here", 404, "no-store")
     // Superforge's credit, in a prerendered page's source and in one drawn
     // on request (source/utilities/template.ts)
     await expectCredit(base, "/")
-    await expectCredit(base, "/admin/workflows")
+    await expectCredit(base, "/admin")
     // A page sent a POST, like a webhook given the site's address, is
     // refused, not drawn and answered 200 (source/server.ts)
     await expectPostRefused(base, "/")
     // The security headers, on a prerendered page, a page drawn on
     // request, a built file and the API (source/node.ts)
-    for (const path of ["/", "/admin/workflows", "/api/health"]) {
+    for (const path of ["/", "/admin", "/api/health"]) {
         await expectSecurityHeaders(base, path)
     }
     if (asset !== undefined) {

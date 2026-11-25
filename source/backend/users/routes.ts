@@ -4,7 +4,7 @@ import type { ApiEnvironment } from "../context"
 import { listUsers } from "./list"
 
 /**
- * The team, under /api/users, for the dashboard's Team screen: whoever
+ * The team, under /api/users, for the admin's Settings: whoever
  * may read the team (`permitted("team")`), and nothing here changes anyone,
  * since the team is listed in code (auth/access.ts) and the database
  * follows it (sync.ts).
