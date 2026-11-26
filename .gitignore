@@ -9,9 +9,11 @@
 .idea/
 .cursor/
 
-# Claude Code local state (launch.json is shared; these are per-machine)
+# Claude Code local state (launch.json and settings.json are shared; these
+# are per-machine, and CLAUDE.local.md is one person's own words for Claude)
 .claude/settings.local.json
 .claude/worktrees/
+CLAUDE.local.md
 
 # Dependencies
 node_modules/

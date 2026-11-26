@@ -1,0 +1,25 @@
+# What a copy of this template never keeps: a kind and a path a line, a
+# folder ending in a slash.
+#
+#   template   only the template's own. workbench/scripts/strip-template.sh
+#              deletes these from a new copy as its setup starts
+#              (workbench/setup/1-see-it.md), with every block of a
+#              Markdown file between <!-- template-only --> and
+#              <!-- /template-only -->, like README.md's "This template".
+#   setup      what a new copy keeps until it's set up. Each step deletes
+#              its own as it passes (START-HERE.md).
+#
+# An update leaves every path here out of the template's diff, reading
+# this list from the release it applies (workbench/updating.md), so a copy
+# never gets one back.
+
+template  SECURITY.md
+template  CHANGELOG.md
+template  .superforge/releases/
+template  .github/dependabot.yml
+template  .superforge/template-only
+template  workbench/scripts/strip-template.sh
+setup     START-HERE.md
+setup     workbench/setup/
+setup     source/frontend/components/welcome/
+setup     source/frontend/queries/health.ts

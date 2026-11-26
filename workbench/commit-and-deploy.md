@@ -104,11 +104,16 @@ before it (`concurrency`), while pushes to `main` each run to the end, in
 order. It reads Node's version from `engines` in `package.json`, as
 Railway does, so the two can't drift.
 
-**Dependabot** (`.github/dependabot.yml`) opens a PR a month for what's out
-of date: one for GitHub's actions, one for every dependency's minor and
-patch releases, and one each for a major release. Each passes `check`
-before it can merge, like any PR. Security fixes come as soon as there's
-one, once Dependabot security updates are on (Settings → Code security).
+**Dependabot**, in the template, opens a PR a month for what's out of date
+(`.github/dependabot.yml`): one for GitHub's actions, one for every
+dependency's minor and patch releases, and one each for a major release.
+Each passes `check` before it can merge, like any PR. A copy has no
+`dependabot.yml`, since each of the template's releases brings its
+dependencies, as tested, and an update takes the release's version of
+every one (`workbench/updating.md`). It gets security fixes as soon as
+there's one instead, once Dependabot's alerts and security updates are on
+(Settings → Code security), which its setup turns on
+(`workbench/setup/3-ship.md`).
 
 **Railway deploys each push to `main`** through its GitHub connection,
 once that push's whole CI run has passed (Wait for CI: `checkSuites` in
@@ -171,18 +176,18 @@ from its file, step 5) or touch DNS: the steps marked
 
 **What you'll need**, before step 1:
 
-- **Accounts**: GitHub, holding this repository, private (`START-HERE.md`,
-  step 0). GitHub has rulesets on a private repository only on a paid
+- **Accounts**: GitHub, holding this repository, private
+  (`workbench/setup/3-ship.md`). GitHub has rulesets on a private repository only on a paid
   plan (Pro, Team or Enterprise): on a free one step 5 says so and goes
   on, and the copy runs without its ruleset. Railway, on the Hobby or Pro plan. And
   Superforge, on superforge.studio, for the app's project on Superforge
   Infra, which sends the login emails: production's login doesn't work
   without it (step 6). Infra is Superforge's hosted service; its price and
   terms are Superforge's, on superforge.studio.
-- **CLIs**: the Railway CLI, at the version CI uses
-  (`npm install --global @railway/cli@5.71.0`, as in
-  `.github/workflows/ci.yml`), and GitHub's `gh` (<https://cli.github.com>),
-  logged in with `gh auth login`.
+- **CLIs**: the Railway CLI, at the version CI uses, which `pnpm railway`
+  runs with nothing installed (`package.json`): wherever this file says
+  `railway`, `pnpm railway` works the same. And GitHub's `gh`
+  (<https://cli.github.com>), logged in with `gh auth login`.
 - **Two secrets**, both the owner's to make and set, never an agent's:
   `RAILWAY_TOKEN`, a repository secret (step 4), and `INFRA_SECRET_KEY`, a
   variable on the Railway service (step 6).
@@ -190,8 +195,8 @@ from its file, step 5) or touch DNS: the steps marked
 1. **(The human)** A Railway account on the Hobby or Pro plan, with
    Railway's GitHub app allowed to read this repository (railway.com →
    Account Settings → GitHub).
-2. Name things for the business in `.railway/app.ts` (`START-HERE.md`,
-   step 5): the project, the repository, the service's Railway address,
+2. Name things for the business in `.railway/app.ts`
+   (`workbench/setup/3-ship.md`): the project, the repository, the service's Railway address,
    `<name>.up.railway.app`, which has to be free across all of Railway
    (the first apply needs it, so a new copy always has one: "Domains",
    below), and the region nearest its customers, which the app, the database and
@@ -238,7 +243,10 @@ from its file, step 5) or touch DNS: the steps marked
    gh secret set RAILWAY_TOKEN
    ```
 
-   It asks for the value, so it never lands in the shell's history. Until
+   It asks for the value, so it never lands in the shell's history. Where
+   there's no terminal to type it in, the owner saves it on GitHub
+   instead: the repository's Settings → Secrets and variables → Actions →
+   New repository secret, named `RAILWAY_TOKEN`. Until
    it's set, `railway-apply` skips with a notice. **Once Railway is set up,
    keep it set**: a push that skips deploys its code without applying its
    configuration. **If the token is revoked or expires, `railway-apply`

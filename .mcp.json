@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "superforge": {
+            "type": "http",
+            "url": "https://superforge.studio/mcp"
+        }
+    }
+}

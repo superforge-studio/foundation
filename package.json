@@ -18,6 +18,7 @@
         "check": "workbench/scripts/check.sh",
         "smoke-test": "node workbench/scripts/smoke-test.mjs",
         "github:ruleset": "workbench/scripts/ruleset.sh",
+        "railway": "pnpm dlx @railway/cli@5.71.0",
         "database:generate": "drizzle-kit generate",
         "database:check": "workbench/scripts/check-migrations.sh",
         "database:upgrade-test": "workbench/scripts/upgrade-test.sh",

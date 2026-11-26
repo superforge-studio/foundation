@@ -31,10 +31,14 @@ has made too. The template's own diff is only what changed upstream, and
   template, headed with its version and day (`# 0.9.0 (2026-11-22)`).
   Read only the ones after this codebase's version, from the template's
   latest tag, which has every release's file (step 3).
-- **`CHANGELOG.md`** is their index: a line per release, newest first.
-- **Here**, `.superforge/releases/` holds the notes of the releases this
-  codebase has taken, which each update brings with it. Don't edit them:
-  this codebase's own history is its git log.
+- **`CHANGELOG.md`**, in the template, is their index: a line per
+  release, newest first.
+
+Both are the template's alone: a copy made since 0.37.0 has neither, and
+an update never brings them (`.superforge/template-only`). A copy made
+before it may still have its own `.superforge/releases/` and
+`CHANGELOG.md`, from its updates: delete them, since the notes are read
+from the template's tags, and this codebase's own history is its git log.
 
 Until 0.8.0, every release's notes were sections of `CHANGELOG.md`. 0.9.0
 moved each into its own file, so a tag before `v0.9.0` has no
@@ -111,12 +115,16 @@ is one PR's change.
   the routes, so a copy that has pages of its own would only conflict on
   it. `pnpm build` writes it again, with the release's routes and the
   copy's (step 4).
-- **What only the template has**: `START-HERE.md`, the template's home
-  page's line map, `source/frontend/components/welcome/`, with
-  `source/frontend/queries/health.ts`, which `START-HERE.md` deletes with
-  the page, `SECURITY.md`, the "This template" section of `README.md`,
-  and `CLAUDE.md`'s first section, which a copy removes as it becomes the
-  business's own.
+- **What a copy never keeps**: every path the template's
+  `.superforge/template-only` lists, read from the release being applied,
+  so a list a later release grows applies to it: what only the template
+  has (its release notes, `CHANGELOG.md`, `SECURITY.md`, `dependabot.yml`,
+  the list itself), and what only a copy's setup uses (`START-HERE.md`,
+  `workbench/setup/`, the template's home page's line map,
+  `source/frontend/components/welcome/`, with
+  `source/frontend/queries/health.ts`). And the parts of a file a copy
+  removed: the blocks of `README.md` between `<!-- template-only -->`
+  lines, and `CLAUDE.md`'s first section (step 4, its rules).
 
 ## 1. Start clean
 
@@ -178,16 +186,23 @@ Then each release in turn, from this codebase's to the next one, and so on
 to the latest (here, `v0.1.0` to `v0.2.0`):
 
 ```bash
-git diff --binary --no-color template/tags/v0.1.0 template/tags/v0.2.0 -- . \
+from=template/tags/v0.1.0 to=template/tags/v0.2.0
+git diff --binary --no-color "$from" "$to" -- . \
     ':(exclude)pnpm-lock.yaml' \
     ':(exclude)source/database/migrations' \
     ':(exclude)source/frontend/routeTree.gen.ts' \
-    ':(exclude)source/frontend/components/welcome' \
-    ':(exclude)source/frontend/queries/health.ts' \
-    ':(exclude)SECURITY.md' \
-    ':(exclude)START-HERE.md' |
+    $(git show "$to:.superforge/template-only" |
+        awk '$1 !~ /^#/ && NF == 2 { sub(/\/$/, "", $2); print ":(exclude)" $2 }') |
     git apply --3way
 ```
+
+The last line is the release's list of what a copy never keeps. A
+release before `v0.37.0` has none (`git show` says the path doesn't
+exist): in its place, exclude what was the template's alone then,
+`':(exclude)source/frontend/components/welcome'`,
+`':(exclude)source/frontend/queries/health.ts'`,
+`':(exclude)SECURITY.md'`, `':(exclude)START-HERE.md'`,
+`':(exclude)CHANGELOG.md'` and `':(exclude).superforge/releases'`.
 
 A release at a time keeps each conflict small, with the notes for what
 it's resolving beside it. What `git apply` says:
@@ -222,7 +237,8 @@ Three files have a rule of their own, since every copy has changed them:
   layout, where `project_id` was added after `version`: write it as the
   release has it, with this codebase's ID, or null if it has none.
 - **`CLAUDE.md`**: its first section, "First: is this codebase someone's
-  yet?", stays removed, like `README.md`'s "This template". The rules and
+  yet?", stays removed, like `README.md`'s "This template", and "Who
+  you're working with" keeps this codebase's words. The rules and
   the Workbench hooks take the release's, keeping what the owner added on
   purpose. The Project Architecture list is the template's: its bullets
   take the release's wording, and what this codebase says of its own
@@ -235,7 +251,7 @@ Three files have a rule of their own, since every copy has changed them:
   release's version, whatever this codebase had (a Dependabot bump
   included), since the release's code is what was tested with it; the
   dependencies this codebase added of its own stay, and so do its `name`
-  and the font it chose (`START-HERE.md`, step 2). Then `pnpm install`.
+  and the font it chose (`workbench/setup/4-make-it-theirs.md`). Then `pnpm install`.
 
 Then, before the next release:
 
@@ -259,7 +275,7 @@ Then, before the next release:
    (`workbench/scripts/check-migrations.sh`), so a Schema flag that was
    missed is caught there.
 3. Check that `.superforge/superforge.json` says the release's version,
-   and that `.superforge/releases/` has its notes: the diff brings both.
+   which the diff brings.
 4. `pnpm format`, and commit the release on its own. The tree was clean
    when the update began, so everything in it is the release's:
 

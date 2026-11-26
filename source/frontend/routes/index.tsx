@@ -12,15 +12,16 @@ export const Route = createFileRoute("/")({
 // The template's own home page: in a dev server, the app as a line, with
 // the health check running it, and what to do next; in a build, only that
 // the site is running, so a copy deployed before it has a home page of its
-// own tells no visitor how it's built. START-HERE.md's step 3 replaces this
-// page with the business's own, and deletes components/welcome/ with it.
+// own tells no visitor how it's built. workbench/setup/2-taste.md replaces
+// this page with the business's own, and deletes components/welcome/ with
+// it.
 
 // Where the docs are, for the footer
 const DOCS = [
     { path: "README.md", what: "what's in it, and how to run it" },
     { path: "CLAUDE.md", what: "what Claude reads before every change" },
     { path: "workbench/", what: "writing code, designing, shipping, updating" },
-    { path: "CHANGELOG.md", what: "Foundation's releases, newest first" }
+    { path: "START-HERE.md", what: "how this becomes your business's own" }
 ] as const
 
 function Home() {
