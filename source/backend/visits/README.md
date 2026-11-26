@@ -48,6 +48,14 @@ cookie) and the country of their address (`whomToRemember` in
 GDPR applies in the EU's 27 countries, the EEA's other three (Iceland,
 Liechtenstein, Norway) and the UK (`GDPR_COUNTRIES` in `location.ts`).
 
+All of what `recordVisit` decides of a visitor is `decideVisitor`
+(`visitors.ts`): never a bot, then their mode, answer and country as
+above, and only under an ID their cookie holds, or would, so none in
+`never` mode. A route that sets the `visitor` cookie before it keeps
+their events, rather than by `recordVisit`'s answer, decides with it
+first and follows that (`followAnswer` in `cookies.ts`), so the cookie
+and what's kept agree.
+
 What's kept of whoever sent a batch:
 
 - **A remembered visitor** is the ID in their `visitor` cookie, so their
@@ -123,15 +131,15 @@ Each time a visit gets more events it's worked out from all of them again
 (`summarize.ts`), in the same transaction, so it says what its events do
 whatever order they arrived in:
 
-| Column                                                                | What it says                                                                                                          |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `started_at`, `ended_at`                                              | Its first event and its last. How long it lasted is `ended_at - started_at`                                           |
-| `views`, `clicks`                                                     | How many pages it viewed, and links and buttons it clicked                                                            |
-| `bounced`                                                             | One page viewed at most, and nothing clicked                                                                          |
-| `landing_path`, `exit_path`                                           | The first page it viewed, and the last                                                                                |
-| `referrer`                                                            | The other site's hostname, as the landing said                                                                        |
-| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | The campaign in the landing's address                                                                                 |
-| `ad_network`                                                          | Whose ad was clicked, by the click ID in the landing's address: `google`, `meta`, `microsoft`, `tiktok` or `linkedin` |
+| Column                                                                | What it says                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `started_at`, `ended_at`                                              | Its first event and its last. How long it lasted is `ended_at - started_at`                                        |
+| `views`, `clicks`                                                     | How many pages it viewed, and links and buttons it clicked                                                         |
+| `bounced`                                                             | One page viewed at most, and nothing clicked                                                                       |
+| `landing_path`, `exit_path`                                           | The first page it viewed, and the last                                                                             |
+| `referrer`                                                            | The other site's hostname, as the landing said                                                                     |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | The campaign in the landing's address                                                                              |
+| `ad_network`                                                          | The ad network whose click ID the landing's address carried: `google`, `meta`, `microsoft`, `tiktok` or `linkedin` |
 
 Beside them are who the visitor was (`visitor_id`, `anonymous`,
 `user_id`, and a remembered visitor's `ip_address`), where (`country`,
@@ -139,6 +147,13 @@ Beside them are who the visitor was (`visitor_id`, `anonymous`,
 visit starts. A visitor who logs in during a
 visit is on it from then on. `source/database/schema/foundation.ts` has
 every column.
+
+`ad_network` says whose ad was clicked for every network but Meta: only
+an ad's click carries Google's, Microsoft's, TikTok's or LinkedIn's
+click ID. Meta's (`fbclid`) rides on every tap out of Facebook and
+Instagram, a post's as much as an ad's, so `meta` says only that the
+visit came from one of them. A Meta ad is told apart by the `utm_` tags
+on its link, as any tagged link is.
 
 ## The server's events: `recordEvents`
 

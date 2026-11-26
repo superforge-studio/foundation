@@ -63,10 +63,13 @@ export function rememberVisitor(context: Context, id: string) {
 }
 
 /**
- * Follows what `recordVisit` answered about a visitor kept as `id`: sets or
- * renews their `visitor` cookie when the site remembers them, and clears
- * one they had when it doesn't. Every call that keeps a visitor's events
- * follows its answer this way, as visits/routes.ts does.
+ * Follows whether the site remembers a visitor kept as `id`: sets or renews
+ * their `visitor` cookie when it does, and clears one they had when it
+ * doesn't. Every call that keeps a visitor's events follows the one
+ * decision `recordVisit` makes this way: by its answer, once they're kept,
+ * as visits/routes.ts does, or, for a call that sets the cookie before it
+ * keeps them, by `decideVisitor` (visitors.ts), which `recordVisit`
+ * decides with.
  */
 export function followAnswer(
     context: Context,

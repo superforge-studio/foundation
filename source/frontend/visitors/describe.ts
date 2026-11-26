@@ -16,7 +16,7 @@ const LONGEST_MESSAGE = 500
 /** The longest a campaign's parameter, from the address, is kept. */
 const LONGEST_CAMPAIGN = 200
 
-/** The longest an ad's click ID, from the address, is kept: all of it. */
+/** The longest a click ID, from the address, is kept: all of it. */
 const LONGEST_CLICK_ID = 1000
 
 /** The longest a page's title is kept. */
@@ -38,9 +38,11 @@ const CAMPAIGN_PARAMETER = /^utm_[\w-]{1,60}$/
 const CAMPAIGN_PARAMETERS = 10
 
 /**
- * The ad networks' click IDs a landing's address can carry, which tie a
- * visit to the ad it came from: Google's (`gclid`, and `gbraid` and
- * `wbraid` from iPhones), Meta's, Microsoft's, TikTok's and LinkedIn's.
+ * The ad networks' click IDs a landing's address can carry: Google's
+ * (`gclid`, and `gbraid` and `wbraid` from iPhones), Microsoft's, TikTok's
+ * and LinkedIn's, which tie a visit to the ad it came from, since only an
+ * ad's click carries them, and Meta's, which rides on every tap out of
+ * Facebook and Instagram, a post's as much as an ad's.
  */
 const CLICK_IDS = [
     "gclid",
@@ -127,8 +129,8 @@ export type Landing = {
  * What the first view of a visit to the site says, beside its `title`:
  * where the visitor came from (`referrer`, the other site's hostname,
  * never one of this site's own pages; every `utm_` parameter in the
- * address it landed on, the first ten; and an ad's click ID, like
- * `gclid`), and what they came on (`screen`, like `1920x1080`, and
+ * address it landed on, the first ten; and an ad network's click ID,
+ * like `gclid`), and what they came on (`screen`, like `1920x1080`, and
  * `language`).
  */
 export function landingProperties(landing: Landing): EventProperties {
@@ -156,7 +158,7 @@ export function landingProperties(landing: Landing): EventProperties {
     return properties
 }
 
-// What a landing's address says of the campaign and the ad it came from:
+// What a landing's address says of the campaign and the click it came from:
 // each `utm_` parameter, the first ten, and each click ID, the first of
 // each name, scrubbed, and none that's empty
 function addressProperties(parameters: URLSearchParams) {

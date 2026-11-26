@@ -31,7 +31,9 @@ function countOf(name: string) {
     return sql`(count(*) filter (where ${events.name} = ${name}))::integer`
 }
 
-// Whose ad the event's address says was clicked, by its click ID
+// The network whose click ID the event's address carries: whose ad was
+// clicked, for all but Meta, whose ID rides on every tap out of Facebook
+// and Instagram, an ad's or not (README.md, "A visit")
 const ad_network = sql`case ${sql.join(
     Object.entries(AD_CLICK_IDS).map(
         ([network, ids]) =>
@@ -48,7 +50,7 @@ const ad_network = sql`case ${sql.join(
  * started and ended, how many pages it viewed and links and buttons it
  * clicked, whether it bounced (one page viewed at most, and nothing
  * clicked), where it landed and left, and where it came from, as its
- * landing said (the referrer, the campaign and the ad click). Called in the
+ * landing said (the referrer, the campaign and the click ID). Called in the
  * transaction that added the events, so a visit always says what its
  * events do, whatever order they arrived in. A visit whose events are gone
  * (prune.ts) is left as it was.
