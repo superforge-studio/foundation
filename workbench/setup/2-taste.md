@@ -6,6 +6,9 @@ in `4-make-it-theirs.md`, which builds on these answers.
 
 ## Three questions
 
+If the owner's first message said what the business is called, the name
+they gave its project on superforge.studio, confirm it rather than ask.
+
 1. **Its name**, as customers see it written.
 2. **What it does**, in a sentence: what it sells or provides, and to
    whom.

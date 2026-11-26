@@ -165,9 +165,18 @@ built on Foundation to keep it.
 ## A domain, if there is one
 
 A domain the business owns goes on the app as `workbench/commit-and-deploy.md`,
-"Domains", says: Claude adds it, the owner adds two DNS records where the
-domain's DNS is, and Claude adds it to the Infra project with `add_domain`.
-It can wait for a later session.
+"Domains", says: Claude adds it, two DNS records go where the domain's DNS
+is, and Claude adds it to the Infra project with `add_domain`. It can wait
+for a later session.
+
+Most owners don't know where their domain's DNS is, or which account it's
+in. Find out before asking them anything: its nameservers name the
+company that answers for it (`dig +short NS <domain>`: Cloudflare,
+GoDaddy, Squarespace, Wix and the like), and `whois <domain>` names the
+registrar it was bought from, which may be another. Tell the owner which
+site to log in to, and offer to drive their browser there and add the
+two records yourself (`START-HERE.md`): they log in, and you do the rest.
+On Cloudflare, the CNAME is DNS only, gray cloud, as "Domains" says.
 
 ## Claude in the live app
 

@@ -34,5 +34,18 @@ The fourth can be the same sitting or a later one: ask the owner.
   button, and why. Do everything else yourself.
 - **Never ask for a secret key, a token or a password in the chat.** The
   owner pastes each where it goes, in Railway's or GitHub's own pages.
+- **Offer to drive their browser** whenever a step is theirs to do on a
+  website, like Railway's settings, GitHub's secrets or their domain's DNS.
+  Many owners have never seen these pages, and don't know where their
+  domain is or which account it's in. With Claude in Chrome, Anthropic's
+  extension, you work in the owner's own Chrome, where they're already
+  logged in: find the right account and page, and click through it. The
+  owner still logs in where a site asks, and types every password, code,
+  card number and key themselves; you never do. Ask first, and match it to
+  them: someone new to all this will want it, a developer won't. If this
+  session can't reach their Chrome, say how to add it (the Claude
+  extension from the Chrome Web Store, logged in to their Claude account,
+  then a new session) or walk them through the page in plain words, a
+  click at a time.
 - **Use the waits.** Installs, checks and deploys take minutes: ask the
   next step's questions then.
