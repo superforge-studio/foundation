@@ -10,6 +10,12 @@ waits on it.
 `workbench/commit-and-deploy.md`, "Setting up Railway", is the reference
 for every Railway step here: read it before starting.
 
+Every step here the owner does on a website (making an account, a plan
+and its card, Railway's GitHub app, the key, the token) is one to offer
+to drive in their own browser, as `START-HERE.md` says: you find the page
+and click through, and they log in and type every password, card number
+and key themselves.
+
 ## Superforge
 
 The app's login emails go through Superforge Infra, in a project of the

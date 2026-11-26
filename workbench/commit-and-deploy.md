@@ -328,7 +328,8 @@ config plan` refuses a new name under `customDomains`. Add it first with
 records it needs, then list it in `domains` in the same change, so the
 next apply keeps it rather than deleting it.
 
-**(The human)** adds those records where the domain's DNS is: a CNAME (at
+**(The human)** adds those records where the domain's DNS is, or an agent
+does, in their own browser with them logged in, if they'd rather: a CNAME (at
 the apex, `@`, for a bare domain; most DNS hosts flatten it) to the
 service's `*.up.railway.app` target, and a TXT record at `_railway-verify`.
 On Cloudflare, make the CNAME **DNS only (gray cloud), not proxied**, so
