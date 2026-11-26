@@ -20,5 +20,5 @@ do. A fix ships as a release of the template, with its notes in
 A problem in a copy's own code, the business's, is that business's to
 fix, not the template's.
 
-This file is the template's alone: a copy deletes it (`START-HERE.md`,
-step 5).
+This file is the template's alone: a copy never keeps it
+(`.superforge/template-only`).

@@ -175,11 +175,12 @@ and checks only what `standInAgentToken` mints, for the tests.
 
 ## Keys
 
-Each copy of this codebase is a **project** on Infra, made on
-superforge.studio's dashboard (the Infra tab), which also lists the
-**domains** its login links may go to: add the app's Railway address
-and its custom domain there. A project has two kinds of key, each shown
-once as it's made:
+Each copy of this codebase is a **project** on Infra, the owner's on
+superforge.studio's dashboard, which Superforge's MCP reads and changes
+too, with the **domains** its login links may go to: the app's Railway
+address and its custom domain, each added with the MCP's `add_domain`
+once the app answers there, which Infra asks the app to prove is its own.
+A project has two kinds of key, each shown once as it's made:
 
 | Key                       | Where it goes                                                              | Its logins                                                   |
 | ------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |

@@ -2,19 +2,22 @@
 
 Your business, in one codebase: a website, an API and a database in one
 repository, deployed on Railway, made to be changed with Claude.
+<!-- template-only -->
 
-**Make your own copy first, and make it private**: on GitHub, Use this
-template → Create a new repository, set to Private. Your copy will list
-your team's names and login addresses in its code, so it never belongs in
-a public repository, or in a fork of this one. If a developer or an
-agency is building it for you, make the copy yourself, under your
-business's account or organization, and invite them to it: the license
-has the business hold its own copy ([License](#license)).
+**New here? Start on [superforge.studio](https://superforge.studio).**
+Its dashboard gives you one prompt to paste into Claude's Code tab, in a
+new, empty folder. Claude downloads this template, runs it on your
+computer, puts your business's name on it, then sets up your accounts and
+puts it online, following [START-HERE.md](START-HERE.md).
 
-**New here? Open your copy with Claude Code and say "start here".** It
-follows [START-HERE.md](START-HERE.md): it asks about the business, then
-sets the colors, fonts, logo and copy, and writes `PRODUCT.md` and
-`DESIGN.md`.
+**Your copy is private, and it's your business's.** It will list your
+team's names and login addresses in its code, so it never belongs in a
+public repository, or in a fork of this one: Claude makes a private
+repository for it under your own GitHub account. If a developer or an
+agency is building it for you, the repository is your business's, and
+they're invited to it: the license has the business hold its own copy
+([License](#license)).
+<!-- /template-only -->
 
 ## What's in it
 
@@ -84,10 +87,10 @@ superforge.studio, where Infra's price and terms are
 
 ## Updates
 
-The template this codebase came from keeps improving, in releases listed
-in [CHANGELOG.md](CHANGELOG.md), and `.superforge/superforge.json` says
-which one this codebase is on. To take the latest, ask Claude to update
-from the template. It follows
+The template this codebase came from keeps improving, in releases tagged
+on [its repository](https://github.com/superforge-studio/foundation/tags),
+and `.superforge/superforge.json` says which one this codebase is on. To
+take the latest, ask Claude to update from the template. It follows
 [workbench/updating.md](workbench/updating.md): it says what's coming and
 anything it needs from you, then opens a PR with the update for you to
 merge.
@@ -105,13 +108,17 @@ Superforge. The full terms are in [LICENSE](LICENSE), and what came from
 others, under its own licenses, is in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Releases before 0.33.0
 were published under the MIT license.
+<!-- template-only -->
 
 ## This template
 
-This repository is a GitHub template (Use this template → Create a new
-repository). It's Superforge Foundation (`foundation`), at
-<https://github.com/superforge-studio/foundation>. A copy made from
-it replaces this section, and the names above, in `START-HERE.md`'s step 5.
+This repository is Superforge Foundation (`foundation`), at
+<https://github.com/superforge-studio/foundation>. A new copy starts as
+its download, and takes out what only the template has as its setup
+starts (`workbench/scripts/strip-template.sh`, from
+`.superforge/template-only`): this section, the paragraphs under the
+title, the release notes and `CHANGELOG.md`, `SECURITY.md` and
+Dependabot's version updates.
 
 **Found a problem?** A bug or a wrong step in the template is an issue on
 its repository. A security vulnerability is reported privately, never in
@@ -155,3 +162,4 @@ git push origin v0.2.0
 
 A copy made from `main` between releases already has some of the next
 one, which its update merges cleanly.
+<!-- /template-only -->

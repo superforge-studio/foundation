@@ -184,6 +184,8 @@ jobs:
                   node-version-file: package.json
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
+            # The version `pnpm railway` runs too (package.json), so a laptop
+            # and CI apply with the same CLI: change both together
             - run: npm install --global @railway/cli@5.71.0
             # Skips without the secret, which a new copy doesn't have until
             # its owner sets Railway up (workbench/commit-and-deploy.md,

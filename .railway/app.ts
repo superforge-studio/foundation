@@ -2,8 +2,8 @@ import type { AppRailway } from "./railway.ts"
 
 // This app's own Railway: its names, where it runs, its domains and its
 // own variables. The template's ./railway.ts reads it, so an update from
-// the template never meets what's here. START-HERE.md's step 5 makes these
-// the business's: as the template ships, they're the template's own
+// the template never meets what's here. workbench/setup/3-ship.md makes
+// these the business's: as the template ships, they're the template's own
 // deployment's.
 
 export const APP = {

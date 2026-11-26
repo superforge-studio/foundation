@@ -1,253 +1,38 @@
 # Start here
 
-This codebase is a starting point: a website, an API and a database, set up
-and deployed, with nothing of anyone's in it yet. This file is how it
-becomes a business's own. It's written for Claude, which follows it with
-the person who owns the business.
+This codebase is a starting point: a website, an API and a database, with
+nothing of anyone's in it yet. This file is how it becomes a business's
+own, in four steps, a file each in `workbench/setup/`. It's written for
+Claude, which follows it with the person who owns the business.
 
-**Claude: follow these steps in order, in one session.** Ask the questions
-in step 1 in plain words, a few at a time, and wait for the answers. Don't
-invent anything the business hasn't told you: when something isn't
-decided, choose a sensible default, say what you chose, and move on. When
-every step is done, delete this file and the first section of `CLAUDE.md`,
-which points here.
+**Claude: do the first step whose file is still there.** Read its file
+whole before you start it. Each step ends with a check: once it passes,
+delete that step's file and go on to the next. So what's left in
+`workbench/setup/` is how far the setup has come, and a new session
+starts where the last one stopped.
 
-## 0. Check whose repository this is
+1. **`1-see-it.md`**: the app running on the owner's computer, with no
+   accounts but Claude.
+2. **`2-taste.md`**: three questions, and their name and color on it.
+3. **`3-ship.md`**: GitHub, Railway and Superforge, then the app live, with
+   the owner logged in to it.
+4. **`4-make-it-theirs.md`**: the whole interview, the look, the team, and
+   their first wants. Its last check deletes this file too.
 
-Before anything else, run `git remote get-url origin`. This codebase is
-about to hold the team's names and login addresses, in code
-(`source/backend/auth/app.ts`), and the business's own description
-(`PRODUCT.md`), so it must live in a repository of the business's own,
-and a private one. The license says so too (`LICENSE`, term 2): the
-business whose software this is holds its copy, and anyone it hires
-works on that copy, never on one of their own.
+The first three are one sitting, and end with the business's name online.
+The fourth can be the same sitting or a later one: ask the owner.
 
-- **`origin` is `superforge-studio/foundation`** (or there's no
-  `origin`): this is a clone of Superforge's public template, not a copy.
-  Stop, and have the owner make their own: on
-  <https://github.com/superforge-studio/foundation>, **Use this
-  template → Create a new repository**, under their own account or
-  organization, set to **Private**. Then clone that one and start again
-  there. Never push to the template, and never fork it: a fork of a public
-  repository is public.
-- **`origin` is a developer's or an agency's, for a client's business**
-  (ask whose business the copy is for, and whose account or organization
-  holds it): stop, and have the business make its own copy as above,
-  under its account or organization, then invite the developer to it.
-  Start again there.
-- **`origin` is the business's own repository**: ask the owner to
-  confirm it's private (with the `gh` CLI, `gh repo view --json
-  visibility`). If it's public, have them make it private (Settings →
-  General → Danger Zone → Change visibility) before step 1.
+**Across every step:**
 
-## 1. Ask about the business
-
-Ask for each of these. The answers go into PRODUCT.md and DESIGN.md (step
-4), so keep them in the owner's words.
-
-1. **Its name**, as customers see it written.
-2. **What it does**, in a sentence or two: what it sells or provides, and
-   to whom.
-3. **Who its customers are**, and what they come to it for.
-4. **How it sounds**: three or four words for its voice (like "warm,
-   plain, local" or "precise, expert, calm"), and anything it never says.
-5. **Its colors**: hex codes, a link to its brand guide, or a description
-   ("the navy and orange on our trucks"). One main color is enough.
-6. **Its fonts**, if it has any. If not, offer two or three from
-   [Fontsource](https://fontsource.org) that fit the voice, with a reason
-   for each, and let the owner pick.
-7. **Its logo**: ask for the file (SVG best, else a PNG at least 512 pixels
-   square) to be put in `public/`. Without one, a simple mark in the main
-   color stands in.
-8. **How rounded things should look**: sharp, a little rounded, or very
-   rounded (this sets `--radius`).
-9. **What the home page should say for now**: a line about the business
-   and what visitors should do next (call, book, email, or just know it's
-   coming).
-10. **Its website address**, if it has a domain it wants this on.
-11. **Who's on its team**, starting with the owner: each one's name and
-    the email they'll log in with. Only they log in, to the admin, the
-    app's own screens; its customers don't have accounts here.
-12. **Whether anyone on the team should see or change less** than the
-    owner, like a technician who shouldn't run jobs that change many
-    rows at once. As it ships, everyone sees and changes everything the
-    admin has.
-13. **Where is the business based, and do you want visitors asked
-    before they're remembered?** The site's pages count what visitors
-    view and click, in the app's own database, and the site can remember
-    a visitor's browser between visits, so their visits join up. Say
-    plainly: by default the site sets a lasting cookie on every visitor,
-    with no banner, and keeps every visit for good, with what was viewed
-    and clicked on it and the country it came from, and, for 90 days,
-    the visitor's IP address; the EU and the UK
-    generally require a visitor's consent for the cookie. A business
-    based in the EU can have a small banner ask everyone first; one based
-    elsewhere can have it ask only visitors where those rules apply, and
-    remember everyone else; and one that wants nothing kept on anyone's
-    browser can turn remembering off. Whoever isn't remembered is still
-    counted, a day at a time, and their address isn't kept. This is how
-    the site behaves, not legal advice: an owner who needs to know what
-    the law asks of them should ask someone qualified to say.
-
-## 2. Make it look like the business
-
-All of the look lives in `source/frontend/styles.css`, as shadcn's theme
-tokens, which every component in `source/frontend/components/primitives/`
-is drawn with ([shadcn's theming](https://ui.shadcn.com/docs/theming)).
-
-- **Colors.** Turn the business's colors into the tokens, in OKLCH, for
-  both light and dark (the dark ones are in the `prefers-color-scheme`
-  media query). The main color is `--primary`, with a
-  `--primary-foreground` that reads on it at a contrast of at least 4.5:1;
-  `--ring` and `--sidebar-primary` usually follow it. Keep the neutrals
-  (`--background`, `--foreground`, `--muted`, `--border`) neutral or
-  tinted only slightly toward the main color, and check every text and
-  background pair for contrast in both modes.
-- **Fonts.** `pnpm add @fontsource-variable/<name>` (or
-  `@fontsource/<name>` for a font with no variable version), replace the
-  Geist import at the top of `styles.css`, and set `--font-sans` (and
-  `--font-heading` if headings get their own). Remove
-  `@fontsource-variable/geist` from `package.json` if nothing uses it.
-- **Corners.** Set `--radius`: about `0.25rem` for sharp, `0.625rem` for a
-  little rounded, `1rem` for very rounded.
-- **Logo and favicon.** Put the logo in `public/`, replace
-  `public/favicon.svg` with the mark (an SVG with a `<title>`), and
-  replace the placeholder cube in `source/frontend/routes/index.tsx`'s
-  header (the favicon, in an `<img>`) with the logo, and in
-  `source/frontend/components/site/business-mark.tsx`, the login page's,
-  the admin's and the not-found page's, with the business's name in
-  place of "Your business".
-
-Read `workbench/designing.md` before this step and the next: it lists the
-habits that make a site look generated, and the checks the page has to
-pass.
-
-## 3. Write the home page, and say who logs in
-
-Replace `source/frontend/routes/index.tsx`'s placeholder with the
-business's own page: its name, the line from step 1, and what visitors
-should do next. Keep it one page for now; more pages are routes under
-`source/frontend/routes/`, linked from the home page. Then set the site's
-title and description, `site_title` and `site_description` in
-`APP_SETTINGS`, `source/utilities/settings/app.ts`, the app's own
-settings, which every page shows unless it sets its own.
-The placeholder's line map, with the health check running down it, is
-there to show the owner what the codebase has and that it runs; it isn't
-for visitors. Delete `source/frontend/components/welcome/`, which only it
-uses, with `source/frontend/queries/health.ts`, the query only the line map
-calls, and keep `source/backend/health/`, which Railway's healthcheck
-needs.
-
-Keep the login page, `source/frontend/routes/login.tsx`, where the
-business's team will log in, and where its emails link,
-in the business's voice (its name is in `business-mark.tsx`, from step
-2). Link to it from the home page only if visitors should see it yet.
-
-Keep the admin too, `source/frontend/routes/admin/`, behind login: its
-Overview says the dashboard is the business's to build, a section at a
-time, and its Settings shows who's on the team, each as their role allows.
-Then say who's on the team, from step 1's answers, in `ACCESS` in
-`source/backend/auth/app.ts`, the app's own, which no update changes:
-
-- **`team`**: everyone on it, the owner first, each with a slug
-  (their first name, lowercase, like `ada`, or with a letter after it
-  when two share one, like `nick-r`), which never changes, their first
-  name, last name and the email they'll log in with, in place of the
-  placeholders (Ada Lovelace and Grace Hopper, at example.com). The
-  owner is `role: "owner"`; anyone listed without a role is a `member`.
-  They're the only people who log in, and nothing on a screen adds or
-  changes them: someone joins or leaves the team with a change here.
-  Someone who takes over another's work, even their mailbox, is listed
-  with a slug of their own, never the other's; changing someone's address
-  logs them out everywhere, once, and revokes their API tokens.
-- **`roles`**: what each role may do, area by area. As it ships, a
-  member may do everything the owner may. If someone should see or
-  change less, from step 1's answer, give `member` less, or add a role
-  of their own, like `technician`: its name in `APP_ROLES`
-  (`source/utilities/permissions/app.ts`), its areas here, and someone
-  listed with it (`workbench/writing-code.md`, "The team and what
-  each role may do").
-
-Then say whom the site remembers, from step 1's answer, as
-`visitor_mode` in the same `APP_SETTINGS`:
-
-- **`"remember"`**, as it ships: everyone, with no banner. Keep it, and
-  leave `visitor_mode` out, when the owner has no other answer.
-- **`"ask"`**: for a business based in the EU. The banner asks everyone,
-  and only those who accept are remembered.
-- **`"ask-in-eu"`**: for a business based elsewhere that wants visitors
-  asked where the EU's and the UK's rules apply. The banner asks them,
-  and everyone else is remembered.
-- **`"never"`**: for an owner who wants nothing kept on anyone's
-  browser. No one is remembered or asked.
-
-The banner (`source/frontend/components/site/consent-banner.tsx`) shows
-only in `"ask"` and `"ask-in-eu"`, to a visitor who hasn't answered; put
-its words in the business's voice too.
-
-## 4. Write PRODUCT.md and DESIGN.md
-
-These are what every later change reads first (`CLAUDE.md`'s hooks), so
-write them for someone who has never met the business.
-
-- **`PRODUCT.md`**: who the business is and who it serves, what it sells,
-  its voice and the words it never uses, what the site is for today, and
-  any commitments (what it never claims, what it never names).
-- **`DESIGN.md`**: the visual system as `styles.css` now sets it: each
-  color token with its value and what it's for, the fonts and where each
-  is used, the radius, the logo and how it's used, and the rules that keep
-  it consistent (like which color is only for the main action).
-
-## 5. Make the names the business's own
-
-The codebase is called `foundation` in a few places. Rename it to a
-short, lowercase name for the business (like `acme-plumbing`):
-
-- `name` in `package.json`.
-- In `.railway/app.ts`, the app's own, which no update changes: the
-  project, the repository (this repository on GitHub, as `git remote
-  get-url origin` shows it), and the service's Railway address
-  (`<name>.up.railway.app`, which has to be free across all of Railway).
-  The service itself is `app`, which stays, in `.railway/railway.ts`,
-  the template's, which a copy never edits.
-- The region, `region` in `.railway/app.ts`: ask where most
-  of the business's customers are, and pick the nearest of Railway's four
-  (`us-west`, California; `us-east`, Virginia; `europe-west`, Amsterdam;
-  `asia-southeast`, Singapore). The app, its database and its buckets all
-  run there. Choose it now: once the first apply has made the buckets,
-  they can't move.
-- `README.md`: its title and first paragraph, and the "This template"
-  section, which goes. In its "Develop" section, take out "(`ada@example.com` as
-  the template ships)": the seed's team is the one step 3 listed.
-- `SECURITY.md`, which is how to report a problem in the template to
-  Superforge, goes: it isn't this codebase's.
-
-Leave `.superforge/` as it is: `superforge.json`'s `foundation` is
-the template this codebase came from, which updates read
-(`workbench/updating.md`) and every page's `<meta name="generator">`
-names, not this codebase's name, and `releases/` holds the notes of the
-template's releases. Keep `CHANGELOG.md`, `LICENSE` and
-`THIRD-PARTY-NOTICES.md` too: `LICENSE` is the terms this codebase is
-under, the Superforge Foundation License. And keep that generator tag
-(`source/utilities/template.ts`): it credits Superforge in the pages'
-source, never on the page, and the license asks every site built on
-Foundation to keep it.
-
-## 6. Check it, and ship it
-
-```bash
-pnpm format && pnpm check
-```
-
-Then `pnpm dev` and look at the home page at http://localhost:3000, the
-login page at http://localhost:3000/login, and the admin at
-http://localhost:3000/admin, logged in as the owner, on a computer's
-width and a phone's, in light and dark, against the checks in
-`workbench/designing.md`. Logging in works there with nothing set up: a
-dev server emails nothing, and shows the code on the page.
-`pnpm database:seed` fills the admin with a sample team. When it's
-right, delete this file and `CLAUDE.md`'s first section, commit on a
-branch, and follow `workbench/commit-and-deploy.md` to put it on Railway:
-its "Setting up Railway" section is the one-time setup, which needs the
-owner for a token, for the app's project and its key on Superforge Infra,
-which sends the login emails, and, if there's a domain, its DNS.
+- **Talk to the owner as `CLAUDE.md`'s "Who you're working with" says**,
+  once the first step has written it.
+- **Ask in plain words, a few questions at a time**, and wait for the
+  answers. Don't invent anything the business hasn't told you: when
+  something isn't decided, choose a sensible default, say what you chose,
+  and move on.
+- **Say what the owner has to do before they do it**: which site, which
+  button, and why. Do everything else yourself.
+- **Never ask for a secret key, a token or a password in the chat.** The
+  owner pastes each where it goes, in Railway's or GitHub's own pages.
+- **Use the waits.** Installs, checks and deploys take minutes: ask the
+  next step's questions then.
