@@ -203,7 +203,7 @@ the checks in `workbench/designing.md`. When it's right, delete this file,
 `START-HERE.md`, the empty `workbench/setup/` folder, and `CLAUDE.md`'s
 first section, "First: is this codebase someone's yet?". Commit on a
 branch, open the PR (`commit-and-deploy.md`, "Pull requests"), and merge
-it once `check` passes and the owner says go.
+it once `check` passes.
 
 ## The check
 

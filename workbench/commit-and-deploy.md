@@ -11,10 +11,12 @@ git switch main && git pull
 git switch -c home-page-copy
 ```
 
-Commit there as you go. **Push the branch and open the PR only when you're
-asked to ship** — until then the commits stay local. Commit path-limited,
-and check `git status --short` first so you don't sweep up someone else's
-uncommitted work:
+Commit there as you go, and **once the change you were asked for is done,
+ship it**: push the branch, open the PR and merge it once `check` passes
+("Pull requests", below). Being asked for a change is being asked to ship
+it, so don't wait to be told to open the PR, or to merge it. Commit
+path-limited, and check `git status --short` first so you don't sweep up
+someone else's uncommitted work:
 
 ```bash
 git commit -F - -- source/frontend/routes/index.tsx README.md
@@ -372,8 +374,17 @@ curl -sI https://<domain>/ | grep -i -E "x-cache|cache-control|age"
 
 ## Pull requests
 
-When you're asked to ship, push the branch and open the PR with
-`gh pr create`:
+**What you're asked to change, you ship, merge and all.** "Fix this",
+"add that", "yes, make the change" and "open a PR" each mean: push the
+branch, open the PR, and merge it once `check` passes, without asking
+again. Merging deploys it, and the human looks at what's live, not at the
+PR; if it's wrong, the fix is the next PR, which ships the same way. Leave
+a PR open only when the human says to ("just the PR", "don't merge yet",
+"let me look first"), or when it waits for their go (below). A question,
+an investigation or a plan ships nothing: say what you'd change, and do
+it once they say yes.
+
+Push the branch and open the PR with `gh pr create`:
 
 - **In the template itself** (its `README.md` still has its "This
   template" section), **read that section's "Releases" first**: a PR that
@@ -386,8 +397,34 @@ When you're asked to ship, push the branch and open the PR with
 - **Call out a changed URL**: a renamed page breaks links to it unless it
   redirects.
 - **Watch `check`** with `gh pr checks --watch`, and fix anything it finds.
-  Merge only when the human says to (`gh pr merge --merge`), then
-  `git switch main && git pull`.
+  **Merge once every check on the PR's latest commit has passed**
+  (`gh pr merge --merge`), then `git switch main && git pull`: never while
+  one is pending or has failed, and never on an empty list, which only
+  means they haven't started yet. Don't count on GitHub to refuse: a
+  repository without the `main` ruleset merges a failing PR.
+
+**A PR waits for the human's go only when merging it does what reverting
+it can't undo.** Open it and watch `check` as always, then say what it's
+waiting on and why, and merge once they say so:
+
+- **A migration**: anything new or changed in
+  `source/database/migrations/`. The deploy runs it on production's data
+  before the new code starts, and reverting the PR doesn't run it
+  backward: a dropped column stays dropped, and a rewritten value stays
+  rewritten.
+- **Anything else that changes production's data as it deploys**, like a
+  shorter retention, whose runner deletes what's past it within the hour,
+  or code that rewrites existing rows as it starts.
+- **Production's own setup**: a change in `.railway/` that adds or removes
+  a resource (a service, a database, a bucket, a volume, a domain) or a
+  variable, which costs money or takes a destructive apply to undo; or a
+  step only the human can take before the merge, like a secret to set, a
+  DNS record, or tracing turned on or off with a login. Merged before
+  it's done, the deploy fails or production breaks.
+
+Everything else merges once `check` passes: a fix, a feature, a page and
+its copy, a dependency, CI, the guides, or a change to one of Railway's
+settings.
 
 ## Variables and secrets
 

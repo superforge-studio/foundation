@@ -151,8 +151,8 @@ Open both pages for them. The key never goes in the chat or a file.
 
 On a branch, commit what this step changed (the names, the owner,
 `.railway/app.ts`, `project_id`), and follow `commit-and-deploy.md`,
-"Pull requests": push, open the PR, and watch `check`. Once it passes and
-the owner says go, merge it. Railway deploys the merge once its CI run has
+"Pull requests": push, open the PR, watch `check`, and merge it once it
+passes, without asking. Railway deploys the merge once its CI run has
 passed, which takes a few minutes: read its latest lines with `pnpm
 railway logs --lines 100` (without `--lines` it streams, and never
 returns).
