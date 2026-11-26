@@ -7,8 +7,10 @@ setup is done, and this folder goes with `START-HERE.md`.
 
 ## The interview
 
-Step 2 has the business's name, what it does and its main color: confirm
-them, then ask for each of these. The answers go into `PRODUCT.md` and
+Step 2 put the business's name, what it does and its main color in the
+code (`business-mark.tsx`, `APP_SETTINGS`'s `site_title` and
+`site_description`, and `--primary`): confirm them, then ask for each of
+these. The answers go into `PRODUCT.md` and
 `DESIGN.md`, so keep them in the owner's words.
 
 1. **Who its customers are**, and what they come to it for.
@@ -166,6 +168,17 @@ A domain the business owns goes on the app as `workbench/commit-and-deploy.md`,
 "Domains", says: Claude adds it, the owner adds two DNS records where the
 domain's DNS is, and Claude adds it to the Infra project with `add_domain`.
 It can wait for a later session.
+
+## Claude in the live app
+
+The app has an MCP server of its own, at `https://<its domain>/admin/mcp`,
+so Claude can read and change the live app's data through its API, as
+whoever lets it in, never more than their role allows. Offer it to the
+owner: they add the address once as a custom connector on claude.ai
+(Settings → Connectors), which reaches the Claude app, cloud sessions and
+scheduled tasks, and press Allow on the app's own page. Each person on the team does
+it for themselves. `source/backend/mcp/README.md` has the rest, and the
+API token an agent with no browser uses instead.
 
 ## What the app is for
 

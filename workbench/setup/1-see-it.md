@@ -4,6 +4,16 @@ The app running on the owner's computer, before any account but Claude.
 It needs no credentials: `pnpm dev` runs a Postgres of the checkout's own,
 and logging in shows its code on the page rather than emailing it.
 
+## Whose history this is
+
+Before changing anything: is this folder a git repository (`[ -d .git ] &&
+echo yes`)? A download, from superforge.studio's start page, isn't, and
+that's as it should be: `3-ship.md` starts the copy's own history, in a
+private repository of the business's. If it is one, and `git remote
+get-url origin` names `superforge-studio/foundation`, it's a clone of the
+template, whose history is the template's, not the business's: with
+nothing of the owner's in `git status`, delete it (`rm -rf .git`).
+
 ## Who you're working with
 
 Unless the owner's first message already said, ask one question: **have
@@ -30,8 +40,10 @@ node --version
 pnpm --version
 ```
 
-Node has to be 22 (`engines` in `package.json`), and pnpm the version
-`packageManager` names. Neither needs an admin password or Homebrew:
+Node has to be 22.18 or later in 22 (`engines` in `package.json`; `pnpm
+dev` runs TypeScript files with Node itself, which an earlier 22 can't),
+and pnpm the version `packageManager` names. Neither needs an admin
+password or Homebrew:
 
 - **No pnpm**: pnpm's own installer, which needs no Node, at the version
   this codebase uses:
@@ -44,8 +56,8 @@ Node has to be 22 (`engines` in `package.json`), and pnpm the version
   It adds pnpm to the shell's profile, so the next command finds it. If
   it doesn't, start that command with
   `export PNPM_HOME="$HOME/Library/pnpm" PATH="$HOME/Library/pnpm:$PATH";`.
-- **No Node, or not 22**: `pnpm env use --global 22`, which installs it
-  where pnpm keeps itself.
+- **No Node, or an older one**: `pnpm env use --global 22`, which
+  installs the latest 22 where pnpm keeps itself.
 
 ## Take out what only the template has
 
@@ -57,13 +69,6 @@ It deletes what `.superforge/template-only` lists as the template's own
 (its release notes, `SECURITY.md`, Dependabot's version updates), the
 template's sections of `README.md`, then the list and itself. So a copy
 with no `.superforge/template-only` is stripped already: skip this.
-
-**If this folder is a git clone of the template** (`git remote get-url
-origin` names `superforge-studio/foundation`), its history is the
-template's, not the business's. With nothing of the owner's in `git
-status`, delete it (`rm -rf .git`): `3-ship.md` starts the copy's own, in
-a private repository of the business's. A folder with no `.git` at all,
-like a download, is as it should be.
 
 ## Run it
 

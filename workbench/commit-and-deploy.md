@@ -169,65 +169,70 @@ code with it.
 
 ## Setting up Railway
 
-Once per copy of this codebase, before its first deploy. Agents don't
-create tokens, change repository settings (but for the `main` ruleset,
-from its file, step 5) or touch DNS: the steps marked
-**(the human)** are the owner's, and an agent says what's needed and waits.
+Once per copy of this codebase, before its first deploy, in this order,
+which a new copy's setup follows (`workbench/setup/3-ship.md`). Agents
+don't create tokens or keys, change repository settings (but for the
+`main` ruleset, from its file, and Dependabot's alerts and security fixes,
+step 4) or touch DNS: the steps marked **(the human)** are the owner's,
+and an agent says what's needed, opens the page, and waits.
 
 **What you'll need**, before step 1:
 
-- **Accounts**: GitHub, holding this repository, private
-  (`workbench/setup/3-ship.md`). GitHub has rulesets on a private repository only on a paid
-  plan (Pro, Team or Enterprise): on a free one step 5 says so and goes
-  on, and the copy runs without its ruleset. Railway, on the Hobby or Pro plan. And
-  Superforge, on superforge.studio, for the app's project on Superforge
-  Infra, which sends the login emails: production's login doesn't work
-  without it (step 6). Infra is Superforge's hosted service; its price and
-  terms are Superforge's, on superforge.studio.
+- **Accounts**: GitHub, holding this repository, private. GitHub has
+  rulesets on a private repository only on a paid plan (Pro, Team or
+  Enterprise): on a free one step 4 says so and goes on, and the copy runs
+  without its ruleset. Railway, on the Hobby or Pro plan. And Superforge,
+  on superforge.studio, for the app's project on Superforge Infra, which
+  sends the login emails: production's login doesn't work without it
+  (step 5). Infra is Superforge's hosted service; its price and terms are
+  Superforge's, on superforge.studio.
 - **CLIs**: the Railway CLI, at the version CI uses, which `pnpm railway`
   runs with nothing installed (`package.json`): wherever this file says
   `railway`, `pnpm railway` works the same. And GitHub's `gh`
   (<https://cli.github.com>), logged in with `gh auth login`.
-- **Two secrets**, both the owner's to make and set, never an agent's:
-  `RAILWAY_TOKEN`, a repository secret (step 4), and `INFRA_SECRET_KEY`, a
-  variable on the Railway service (step 6).
+- **Superforge's MCP**, `superforge` in `.mcp.json`, which the owner
+  approves and logs in to once, with `/mcp`.
+- **Two secrets**, both the owner's to make and set, never an agent's,
+  each pasted in the page it goes in: `INFRA_SECRET_KEY`, a variable on
+  the Railway service (step 5), and `RAILWAY_TOKEN`, a repository secret
+  (step 7).
 
 1. **(The human)** A Railway account on the Hobby or Pro plan, with
    Railway's GitHub app allowed to read this repository (railway.com →
    Account Settings → GitHub).
-2. Name things for the business in `.railway/app.ts`
-   (`workbench/setup/3-ship.md`): the project, the repository, the service's Railway address,
-   `<name>.up.railway.app`, which has to be free across all of Railway
-   (the first apply needs it, so a new copy always has one: "Domains",
-   below), and the region nearest its customers, which the app, the database and
-   the buckets share. The service is `app`, in
-   every copy.
+2. Name things for the business in `.railway/app.ts`: the project, the
+   repository, the service's Railway address, `<name>.up.railway.app`,
+   which has to be free across all of Railway (the first apply needs it,
+   so a new copy always has one: "Domains", below), and the region nearest
+   its customers, which the app, the database and the buckets share. The
+   service is `app`, in every copy.
 3. Make the project, from the repository's root, logged in with `railway
-   login`:
+   login` (which waits until the owner has approved it in the browser). An
+   agent's shell can't answer the apply's prompt, so `--yes` confirms it:
 
    ```bash
    railway init --name <project>
-   railway config apply
+   railway config apply --yes
    ```
 
    The first apply makes the service and its Postgres, with point-in-time
    recovery on (`writing-code.md`, "Restoring production"). Railway may make
    the database in its default region whatever `REGION` says, and leave
    Wait for CI off on the new service: run `railway config plan`, and if it
-   shows either, `railway config apply --confirm-destructive` once more
-   (moving an empty database loses nothing). Then check that recovery is
-   on:
+   shows either, `railway config apply --yes --confirm-destructive` once
+   more (moving an empty database loses nothing). Then check that recovery
+   is on:
 
    ```bash
    railway postgres pitr status --service Postgres
    ```
 
    It says `Status: enabled` and `Bucket wired: yes`. Within about ten
-   minutes, the database's logs (`railway logs --service Postgres`) show
-   its first full backup end with `completed successfully`; until then
-   there's nothing to restore from. If the status says `disabled`, run
-   `railway postgres pitr enable --service Postgres`, then make
-   `.railway/railway.ts` match what it changed, so the plan is clean.
+   minutes, the database's logs (`railway logs --service Postgres --lines
+   100`) show its first full backup end with `completed successfully`;
+   until then there's nothing to restore from. If the status says
+   `disabled`, run `railway postgres pitr enable --service Postgres`, then
+   make `.railway/railway.ts` match what it changed, so the plan is clean.
 
    Tracing (`tracing` in `.railway/railway.ts`) is a Railway preview,
    behind the account's Tracing beta. If the apply refuses it, or the
@@ -235,7 +240,46 @@ from its file, step 5) or touch DNS: the steps marked
    Railway, or set `tracing: { enabled: false }` in the file. The app runs
    the same without it: `source/tracing.ts` stays off without the `OTEL_*`
    variables, and its logs are all there is to read.
-4. **(The human)** A project token for the `production` environment (the
+4. The repository's settings: Dependabot's alerts and security fixes, then
+   the `main` ruleset (above), from its file. An agent runs them, with the
+   owner's `gh` login. On a GitHub plan with no rulesets for a private
+   repository, the last says so and passes: tell the owner in one line, and
+   go on.
+
+   ```bash
+   gh api -X PUT "repos/{owner}/{repo}/vulnerability-alerts"
+   gh api -X PUT "repos/{owner}/{repo}/automated-security-fixes"
+   pnpm github:ruleset
+   ```
+
+5. Login, through Superforge Infra (`source/backend/infra/README.md`):
+   1. The project: `project_id` in `.superforge/superforge.json` names
+      it, which Superforge's MCP reads (`get_project`). Without one, the
+      MCP lists the owner's projects or makes one (`create_project`), and
+      its ID goes there. Nothing in the app reads it, but it's how
+      Superforge's tools, and an agent, know which Infra project this
+      codebase is. Its name is what its login emails say they're from
+      (`Acme Plumbing <login@system.superforge.studio>`), which
+      `describe_project` sets.
+   2. **(The human)** On the project's Setup page on superforge.studio,
+      makes a secret key (`sf_secret_…`, shown once), sets it as
+      `INFRA_SECRET_KEY` on the `app` service, in Railway's dashboard (the
+      service's Variables), and deploys the change Railway stages.
+      `.railway/railway.ts` keeps it with `preserve()`. Until it's set, the
+      site works but login answers that it's down.
+   3. For development, a test key (`sf_test_…`) as `INFRA_TEST_KEY` in the
+      checkout's `.env` (`.env.example`), which the MCP's
+      `create_test_key` makes. Optional: without one, a dev server logs in
+      through a stand-in.
+6. Merge to `main`. Railway deploys it once its CI run has passed. Then
+   add the service's Railway address to the project with the MCP's
+   `add_domain`: Infra asks the app there to prove it's the project's,
+   which works once the app is live with its secret key, and says whether
+   it did. **Until one of the project's domains is proven, its key sends no
+   login emails**, and after, a login email links back only to a proven
+   domain. Open the address: the home page loads, `/login` emails a code,
+   and `get_project` shows the secret key used.
+7. **(The human)** A project token for the `production` environment (the
    project's Settings → Tokens on Railway), set as the repository secret
    that `railway-apply` uses:
 
@@ -246,54 +290,13 @@ from its file, step 5) or touch DNS: the steps marked
    It asks for the value, so it never lands in the shell's history. Where
    there's no terminal to type it in, the owner saves it on GitHub
    instead: the repository's Settings → Secrets and variables → Actions →
-   New repository secret, named `RAILWAY_TOKEN`. Until
-   it's set, `railway-apply` skips with a notice. **Once Railway is set up,
-   keep it set**: a push that skips deploys its code without applying its
-   configuration. **If the token is revoked or expires, `railway-apply`
-   fails on every push, so Railway deploys nothing** (Wait for CI): set a
-   new one, then re-run the failed job (`gh run rerun <id> --failed`) and
-   the push deploys.
-5. The `main` ruleset (above), from its file:
-
-   ```bash
-   pnpm github:ruleset
-   ```
-
-   An agent runs it, with the owner's `gh` login. On a GitHub plan with
-   no rulesets for a private repository it says so and passes: tell the
-   owner in one line, and go on.
-6. **(The human)** Login, through Superforge Infra
-   (`source/backend/infra/README.md`). On superforge.studio's dashboard,
-   the Infra tab:
-   1. Make a project for this app, named as its login emails should say
-      it (`Acme Plumbing <login@system.superforge.studio>`).
-   2. Add its domains: the service's Railway address
-      (`<name>.up.railway.app`) and its custom domain, if it has one. A
-      login email links back only to a domain on this list, and holds
-      the code alone otherwise.
-   3. Make a secret key (`sf_secret_…`), and set it as `INFRA_SECRET_KEY`
-      on the `app` service, in Railway's dashboard (the service's
-      Variables). `.railway/railway.ts` keeps it with `preserve()`. Until
-      it's set, the site works but login answers that it's down.
-   4. For development, a test key (`sf_test_…`) as `INFRA_TEST_KEY` in the
-      checkout's `.env` (`.env.example`). Optional: without one, a dev
-      server logs in through a stand-in.
-
-   The key is shown once. To check it reached Infra:
-
-   ```bash
-   curl -H "Authorization: Bearer <the key>" https://infra.superforge.studio/v1/project
-   ```
-
-   It answers the project and `"mode": "live"`. Then write the project's
-   public ID (`sf_project_…`) as `project_id` in
-   `.superforge/superforge.json`: nothing in the app reads it, but it's
-   how Superforge's tools, and an agent, know which Infra project this
-   codebase is.
-7. Merge to `main`. The push's CI applies the configuration, and Railway
-   deploys it. Open the service's address: the home page loads, (on the
-   placeholder page) its line shows the API answering and the database
-   connected, and `/login` emails a code.
+   New repository secret, named `RAILWAY_TOKEN`. Until it's set,
+   `railway-apply` skips with a notice and pushes still deploy, so it can
+   come last. **Once it's set, keep it set**: a push that skips deploys its
+   code without applying its configuration. **If the token is revoked or
+   expires, `railway-apply` fails on every push, so Railway deploys
+   nothing** (Wait for CI): set a new one, then re-run the failed job (`gh
+   run rerun <id> --failed`) and the push deploys.
 
 Nothing for cloud agents: an agent needs no credential to develop, test or
 run `pnpm check`, since `pnpm dev` and the tests run against the checkout's
@@ -334,10 +337,10 @@ Cloudflare's proxy every visitor would share Cloudflare's addresses, one
 country and one rate limit. Railway issues the
 certificate within minutes; `railway domain status <id>` shows it.
 
-**(The human)** adds the custom domain to the app's project on
-superforge.studio's dashboard too (the Infra tab), so login emails link
-back to it ("Setting up Railway", step 6). Until it's there, they hold the
-code alone, and logging in still works.
+Then add the custom domain to the app's Infra project too, with
+Superforge's MCP, `add_domain`, once it answers, so Infra can prove it's
+the app's and login emails link back to it ("Setting up Railway", step
+6).
 
 ## Caching
 
@@ -395,7 +398,7 @@ database's), the `Storage` bucket's S3 credentials as `STORAGE_*`
 databases places a visitor by their IP address,
 `source/backend/visits/README.md`), and any secret as `preserve()`, whose
 value the human sets in Railway's dashboard, like `INFRA_SECRET_KEY`,
-login's key ("Setting up Railway", step 6). Railway provides its own
+login's key ("Setting up Railway", step 5). Railway provides its own
 beside them, which the file doesn't name: the `RAILWAY_*` ones, and, while
 the service is traced (`tracing` in the file), the `OTEL_*` ones that say
 where its collector is, which turn the server's tracing on

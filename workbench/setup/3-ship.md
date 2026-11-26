@@ -27,13 +27,14 @@ owner's on superforge.studio. Superforge's tools for it are an MCP server,
 
 Then the project:
 
-1. **Which one.** The owner's first message gave their project's ID
-   (`sf_project_…`): read it with `get_project`. With no ID, ask which of
-   `list_projects` is this app's, or make one with `create_project`.
+1. **Which one.** superforge.studio's start page wrote the project's ID
+   (`sf_project_…`) as `project_id` in `.superforge/superforge.json`, from
+   the owner's first message: read it with `get_project`. With no ID, ask
+   which of `list_projects` is this app's, or make one with
+   `create_project`, and write its ID there.
 2. **Its name**, which the login emails say they're from: the business's
    name from step 2. If it isn't, `describe_project` sets it.
-3. **Write its ID** as `project_id` in `.superforge/superforge.json`.
-4. **Describe it** with `describe_project`: a few plain paragraphs on
+3. **Describe it** with `describe_project`: a few plain paragraphs on
    what the business is and does, who it serves, and what this app is for,
    from what the owner has said, with no secrets and nobody's personal
    details. Step 4 describes it again, with everything they've said, and
@@ -68,9 +69,11 @@ Railway deploys from.
 
   If `$HOME/.local/bin` isn't on the `PATH`, add
   `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc`.
-- **Log in.** `gh auth login --web --git-protocol https`, which shows an
-  eight-character code: the owner opens <https://github.com/login/device>,
-  types it, and approves. Then `gh auth setup-git`.
+- **Log in.** `gh auth login --web --git-protocol https`, which prints
+  an eight-character code, then waits until the owner has used it: run it
+  in the background, read the code from its output, and give it to the
+  owner, who opens <https://github.com/login/device>, types it, and
+  approves. Once it has finished, `gh auth setup-git`.
 - **Name it.** A short, lowercase name for the business, like
   `acme-plumbing`: `name` in `package.json`, and `README.md`'s title and
   first paragraph.
@@ -104,8 +107,9 @@ Railway deploys from.
    can't move once they're made.
 2. **The owner's name, and the email they'll log in with.** They go first
    in `ACCESS`'s `team` in `source/backend/auth/app.ts`, as `role:
-   "owner"`, in place of Ada Lovelace. Take Grace Hopper out: the rest of
-   the team comes in step 4.
+   "owner"`, in place of Ada Lovelace, with a slug of their own in place
+   of `ada`: their first name, lowercase, which never changes. Take Grace
+   Hopper out: the rest of the team comes in step 4.
 
 Then `.railway/app.ts`: the project, named as the repository; the
 repository, as `gh repo view --json nameWithOwner -q .nameWithOwner`
@@ -128,16 +132,19 @@ uses, with nothing to install:
 pnpm railway login
 ```
 
-It opens the browser for the owner to approve. Then "Setting up Railway",
-step 3: `pnpm railway init --name <project>`, `pnpm railway config
-apply`, and the checks on recovery and tracing it gives.
+It opens the browser for the owner to approve, and waits until they have:
+run it in the background, and go on once it has finished. Then "Setting
+up Railway", step 3: `pnpm railway init --name <project>`, `pnpm railway
+config apply --yes` (an agent's shell can't answer its prompt, so `--yes`
+confirms it), and the checks on recovery and tracing it gives.
 
 ## The Infra key
 
 Production's login calls Infra with the project's secret key, which only
 the app on Railway has. The owner, on superforge.studio, the project's
 Setup page, makes the secret key (`sf_secret_…`, shown once), and pastes
-it on Railway, in the `app` service's Variables, as `INFRA_SECRET_KEY`.
+it on Railway, in the `app` service's Variables, as `INFRA_SECRET_KEY`,
+then presses Deploy on the change Railway stages, so the service has it.
 Open both pages for them. The key never goes in the chat or a file.
 
 ## The first deploy
@@ -146,7 +153,9 @@ On a branch, commit what this step changed (the names, the owner,
 `.railway/app.ts`, `project_id`), and follow `commit-and-deploy.md`,
 "Pull requests": push, open the PR, and watch `check`. Once it passes and
 the owner says go, merge it. Railway deploys the merge once its CI run has
-passed, which takes a few minutes: watch it with `pnpm railway logs`.
+passed, which takes a few minutes: read its latest lines with `pnpm
+railway logs --lines 100` (without `--lines` it streams, and never
+returns).
 
 ## The proof
 
@@ -172,8 +181,9 @@ it deploys, so Railway follows the code from here on.
    `RAILWAY_TOKEN`: open
    `https://github.com/<owner>/<repository>/settings/secrets/actions/new`
    for them.
-3. **You** check that the next push's `railway-apply` runs, not skips
-   (`gh run view`).
+3. **You** check, on the next push to `main` (step 4's), that the
+   `railway-apply` job applied rather than skipped: its log
+   (`gh run view <id> --log`) no longer says "Skipped".
 
 ## The check
 
