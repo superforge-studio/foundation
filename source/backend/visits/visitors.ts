@@ -3,7 +3,8 @@ import { isIP, isIPv4, isIPv6 } from "node:net"
 import type { Storage } from "@/database/storage"
 import type { VisitorConsent } from "@/utilities/schemas/visits"
 import type { VisitorMode } from "@/utilities/visitors"
-import { GDPR_COUNTRIES } from "./location"
+import { describeBrowser } from "./browsers"
+import { GDPR_COUNTRIES, type Locate } from "./location"
 
 // Who a page's visitor is: whether the site remembers them, by its mode,
 // their answer and their country, and the day's hash for one it doesn't.
@@ -34,6 +35,52 @@ export function whomToRemember(
         return { remembered: consent === "given", ask: consent === "unasked" }
     } else {
         return { remembered: consent !== "declined", ask: false }
+    }
+}
+
+/**
+ * What the site decides of a visitor before it keeps anything of theirs,
+ * all of what `recordVisit` decides (record.ts): what they're on and
+ * where they are, each read once, whether it remembers them and under
+ * which ID, and whether their page asks them first. A bot is never
+ * remembered or asked, and isn't placed. Anyone else is as
+ * `whomToRemember` says, by the site's `mode`, their answer and their
+ * country, and only under an ID their cookie holds, or would: none in
+ * `never` mode. A route that sets the `visitor` cookie before it keeps
+ * their events decides with this first, so the two agree.
+ */
+export function decideVisitor(
+    locate: Locate,
+    {
+        mode,
+        visitor
+    }: {
+        mode: VisitorMode
+        /** As `PageVisit` has them (record.ts) */
+        visitor: {
+            id: string | null
+            consent: Consent
+            ip: string
+            user_agent: string
+        }
+    }
+) {
+    const browser = describeBrowser(visitor.user_agent)
+    if (browser === null) {
+        return { browser, place: null, remembered_id: null, ask: false }
+    }
+    const place = locate(visitor.ip)
+    const decided = whomToRemember(
+        mode,
+        visitor.consent,
+        place?.country ?? null
+    )
+    return {
+        browser,
+        place,
+        // Only an ID the cookie holds, or would, can be remembered
+        remembered_id: decided.remembered ? visitor.id : null,
+        ask: decided.ask
     }
 }
 

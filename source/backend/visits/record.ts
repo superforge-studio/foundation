@@ -13,14 +13,13 @@ import {
 } from "@/utilities/schemas/events"
 import type { PageEvent } from "@/utilities/schemas/visits"
 import type { VisitorMode } from "@/utilities/visitors"
-import { describeBrowser } from "./browsers"
 import type { Locate } from "./location"
 import { summarizeVisits } from "./summarize"
 import {
     addressToKeep,
     anonymousVisitor,
     type Consent,
-    whomToRemember
+    decideVisitor
 } from "./visitors"
 
 // Keeping what happened on the site, in the app's own database
@@ -81,7 +80,8 @@ export type PageVisit = {
  * Keeps a visitor's page events, each in its visit, and answers whether
  * the site remembers the visitor, so its server sets, keeps or clears
  * their `visitor` cookie, and whether their page asks them first, by the
- * site's mode, their answer and their country.
+ * site's mode, their answer and their country (`decideVisitor`,
+ * visitors.ts).
  *
  * A remembered visitor's events are kept under their ID, with whoever is
  * logged in, and their visit with their IP address. One who isn't is kept
@@ -98,19 +98,14 @@ export async function recordVisit(
     }: { database: Database; storage: Storage; locate: Locate },
     { mode, visitor, sent_at, events }: PageVisit
 ) {
-    const browser = describeBrowser(visitor.user_agent)
+    const { browser, place, remembered_id, ask } = decideVisitor(locate, {
+        mode,
+        visitor
+    })
     if (browser === null) {
         return { kept: 0, remembered: false, ask: false }
     }
-    const place = locate(visitor.ip)
-    const decided = whomToRemember(
-        mode,
-        visitor.consent,
-        place?.country ?? null
-    )
-    // Only an ID the cookie holds, or would, can be remembered
-    const remembered_id = decided.remembered ? visitor.id : null
-    const answer = { remembered: remembered_id !== null, ask: decided.ask }
+    const answer = { remembered: remembered_id !== null, ask }
 
     // Each event's time by the server's clock: the browser's, less how far
     // ahead it runs, and never in the future

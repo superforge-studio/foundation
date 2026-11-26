@@ -239,9 +239,13 @@ export const analytics_visits = pgTable(
         landing_path: text(),
         exit_path: text(),
         // Where it came from, as its landing said: the other site's
-        // hostname, the campaign in the address, and whose ad was clicked
-        // (`google`, `meta`, `microsoft`, `tiktok` or `linkedin`, by the
-        // click ID in the address)
+        // hostname, the campaign in the address, and the network whose
+        // click ID the address carried (`google`, `meta`, `microsoft`,
+        // `tiktok` or `linkedin`). Each but `meta` says whose ad was
+        // clicked, since only an ad's click carries their IDs. Meta's
+        // (`fbclid`) rides on every tap out of Facebook and Instagram, a
+        // post's as much as an ad's, so `meta` says only that the visit
+        // came from one of them
         referrer: text(),
         utm_source: text(),
         utm_medium: text(),

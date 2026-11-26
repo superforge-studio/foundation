@@ -3,7 +3,13 @@ import { Storage } from "@/database/storage"
 import { visitor_salt } from "@/database/storage/files"
 import { memoryStore } from "@/database/tests/support/storage"
 import { DAY } from "@/utilities/primitives/durations"
-import { anonymousVisitor, networkOf, whomToRemember } from "../visitors"
+import { describeBrowser } from "../browsers"
+import {
+    anonymousVisitor,
+    decideVisitor,
+    networkOf,
+    whomToRemember
+} from "../visitors"
 
 // Whom the site remembers, and the day's hash for a visitor it doesn't,
 // with its salt in the bucket's one file
@@ -79,6 +85,60 @@ test("whom the site remembers, by its mode, the visitor's answer and their count
         remembered: false,
         ask: false
     })
+})
+
+test("what the site decides of a visitor: never a bot, and anyone else as whomToRemember says, only under an ID", () => {
+    const placed: string[] = []
+    const locate = (ip: string) => {
+        placed.push(ip)
+        return { country: "DE", region: null, city: null }
+    }
+    const id = "0b9e8a36-5a8c-4c39-9d1c-2d6f6a1b7e10"
+    const ip = "203.0.113.9"
+
+    // A bot is never remembered or asked, and isn't placed
+    expect(
+        decideVisitor(locate, {
+            mode: "remember",
+            visitor: {
+                id,
+                consent: "given",
+                ip,
+                user_agent:
+                    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+            }
+        })
+    ).toEqual({ browser: null, place: null, remembered_id: null, ask: false })
+    expect(placed).toEqual([])
+
+    // Anyone else is placed once, and remembered under their ID as
+    // whomToRemember says by the place's country
+    expect(
+        decideVisitor(locate, {
+            mode: "remember",
+            visitor: { id, consent: "unasked", ip, user_agent: IPHONE }
+        })
+    ).toEqual({
+        browser: describeBrowser(IPHONE),
+        place: { country: "DE", region: null, city: null },
+        remembered_id: id,
+        ask: false
+    })
+    expect(placed).toEqual([ip])
+    expect(
+        decideVisitor(locate, {
+            mode: "ask-in-eu",
+            visitor: { id, consent: "unasked", ip, user_agent: IPHONE }
+        })
+    ).toMatchObject({ remembered_id: null, ask: true })
+
+    // Only under an ID their cookie holds, or would
+    expect(
+        decideVisitor(locate, {
+            mode: "remember",
+            visitor: { id: null, consent: "given", ip, user_agent: IPHONE }
+        })
+    ).toMatchObject({ remembered_id: null, ask: false })
 })
 
 test("a visitor who isn't remembered is the same hash all day, by their network and their browser", async () => {
