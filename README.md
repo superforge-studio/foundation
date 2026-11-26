@@ -92,8 +92,9 @@ on [its repository](https://github.com/superforge-studio/foundation/tags),
 and `.superforge/superforge.json` says which one this codebase is on. To
 take the latest, ask Claude to update from the template. It follows
 [workbench/updating.md](workbench/updating.md): it says what's coming and
-anything it needs from you, then opens a PR with the update for you to
-merge.
+anything it needs from you, then opens a PR with the update and merges it
+once its checks pass. One that changes the database, or needs something
+from you first, waits for your go.
 
 ## License
 

@@ -300,7 +300,9 @@ at whatever the notes say changed. Push the branch and open the PR
 to v0.2.0`, and say in its body, for each release: what it brings, in a
 line or two, how each conflict was resolved, and every flag, with the
 secret to set before the merge, the Railway change, and the owner's steps.
-Merging it deploys it, as with any PR.
+Merging it deploys it, as with any PR, and it merges as any PR does: once
+`check` passes, unless it has a migration, a secret to set first or
+another step of the owner's, which wait for their go.
 
 ## When the version can't be trusted
 
